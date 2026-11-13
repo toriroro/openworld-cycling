@@ -6,6 +6,7 @@ import { platform } from "./platform/index.ts";
 import { DEFAULT_SETTINGS, parseSave, SAVE_KEY, SAVE_VERSION, type SaveData, type SaveSettings, type Stamp } from "./shared/save.ts";
 import { GENERATOR_VERSION, ORIGIN } from "./shared/world/constants.ts";
 import { RiddenLog } from "./sim/ridden.ts";
+import { watchChoice } from "./sim/watch.ts";
 import { DT } from "./sim/bicycle.ts";
 import { AutoPower, ManualPower } from "./sim/power.ts";
 import { Ride } from "./sim/ride.ts";
@@ -60,6 +61,14 @@ export class Game {
   private saveT = 0;
   /** 最後に保存した時刻（確認用） */
   lastSaved = "";
+  /** 眺める乗り方: 次に視点を切り替える時刻 */
+  private watchCamAt = 0;
+  /** 眺める乗り方で自動で切り替えた視点の記録（確認用） */
+  readonly watchCameraLog: { t: number; camera: CameraMode }[] = [];
+  /** 最後に描いた時刻（フレームレートの上限用） */
+  private lastDraw = 0;
+  private routeSel: HTMLSelectElement;
+  private fpsSel: HTMLSelectElement;
 
   constructor(
     private view: WorldView,
@@ -71,6 +80,31 @@ export class Game {
     const settings: Settings = { power: this.manual.setting, quality: view.quality, hour: view.env.hour, camera: this.camera };
     this.hud = new Hud(this.input, settings);
     this.hud.onSettings = (s) => this.applySettings(s, true);
+    // 眺める乗り方の設定（モック仕様 7.2）
+    this.routeSel = this.hud.addSelect(
+      "眺める進路",
+      [
+        ["unridden", "未走行の道を優先"],
+        ["follow", "道なり"],
+      ],
+      this.settings.watchRoute,
+      (v) => {
+        this.settings.watchRoute = v;
+        void this.save();
+      },
+    );
+    this.fpsSel = this.hud.addSelect(
+      "眺める時のフレームレート",
+      [
+        ["30", "30 fps"],
+        ["free", "上限なし"],
+      ],
+      this.settings.fps30 ? "30" : "free",
+      (v) => {
+        this.settings.fps30 = v === "30";
+        void this.save();
+      },
+    );
     view.scene.add(this.player.group);
     // 軽量画質では自転車とライダーも簡略版
     this.player.setLod(view.quality === "light" ? "low" : "high");
@@ -140,7 +174,9 @@ export class Game {
     this.player.setOutfit(d.outfit);
     this.ridden = RiddenLog.fromJSON(d.ridden);
     this.stamps = d.stamps;
-    this.watching = d.watching;
+    this.setWatching(d.watching);
+    this.routeSel.value = d.settings.watchRoute;
+    this.fpsSel.value = d.settings.fps30 ? "30" : "free";
     if (d.pos) this.anchor = { x: d.pos.x, z: d.pos.z };
     this.resume = { pos: d.pos, odometer: d.odometer, climb: d.climb, time: d.time, generator: d.generator };
     this.ride = null;
@@ -220,6 +256,43 @@ export class Game {
     this.ride = ride;
   }
 
+  /** 眺める乗り方の開始・終了: 自動の入力元、視点の自動切替、画面の常時点灯 */
+  setWatching(on: boolean) {
+    this.watching = on;
+    if (this.ride) this.ride.power = on ? this.auto : this.manual;
+    platform.keepAwake(on);
+    this.watchCamAt = performance.now() + this.watchInterval();
+    // 終わったら、選んでいた視点に戻す
+    if (!on && (CAMERA_MODES as readonly string[]).includes(this.settings.camera)) {
+      this.camera = this.settings.camera as CameraMode;
+      this.smoothEye = null;
+    }
+  }
+
+  /** 視点を切り替える間隔 20〜40 秒 */
+  private watchInterval() {
+    return 20000 + Math.random() * 20000;
+  }
+
+  /** 眺める乗り方の毎フレームの処理: 進路を選び、時々視点を変える */
+  private updateWatching(t: number) {
+    const ride = this.ride;
+    if (!this.watching || !ride) return;
+    const u = ride.upcoming;
+    if (u && u.selected === null && !ride.plan) {
+      const i = watchChoice(u, this.settings.watchRoute, this.ridden, this.roads.net);
+      if (i !== u.defaultIndex) ride.choose(i);
+    }
+    if (t >= this.watchCamAt && !this.orbit.active) {
+      const others = CAMERA_MODES.filter((m) => m !== this.camera);
+      this.camera = others[Math.floor(Math.random() * others.length)];
+      this.smoothEye = null;
+      this.watchCameraLog.push({ t, camera: this.camera });
+      if (this.watchCameraLog.length > 200) this.watchCameraLog.shift();
+      this.watchCamAt = t + this.watchInterval();
+    }
+  }
+
   teleport(x: number, z: number) {
     // 記録は引き継ぐ
     const r = this.ride;
@@ -242,8 +315,7 @@ export class Game {
           this.hud.syncSettings({ camera: this.camera });
           break;
         case "watch":
-          this.watching = !this.watching;
-          if (ride) ride.power = this.watching ? this.auto : this.manual;
+          this.setWatching(!this.watching);
           break;
         case "choose-left":
           ride?.chooseDirection(-1);
@@ -293,6 +365,9 @@ export class Game {
 
   private tick(t: number) {
     requestAnimationFrame((tt) => this.tick(tt));
+    // 眺める乗り方ではフレームレートを 30 に抑えられる（モック仕様 7.2）。走行は経った時間だけ進めるので速さは変わらない
+    if (this.watching && this.settings.fps30 && t - this.lastDraw < 1000 / 30 - 2) return;
+    this.lastDraw = t;
     const dtRaw = (t - this.lastT) / 1000;
     this.frameDt.push(t - this.lastT);
     if (this.frameDt.length > 20000) this.frameDt.splice(0, 10000);
@@ -300,6 +375,7 @@ export class Game {
     const dt = Math.min(0.1, Math.max(0, dtRaw));
     this.handleActions();
     if (!this.ride) this.place();
+    this.updateWatching(t);
     const ride = this.ride;
     this.manual.pedal = this.input.pedal;
     this.manual.brake = this.input.brake ? 1 : 0;

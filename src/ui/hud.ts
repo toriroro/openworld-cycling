@@ -58,6 +58,7 @@ export class Hud {
   private roadEl: HTMLElement;
   private settingsEls: { power: HTMLInputElement; powerOut: HTMLElement; quality: HTMLSelectElement; hour: HTMLInputElement; hourOut: HTMLElement; camera: HTMLSelectElement };
   menuOpen = false;
+  private keysEl!: HTMLElement;
   onSettings: (s: Partial<Settings>) => void = () => {};
 
   constructor(private input: Input, settings: Settings) {
@@ -153,7 +154,7 @@ export class Hud {
       hourOut.textContent = fmtHour(Number(hour.value));
       this.onSettings({ hour: Number(hour.value) });
     });
-    h("div", "menu-keys", "キー: Space 漕ぐ / Shift ブレーキ / ← ↑ → 分岐 / ↓ Uターン / A D 左右 / Q R 後方を見る（左・右） / C 視点 / V 眺める / P 一時停止", this.menu);
+    this.keysEl = h("div", "menu-keys", "キー: Space 漕ぐ / Shift ブレーキ / ← ↑ → 分岐 / ↓ Uターン / A D 左右 / Q R 後方を見る（左・右） / C 視点 / V 眺める / P 一時停止", this.menu);
     this.settingsEls = { power, powerOut, quality, hour, hourOut, camera };
 
     // 一時停止の表示
@@ -179,6 +180,30 @@ export class Hud {
     };
     showTouch(coarse);
     addEventListener("touchstart", () => showTouch(true), { once: true, passive: true });
+  }
+
+  /** メニューに選択の行を足す（キーの説明の前） */
+  addSelect<T extends string>(label: string, options: [T, string][], value: T, onChange: (v: T) => void): HTMLSelectElement {
+    const r = h("label", "menu-row");
+    h("span", "", label, r);
+    const sel = h("select", "", "", r);
+    for (const [v, l] of options) {
+      const o = h("option", "", l, sel);
+      o.value = v;
+    }
+    sel.value = value;
+    sel.addEventListener("change", () => onChange(sel.value as T));
+    this.menu.insertBefore(r, this.keysEl);
+    return sel;
+  }
+
+  /** メニューにボタンを足す */
+  addButton(label: string, onClick: () => void): HTMLButtonElement {
+    const btns = this.menu.querySelector(".menu-buttons")!;
+    const b = h("button", "btn", label, btns as HTMLElement);
+    b.type = "button";
+    b.addEventListener("click", onClick);
+    return b;
   }
 
   toggleMenu(open = !this.menuOpen) {

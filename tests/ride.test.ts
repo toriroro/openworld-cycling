@@ -3,6 +3,7 @@ import { ORIGIN, WORLD_SEED } from "../src/shared/world/constants.ts";
 import { World } from "../src/shared/world/world.ts";
 import { AutoPower, ManualPower } from "../src/sim/power.ts";
 import { LATERAL_ACCEL, Ride } from "../src/sim/ride.ts";
+import { type WatchRoute, watchChoice } from "../src/sim/watch.ts";
 import { RoadNetwork, sampleRoad } from "../src/sim/road-network.ts";
 
 function network(r = 14000) {
@@ -103,6 +104,28 @@ describe("道路網の上を走る", () => {
     expect(maxJump).toBeLessThan(0.05);
     // 向きの変わり方は 1m あたり 0.35 rad 以内（半径 3m 弱より急に曲がらない）
     expect(maxBend).toBeLessThan(0.35);
+  });
+
+  it("眺める乗り方: 未走行の道を優先すると、道なりより多くの道を走る", () => {
+    const covered = (route: WatchRoute) => {
+      const ride = new Ride(net, { road: startRoad.id, s: 5, dir: 1 }, new AutoPower(220));
+      for (let i = 0; i < 120 * 60 * 60 * 3 && ride.odometer < 40000; i++) {
+        const u = ride.upcoming;
+        if (u && u.selected === null) {
+          const k = watchChoice(u, route, ride.ridden, net);
+          if (k !== u.defaultIndex) ride.choose(k);
+        }
+        ride.step();
+      }
+      let bins = 0;
+      for (const r of ride.ridden.roads()) bins += ride.ridden.runs(r).reduce((a, [s0, s1]) => a + (s1 - s0) / 10, 0);
+      return bins * 10;
+    };
+    const follow = covered("follow");
+    const unridden = covered("unridden");
+    expect(unridden).toBeGreaterThanOrEqual(follow);
+    // 40km のうち 8 割以上は初めての道
+    expect(unridden).toBeGreaterThan(40000 * 0.8);
   });
 
   it("手動: 漕がなければ平地で止まり、停止中は U ターンできる", () => {

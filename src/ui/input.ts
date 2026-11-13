@@ -92,6 +92,7 @@ export class Input {
       this.pedalKey = this.brakeKey = this.pedalTouch = this.brakeTouch = false;
     });
     addEventListener("pointerdown", () => (this.lastActivity = performance.now()));
+    addEventListener("pointermove", () => (this.lastActivity = performance.now()), { passive: true });
   }
 
   get pedal() {

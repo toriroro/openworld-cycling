@@ -48,5 +48,33 @@ if (want("resume")) {
   await ctx.close();
 }
 
+// 眺める乗り方（7.2）: 視点の自動切替 20〜40 秒、HUD を 5 秒で消す、30 fps、常時点灯
+if (want("watch")) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto(`${base}/?fresh=1`);
+  await ready(page);
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyV" })));
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyV" })));
+  await page.waitForTimeout(7000);
+  const early = await page.evaluate(() => window.__dev.watchInfo());
+  await page.screenshot({ path: `${out}/watch-hud-hidden.png` });
+  await page.evaluate(() => window.__dev.frames(true));
+  await page.waitForTimeout(100000);
+  const info = await page.evaluate(() => window.__dev.watchInfo());
+  const frames = await page.evaluate(() => window.__dev.frames(true));
+  const sorted = frames.slice(1).sort((a, b) => a - b);
+  const med = sorted[Math.floor(sorted.length / 2)];
+  const p95 = sorted[Math.floor(sorted.length * 0.95)];
+  const gaps = info.cameraLog.slice(1).map((c, i) => (c.t - info.cameraLog[i].t) / 1000);
+  const odo = await page.evaluate(() => window.__dev.state().odometer);
+  await page.screenshot({ path: `${out}/watch-after.png` });
+  results.watch = { watching: info.watching, hudHiddenAfter7s: early.hudFaded, switches: info.cameraLog.length, gapsSec: gaps, frameMedianMs: med, frameP95Ms: p95, awake: info.awake, odometer: odo, errors };
+  console.log("眺める", JSON.stringify(results.watch));
+  await ctx.close();
+}
+
 writeFileSync(`${out}/results-${Object.keys(results).filter((k) => k !== "date").join("-") || "none"}.json`, JSON.stringify(results, null, 2));
 await browser.close();

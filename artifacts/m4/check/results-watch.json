@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-13T10:49:00.339Z",
+  "watch": {
+    "watching": true,
+    "hudHiddenAfter7s": true,
+    "switches": 3,
+    "gapsSec": [
+      33.7479,
+      29.345899999999993
+    ],
+    "frameMedianMs": 33.30000000000291,
+    "frameP95Ms": 33.49999999999818,
+    "awake": true,
+    "odometer": 961.8191420761676,
+    "errors": []
+  }
+}
