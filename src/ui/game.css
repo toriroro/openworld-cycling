@@ -47,3 +47,282 @@ html, body {
   overflow: hidden;
   pointer-events: none;
 }
+
+/* ---- 走行中の画面（モック仕様 8章） ---- */
+:root {
+  --safe-t: env(safe-area-inset-top);
+  --safe-r: env(safe-area-inset-right);
+  --safe-b: env(safe-area-inset-bottom);
+  --safe-l: env(safe-area-inset-left);
+  --panel: rgba(14, 18, 24, 0.72);
+  --ink: #f4f4f2;
+  --accent: #ffd34d;
+}
+.hud-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  color: var(--ink);
+  font-size: 14px;
+  transition: opacity 0.6s;
+}
+.hud-root.faded {
+  opacity: 0;
+}
+.hud-root > * {
+  pointer-events: auto;
+}
+.hidden {
+  display: none !important;
+}
+.btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn.active,
+.btn.down {
+  background: rgba(255, 211, 77, 0.85);
+  color: #111;
+}
+.menu-btn {
+  position: fixed;
+  top: calc(var(--safe-t) + 10px);
+  left: calc(var(--safe-l) + 10px);
+}
+.menu {
+  position: fixed;
+  top: calc(var(--safe-t) + 62px);
+  left: calc(var(--safe-l) + 10px);
+  width: min(340px, calc(100vw - 20px - var(--safe-l) - var(--safe-r)));
+  max-height: calc(100vh - 80px - var(--safe-t) - var(--safe-b));
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(14, 18, 24, 0.88);
+  z-index: 5;
+}
+.menu-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.menu-row {
+  display: grid;
+  grid-template-columns: 4.5em 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.menu-row input[type="range"] {
+  width: 100%;
+  min-height: 32px;
+}
+.menu-row select {
+  min-height: 40px;
+  font-size: 15px;
+  grid-column: span 2;
+}
+.menu-value {
+  font-variant-numeric: tabular-nums;
+  min-width: 4em;
+  text-align: right;
+}
+.menu-keys {
+  margin-top: 8px;
+  color: #b8bec6;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ride-info {
+  position: fixed;
+  left: calc(var(--safe-l) + 10px);
+  bottom: calc(var(--safe-b) + 10px);
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 6px 14px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  pointer-events: none;
+}
+.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+.stat-label {
+  font-size: 11px;
+  color: #b8bec6;
+}
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.stat-speed .stat-value {
+  font-size: 30px;
+}
+.stat-unit {
+  font-size: 11px;
+  color: #b8bec6;
+}
+.road-name {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--safe-b) + 10px);
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(14, 18, 24, 0.5);
+  font-size: 12px;
+  white-space: nowrap;
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.branch {
+  position: fixed;
+  top: calc(var(--safe-t) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  max-width: calc(100vw - 260px);
+}
+.branch-dist {
+  align-self: center;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #dfe3e8;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+}
+.choice {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  justify-items: center;
+  padding: 6px 10px;
+  min-width: 84px;
+}
+.choice.selected {
+  background: rgba(255, 211, 77, 0.9);
+  color: #111;
+}
+.choice .arrow {
+  display: inline-block;
+  font-size: 22px;
+  line-height: 1;
+}
+.choice .dest {
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.choice .far {
+  font-size: 11px;
+  opacity: 0.85;
+}
+.uturn {
+  position: fixed;
+  top: calc(var(--safe-t) + 10px);
+  right: calc(var(--safe-r) + 10px);
+}
+.pause-banner {
+  position: fixed;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%);
+  padding: 14px 24px;
+  border-radius: 12px;
+  background: rgba(14, 18, 24, 0.85);
+  font-size: 18px;
+}
+.touch-right {
+  position: fixed;
+  right: calc(var(--safe-r) + 12px);
+  bottom: calc(var(--safe-b) + 12px);
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.touch-left {
+  position: fixed;
+  left: calc(var(--safe-l) + 10px);
+  bottom: calc(var(--safe-b) + 92px);
+  display: flex;
+  gap: 8px;
+}
+.touch-btn.pedal {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  font-size: 18px;
+}
+.touch-btn.brake {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  font-size: 14px;
+}
+.touch-btn.lane {
+  min-width: 64px;
+  font-size: 13px;
+}
+.dev-hud {
+  display: none;
+}
+
+/* 縦画面: 走行情報を上、操作を下に寄せる */
+@media (orientation: portrait) {
+  .ride-info {
+    top: calc(var(--safe-t) + 62px);
+    bottom: auto;
+    left: calc(var(--safe-l) + 10px);
+    right: calc(var(--safe-r) + 10px);
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .stat-speed .stat-value {
+    font-size: 26px;
+  }
+  .branch {
+    top: calc(var(--safe-t) + 170px);
+    max-width: calc(100vw - 20px);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .road-name {
+    bottom: auto;
+    top: calc(var(--safe-t) + 18px);
+    max-width: calc(100vw - 200px);
+  }
+  .touch-left {
+    bottom: calc(var(--safe-b) + 12px);
+  }
+}
+
+/* タッチ端末の横画面: 左下は 左右位置のボタンを下、走行情報をその上に */
+@media (orientation: landscape) {
+  .hud-root.has-touch .touch-left {
+    bottom: calc(var(--safe-b) + 10px);
+  }
+  .hud-root.has-touch .ride-info {
+    bottom: calc(var(--safe-b) + 64px);
+  }
+  .hud-root.has-touch .road-name {
+    bottom: calc(var(--safe-b) + 14px);
+  }
+}

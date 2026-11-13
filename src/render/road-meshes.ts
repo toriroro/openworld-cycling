@@ -333,7 +333,7 @@ export class RoadMeshes {
     mesh.name = "road";
     mesh.userData.road = road.id;
     mesh.receiveShadow = true;
-    mesh.castShadow = true;
+    mesh.castShadow = false;
     mesh.matrixAutoUpdate = false;
     mesh.position.set(ox - this.originX, 0, oz - this.originZ);
     mesh.updateMatrix();

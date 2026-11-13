@@ -59,6 +59,8 @@ export class TerrainStreamer {
   private reqTile = new Map<number, Tile>();
   private fallback: Terrain | null = null;
   ranges: TerrainRanges = RANGES_STANDARD;
+  /** 植生の密度の倍率（軽量で半分） */
+  vegDensity = 1;
   /** 1フレームに取り付ける数・破棄する数 */
   attachPerFrame = 4;
   releasePerFrame = 6;
@@ -258,6 +260,8 @@ export class TerrainStreamer {
       skirt: spec.skirt,
       roads: spec.conform ? this.roads.pack(this.tileRect(t), ROAD_FLAT + ROAD_BLEND + step + 8, t.level === 0 ? 1 : 2) : null,
       uvRepeat: 16,
+      vegDetail: t.level === 0 ? 2 : t.level === 1 ? 1 : 0,
+      vegDensity: this.vegDensity,
     };
   }
 
@@ -296,6 +300,7 @@ export class TerrainStreamer {
       mesh.name = "terrain";
       mesh.userData.tile = tile.key;
       mesh.userData.level = tile.level;
+      mesh.userData.veg = out.veg;
       mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false;
       tile.mesh = mesh;
@@ -355,6 +360,19 @@ export class TerrainStreamer {
     }
     for (const t of this.tiles.values()) if (t.mesh) t.mesh.visible = show.has(t.key);
     this.visibleKeys = show;
+  }
+
+  /** 表示している近景・中景のタイルの植生（世界座標の左上つき） */
+  vegetationTiles(): { key: string; level: number; ox: number; oz: number; veg: Float32Array }[] {
+    const out: { key: string; level: number; ox: number; oz: number; veg: Float32Array }[] = [];
+    for (const t of this.tiles.values()) {
+      if (!t.mesh || !t.mesh.visible || t.level > 1) continue;
+      const veg = t.mesh.userData.veg as Float32Array | undefined;
+      if (!veg || !veg.length) continue;
+      const size = LEVELS[t.level].size;
+      out.push({ key: t.key, level: t.level, ox: t.tx * size, oz: t.tz * size, veg });
+    }
+    return out;
   }
 
   /** 計測用 */

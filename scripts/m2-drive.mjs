@@ -22,7 +22,7 @@ page.on("console", (m) => {
   if (m.type() === "error") errors.push(m.text());
 });
 page.on("pageerror", (e) => errors.push(String(e)));
-await page.goto(`${base}/?quality=${quality}&hud=1`);
+await page.goto(`${base}/?mode=m2&quality=${quality}&hud=1`);
 const gpu = await page.evaluate(() => {
   const gl = window.__dev.view.renderer.getContext();
   const e = gl.getExtension("WEBGL_debug_renderer_info");

@@ -8,6 +8,7 @@ import { Environment, loadTexture, terrainMaterial } from "./environment.ts";
 import { createGravelTexture } from "./gravel-texture.ts";
 import { RoadMeshes } from "./road-meshes.ts";
 import { RANGES_LIGHT, RANGES_STANDARD, TerrainStreamer } from "./terrain-streamer.ts";
+import { Vegetation } from "./vegetation.ts";
 
 export type Quality = "standard" | "light";
 
@@ -22,6 +23,7 @@ export class WorldView {
   readonly env: Environment;
   readonly terrain: TerrainStreamer;
   readonly roadMeshes: RoadMeshes;
+  readonly vegetation: Vegetation;
   readonly heights: Terrain;
   quality: Quality = "standard";
   /** 描画の原点（世界座標、REBASE_UNIT の倍数） */
@@ -85,7 +87,8 @@ export class WorldView {
 
     this.terrain = new TerrainStreamer(seed, terrainMat, roads);
     this.roadMeshes = new RoadMeshes(roads, this.heights, { paved, gravel, structure, patch });
-    this.scene.add(this.terrain.group, this.roadMeshes.group);
+    this.vegetation = new Vegetation(this.terrain);
+    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group);
     this.setQuality(matchMedia("(pointer: coarse)").matches ? "light" : "standard");
   }
 
@@ -97,6 +100,8 @@ export class WorldView {
     this.renderer.shadowMap.enabled = !light;
     this.env.setShadows(!light);
     this.terrain.ranges = light ? RANGES_LIGHT : RANGES_STANDARD;
+    this.terrain.vegDensity = light ? 0.5 : 1;
+    this.vegetation?.setQuality(light);
     this.roadMeshes.range = light ? 900 : 1600;
     const far = this.terrain.ranges.far;
     this.env.setFar(far);
@@ -116,21 +121,54 @@ export class WorldView {
    * カメラを世界座標で置き、ストリーミングを進めて描く。
    * eye と target は世界座標（倍精度）。描画には原点からの相対で渡す。
    */
-  frame(eye: { x: number; y: number; z: number }, target: { x: number; y: number; z: number }) {
+  frame(eye: { x: number; y: number; z: number }, target: { x: number; y: number; z: number }, fov?: number, beforeRender?: () => void) {
     if (Math.abs(eye.x - this.originX) > REBASE_DISTANCE || Math.abs(eye.z - this.originZ) > REBASE_DISTANCE) {
       this.originX = Math.round(eye.x / REBASE_UNIT) * REBASE_UNIT;
       this.originZ = Math.round(eye.z / REBASE_UNIT) * REBASE_UNIT;
       this.terrain.setOrigin(this.originX, this.originZ);
       this.roadMeshes.setOrigin(this.originX, this.originZ);
+      this.vegetation.setOrigin(this.originX, this.originZ);
       this.rebases++;
     }
     this.camera.position.set(eye.x - this.originX, eye.y, eye.z - this.originZ);
     this.camera.lookAt(target.x - this.originX, target.y, target.z - this.originZ);
+    if (fov !== undefined && Math.abs(this.camera.fov - fov) > 0.01) {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
     this.roads.update(eye.x, eye.z);
     this.terrain.update(eye.x, eye.z);
     this.roadMeshes.update(eye.x, eye.z);
+    this.vegetation.update(eye.x, eye.z);
+    this.vegetation.setDaylight(0.35 + 0.65 * this.env.daylight);
     this.env.follow(this.camera.position);
+    beforeRender?.();
     this.renderer.render(this.scene, this.camera);
+  }
+
+  private groundRay = new THREE.Raycaster();
+  private groundTargets: THREE.Object3D[] = [];
+  private groundTargetsT = -1;
+  /**
+   * 描いている面（地形と道路）の高さ。視点を地面より上に保つのに使う。描いていない所は高さ関数の値。
+   * 道路の近くは地形を路面に合わせているので、高さ関数では切土の所で高く出すぎるため。
+   */
+  surfaceHeight(x: number, z: number): number {
+    const now = performance.now();
+    if (now - this.groundTargetsT > 500) {
+      this.groundTargetsT = now;
+      this.groundTargets = [];
+      this.terrain.group.traverse((o) => {
+        if (o instanceof THREE.Mesh && o.visible && o.userData.level === 0) this.groundTargets.push(o);
+      });
+      this.roadMeshes.group.traverse((o) => {
+        if (o instanceof THREE.Mesh) this.groundTargets.push(o);
+      });
+    }
+    this.groundRay.set(new THREE.Vector3(x - this.originX, 4000, z - this.originZ), new THREE.Vector3(0, -1, 0));
+    this.groundRay.far = 6000;
+    const hit = this.groundRay.intersectObjects(this.groundTargets, false)[0];
+    return hit ? hit.point.y : this.heights.height(x, z);
   }
 
   /** 世界座標の点が描画座標でどこになるか */
@@ -153,6 +191,7 @@ export class WorldView {
       programs: info.programs?.length ?? 0,
       heapMB: mem ? mem.usedJSHeapSize / 1048576 : null,
       terrain: this.terrain.stats(),
+      vegetation: { ...this.vegetation.stats },
       roads: this.roadMeshes.stats(),
       roadsLoaded: this.roads.net.roads.size,
       roadBlocksPending: this.roads.pending,

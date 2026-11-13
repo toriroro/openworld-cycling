@@ -12,7 +12,7 @@ const browser = await chromium.launch({ channel: "chrome", headless: true });
 const results = [];
 for (const [quality, w, h] of [["standard", 1440, 900], ["light", 844, 390]]) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
-  await page.goto(`${base}/?quality=${quality}&hud=0`);
+  await page.goto(`${base}/?mode=m2&quality=${quality}&hud=0`);
   await page.waitForFunction(() => window.__dev.state().ready, null, { timeout: 120000 });
   for (const kind of (process.env.KINDS || "coast,plain,mountain,gravel").split(",")) {
     const sc = scenes[kind];

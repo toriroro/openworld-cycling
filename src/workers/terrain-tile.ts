@@ -6,6 +6,7 @@
 
 import { gradNoise } from "../shared/world/noise.ts";
 import type { Terrain } from "../shared/world/terrain.ts";
+import { placeVegetation } from "./vegetation-place.ts";
 
 /** 道路の点列（タイルの左上からの相対）。1点 5 要素: x, z, y, 半幅, 印（1 = 橋） */
 export interface PackedRoads {
@@ -23,6 +24,9 @@ export interface TileInput {
   roads: PackedRoads | null;
   /** 地表の細かい模様の繰り返し (m) */
   uvRepeat: number;
+  /** 植生の細かさ（0 なし、1 木だけ、2 すべて）と密度の倍率 */
+  vegDetail?: 0 | 1 | 2;
+  vegDensity?: number;
 }
 
 export interface TileOutput {
@@ -34,6 +38,8 @@ export interface TileOutput {
   minY: number;
   maxY: number;
   lowered: number;
+  /** 植生（vegetation-place の形） */
+  veg: Float32Array;
 }
 
 /** 路面と同じ高さにする幅（道路端から）と、元の地形へ戻す幅 */
@@ -282,7 +288,36 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
       }
     }
   }
-  return { position, normal, color, uv, index, minY, maxY: maxY, lowered };
+  const veg = placeVegetation({
+    seed: terrain.seed,
+    x0,
+    z0,
+    size,
+    detail: inp.vegDetail ?? 0,
+    density: inp.vegDensity ?? 1,
+    ground: (lx, lz) => {
+      const fi = lx / step + 1, fj = lz / step + 1;
+      const i = Math.max(0, Math.min(G - 2, Math.floor(fi))), j = Math.max(0, Math.min(G - 2, Math.floor(fj)));
+      const a = fi - i, b = fj - j;
+      return (hs[j * G + i] * (1 - a) + hs[j * G + i + 1] * a) * (1 - b) + (hs[(j + 1) * G + i] * (1 - a) + hs[(j + 1) * G + i + 1] * a) * b;
+    },
+    slope: (lx, lz) => {
+      const i = Math.max(1, Math.min(G - 2, Math.round(lx / step) + 1)), j = Math.max(1, Math.min(G - 2, Math.round(lz / step) + 1));
+      const gx = (hs[j * G + i + 1] - hs[j * G + i - 1]) / (2 * step);
+      const gz = (hs[(j + 1) * G + i] - hs[(j - 1) * G + i]) / (2 * step);
+      return Math.sqrt(gx * gx + gz * gz);
+    },
+    landscape: (lx, lz) => {
+      const fi = Math.max(0, Math.min(L - 1.001, (lx / size) * (L - 1))), fj = Math.max(0, Math.min(L - 1.001, (lz / size) * (L - 1)));
+      const i = Math.floor(fi), j = Math.floor(fj), a = fi - i, b = fj - j;
+      const r = [0, 0, 0, 0];
+      for (let k = 0; k < 4; k++)
+        r[k] = (lw[(j * L + i) * 4 + k] * (1 - a) + lw[(j * L + i + 1) * 4 + k] * a) * (1 - b) + (lw[((j + 1) * L + i) * 4 + k] * (1 - a) + lw[((j + 1) * L + i + 1) * 4 + k] * a) * b;
+      return r;
+    },
+    roadEdge: (lx, lz) => q?.nearest(lx, lz)?.e ?? 1e9,
+  });
+  return { position, normal, color, uv, index, minY, maxY: maxY, lowered, veg };
 }
 
 /**

@@ -28,6 +28,8 @@ export class Environment {
   readonly water: THREE.Mesh;
   readonly fog: THREE.Fog;
   hour = 14.5;
+  /** 昼の明るさ 0〜1 */
+  daylight = 1;
   private shadows = true;
   private target = new THREE.Object3D();
 
@@ -83,6 +85,7 @@ export class Environment {
     const { dir, elevation } = sunDirection(this.hour);
     this.sky.material.uniforms.sunPosition.value.copy(dir);
     const day = THREE.MathUtils.smoothstep(elevation, -0.12, 0.25);
+    this.daylight = day;
     const low = 1 - THREE.MathUtils.smoothstep(elevation, 0.05, 0.5);
     this.sun.intensity = 3.2 * THREE.MathUtils.smoothstep(elevation, -0.02, 0.3);
     this.sun.color.setRGB(1, 0.94 - 0.25 * low, 0.86 - 0.4 * low);

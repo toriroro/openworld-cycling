@@ -1,0 +1,283 @@
+// 植生の描画（モック仕様 5.4）。配置は Worker（vegetation-place）がタイルごとに決め、ここでインスタンス描画にまとめる。
+// - 木: 遠くは板の画像（十字に組んだ2枚）、いちばん近い数本は立体モデル。さらに遠くは地表の色
+// - 低木・岩・草の株: 視点の近くのものだけ
+// downhill-3D の src/render/vegetation.ts の作法（板の木、近くの立体の木、草の株、素材の正規化）を移し、タイル単位に書き直した。
+
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { VEG_GRASS, VEG_ROCK, VEG_SHRUB, VEG_STRIDE, VEG_TREE } from "../workers/vegetation-place.ts";
+import type { TerrainStreamer } from "./terrain-streamer.ts";
+
+const BASE = `${import.meta.env.BASE_URL}assets/nature/`;
+
+interface Limits {
+  trees3d: number;
+  shrubs: number;
+  rocks: number;
+  grass: number;
+  nearZone: number;
+}
+const LIMITS_STANDARD: Limits = { trees3d: 3, shrubs: 120, rocks: 100, grass: 5000, nearZone: 320 };
+const LIMITS_LIGHT: Limits = { trees3d: 0, shrubs: 40, rocks: 40, grass: 1500, nearZone: 220 };
+
+/** 容量を足りなくなったら作り直すインスタンス描画 */
+class Pool {
+  mesh: THREE.InstancedMesh | null = null;
+  constructor(
+    private group: THREE.Group,
+    private geometry: THREE.BufferGeometry | null,
+    private material: THREE.Material | THREE.Material[] | null,
+    private shadow: boolean,
+  ) {}
+  setSource(geometry: THREE.BufferGeometry, material: THREE.Material | THREE.Material[]) {
+    this.geometry = geometry;
+    this.material = material;
+    if (this.mesh) {
+      this.group.remove(this.mesh);
+      this.mesh.dispose();
+      this.mesh = null;
+    }
+  }
+  /** count 個の行列（列優先 16 要素）を書く */
+  write(count: number, fill: (arr: Float32Array) => void) {
+    if (!this.geometry || !this.material) return;
+    if (!this.mesh || this.mesh.instanceMatrix.count < count) {
+      if (this.mesh) {
+        this.group.remove(this.mesh);
+        this.mesh.dispose();
+      }
+      const cap = Math.max(64, Math.ceil(count * 1.4));
+      this.mesh = new THREE.InstancedMesh(this.geometry, this.material, cap);
+      this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      this.mesh.frustumCulled = false;
+      this.mesh.castShadow = this.shadow;
+      this.mesh.receiveShadow = true;
+      this.mesh.name = "vegetation";
+      this.group.add(this.mesh);
+    }
+    fill(this.mesh.instanceMatrix.array as Float32Array);
+    this.mesh.count = count;
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+  setShadow(on: boolean) {
+    this.shadow = on;
+    if (this.mesh) this.mesh.castShadow = on;
+  }
+}
+
+function writeMatrix(a: Float32Array, i: number, x: number, y: number, z: number, s: number, rot: number) {
+  const c = Math.cos(rot) * s;
+  const n = Math.sin(rot) * s;
+  const o = i * 16;
+  a[o] = c; a[o + 1] = 0; a[o + 2] = -n; a[o + 3] = 0;
+  a[o + 4] = 0; a[o + 5] = s; a[o + 6] = 0; a[o + 7] = 0;
+  a[o + 8] = n; a[o + 9] = 0; a[o + 10] = c; a[o + 11] = 0;
+  a[o + 12] = x; a[o + 13] = y; a[o + 14] = z; a[o + 15] = 1;
+}
+
+interface TileVeg {
+  key: string;
+  level: number;
+  ox: number;
+  oz: number;
+  veg: Float32Array;
+}
+
+export class Vegetation {
+  readonly group = new THREE.Group();
+  private farBB: Pool;
+  private nearBB: Pool;
+  private trees3d: Pool[] = [];
+  private shrubs: Pool[] = [];
+  private rocks: Pool[] = [];
+  private grass: Pool;
+  private bbMaterial: THREE.MeshBasicMaterial;
+  private limits = LIMITS_STANDARD;
+  private lastSelect = 0;
+  private farKey = "";
+  private near3dKey = "";
+  private originX = 0;
+  private originZ = 0;
+  stats = { farTrees: 0, nearTrees: 0, trees3d: 0, shrubs: 0, rocks: 0, grass: 0 };
+
+  constructor(private terrain: TerrainStreamer) {
+    this.group.name = "vegetation";
+    const tex = new THREE.TextureLoader().load(`${BASE}tree_small_02_billboard.png`);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.bbMaterial = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.42, side: THREE.DoubleSide, color: "#c9d6c0" });
+    // 十字に組んだ2枚の板（downhill-3D の寸法）
+    const a = new THREE.PlaneGeometry(4.92128, 4.92128).translate(0, 2.27837, 0);
+    const b = a.clone().rotateY(Math.PI / 2);
+    const cross = mergeGeometries([a, b])!;
+    this.farBB = new Pool(this.group, cross, this.bbMaterial, false);
+    this.nearBB = new Pool(this.group, cross, this.bbMaterial, true);
+    // 草の株: 細い円錐を束ねる（不透明）
+    let seed = 91827;
+    const rand = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+    const blades: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 7; i++) {
+      const hgt = 0.28 + rand() * 0.2;
+      const g = new THREE.ConeGeometry(0.018, hgt, 3);
+      g.rotateZ((rand() - 0.5) * 0.8);
+      g.rotateY(rand() * 6);
+      g.translate((rand() - 0.5) * 0.35, hgt * 0.48, (rand() - 0.5) * 0.35);
+      blades.push(g);
+    }
+    this.grass = new Pool(this.group, mergeGeometries(blades)!, new THREE.MeshStandardMaterial({ color: "#4f6a36", roughness: 1 }), false);
+    void this.loadModels();
+  }
+
+  private async loadModels() {
+    const loader = new GLTFLoader();
+    const prepare = async (file: string, normalize: boolean) => {
+      const gltf = await loader.loadAsync(BASE + file);
+      const model = gltf.scene;
+      model.updateMatrixWorld(true);
+      const bounds = new THREE.Box3().setFromObject(model);
+      const center = bounds.getCenter(new THREE.Vector3());
+      const size = bounds.getSize(new THREE.Vector3());
+      const unit = normalize ? 1 / Math.max(size.x, size.y, size.z) : 1;
+      const parts: { g: THREE.BufferGeometry; m: THREE.Material | THREE.Material[] }[] = [];
+      model.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+        g.translate(-center.x, -bounds.min.y, -center.z);
+        g.scale(unit, unit, unit);
+        for (const m of Array.isArray(o.material) ? o.material : [o.material])
+          if (m instanceof THREE.MeshStandardMaterial && m.transparent) {
+            m.transparent = false;
+            m.alphaTest = 0.4;
+            m.depthWrite = true;
+          }
+        parts.push({ g, m: o.material });
+      });
+      return parts;
+    };
+    try {
+      const tree = await prepare("tree_small_02.glb", false);
+      // 板の木と同じ高さにそろえる（板は高さ約 4.9m）
+      const h = new THREE.Box3();
+      for (const p of tree) {
+        p.g.computeBoundingBox();
+        h.union(p.g.boundingBox!);
+      }
+      const k = 4.92128 / Math.max(0.01, h.max.y - h.min.y);
+      this.trees3d = tree.map((p) => new Pool(this.group, p.g.scale(k, k, k), p.m, true));
+    } catch (e) {
+      console.warn("tree model", e);
+    }
+    try {
+      this.shrubs = (await prepare("shrub_stream.glb", true)).map((p) => new Pool(this.group, p.g, p.m, false));
+    } catch (e) {
+      console.warn("shrub model", e);
+    }
+    try {
+      // 岩は1つ目の形だけを使う
+      const r = await prepare("rock_stream.glb", true);
+      this.rocks = r.slice(0, 1).map((p) => new Pool(this.group, p.g, p.m, false));
+    } catch (e) {
+      console.warn("rock model", e);
+    }
+    this.near3dKey = "";
+    this.farKey = "";
+  }
+
+  setQuality(light: boolean) {
+    this.limits = light ? LIMITS_LIGHT : LIMITS_STANDARD;
+    this.nearBB.setShadow(!light);
+    for (const p of this.trees3d) p.setShadow(!light);
+    this.farKey = "";
+    this.near3dKey = "";
+  }
+
+  setOrigin(x: number, z: number) {
+    this.originX = x;
+    this.originZ = z;
+    this.farKey = "";
+    this.near3dKey = "";
+  }
+
+  /** 昼夜で板の木の明るさを合わせる（光を受けない材質のため） */
+  setDaylight(k: number) {
+    this.bbMaterial.color.setRGB(0.79 * k, 0.84 * k, 0.75 * k);
+  }
+
+  /** 毎フレーム呼ぶ。カメラの世界座標 */
+  update(cx: number, cz: number) {
+    const now = performance.now();
+    if (now - this.lastSelect < 250) return;
+    this.lastSelect = now;
+    const tiles: TileVeg[] = this.terrain.vegetationTiles();
+    const L = this.limits;
+    const near: TileVeg[] = [];
+    const far: TileVeg[] = [];
+    for (const t of tiles) {
+      const size = t.level === 0 ? 256 : 1024;
+      const dx = Math.max(t.ox - cx, 0, cx - (t.ox + size));
+      const dz = Math.max(t.oz - cz, 0, cz - (t.oz + size));
+      if (t.level === 0 && Math.hypot(dx, dz) < L.nearZone) near.push(t);
+      else far.push(t);
+    }
+    // 遠くの板の木: タイルの組が変わった時だけ作り直す
+    const fk = far.map((t) => t.key).join("|") + `@${this.originX},${this.originZ}`;
+    if (fk !== this.farKey) {
+      this.farKey = fk;
+      let count = 0;
+      for (const t of far) for (let i = 0; i < t.veg.length; i += VEG_STRIDE) if (t.veg[i + 5] === VEG_TREE) count++;
+      this.farBB.write(count, (arr) => {
+        let k = 0;
+        for (const t of far) {
+          const v = t.veg;
+          for (let i = 0; i < v.length; i += VEG_STRIDE)
+            if (v[i + 5] === VEG_TREE) writeMatrix(arr, k++, t.ox + v[i] - this.originX, v[i + 1], t.oz + v[i + 2] - this.originZ, v[i + 3], v[i + 4]);
+        }
+      });
+      this.stats.farTrees = count;
+    }
+    // 近く: 立体の木、低木、岩、草
+    const trees: { d: number; t: TileVeg; i: number }[] = [];
+    const shrubs: { d: number; t: TileVeg; i: number }[] = [];
+    const rocks: { d: number; t: TileVeg; i: number }[] = [];
+    const grass: { d: number; t: TileVeg; i: number }[] = [];
+    for (const t of near) {
+      const v = t.veg;
+      for (let i = 0; i < v.length; i += VEG_STRIDE) {
+        const dx = t.ox + v[i] - cx;
+        const dz = t.oz + v[i + 2] - cz;
+        const d = dx * dx + dz * dz;
+        const type = v[i + 5];
+        if (type === VEG_TREE) trees.push({ d, t, i });
+        else if (type === VEG_SHRUB && d < 180 * 180) shrubs.push({ d, t, i });
+        else if (type === VEG_ROCK && d < 180 * 180) rocks.push({ d, t, i });
+        else if (type === VEG_GRASS && d < 75 * 75) grass.push({ d, t, i });
+      }
+    }
+    const nearest = (list: typeof trees, n: number) => (list.length > n ? list.sort((a, b) => a.d - b.d).slice(0, n) : list);
+    const solid = this.trees3d.length ? nearest(trees.filter((e) => e.d < 50 * 50), L.trees3d) : [];
+    const solidSet = new Set(solid.map((e) => `${e.t.key}:${e.i}`));
+    const key3d = [...solidSet].join("|") + `#${near.map((t) => t.key).join("|")}@${this.originX},${this.originZ}`;
+    if (key3d !== this.near3dKey) {
+      this.near3dKey = key3d;
+      const bb = trees.filter((e) => !solidSet.has(`${e.t.key}:${e.i}`));
+      this.nearBB.write(bb.length, (arr) => bb.forEach((e, k) => this.put(arr, k, e.t, e.i)));
+      for (const p of this.trees3d) p.write(solid.length, (arr) => solid.forEach((e, k) => this.put(arr, k, e.t, e.i)));
+      this.stats.nearTrees = bb.length;
+      this.stats.trees3d = solid.length;
+    }
+    const sh = nearest(shrubs, L.shrubs);
+    for (const p of this.shrubs) p.write(sh.length, (arr) => sh.forEach((e, k) => this.put(arr, k, e.t, e.i)));
+    const rk = nearest(rocks, L.rocks);
+    for (const p of this.rocks) p.write(rk.length, (arr) => rk.forEach((e, k) => this.put(arr, k, e.t, e.i)));
+    const gr = nearest(grass, L.grass);
+    this.grass.write(gr.length, (arr) => gr.forEach((e, k) => this.put(arr, k, e.t, e.i)));
+    this.stats.shrubs = sh.length;
+    this.stats.rocks = rk.length;
+    this.stats.grass = gr.length;
+  }
+
+  private put(arr: Float32Array, k: number, t: TileVeg, i: number) {
+    const v = t.veg;
+    writeMatrix(arr, k, t.ox + v[i] - this.originX, v[i + 1], t.oz + v[i + 2] - this.originZ, v[i + 3], v[i + 4]);
+  }
+}
