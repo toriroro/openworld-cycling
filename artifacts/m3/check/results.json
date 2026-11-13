@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-13T10:54:50.442Z",
+  "date": "2026-11-13T11:00:53.756Z",
   "sizes": [
     {
       "size": "1440x900",
@@ -70,102 +70,102 @@
     {
       "quality": "standard",
       "size": "1440x900",
-      "maxTriangles": 997373,
-      "maxCalls": 118,
+      "maxTriangles": 718720,
+      "maxCalls": 112,
       "samples": [
         {
-          "triangles": 997373,
-          "calls": 118
+          "triangles": 717151,
+          "calls": 112
         },
         {
-          "triangles": 997373,
-          "calls": 118
+          "triangles": 717025,
+          "calls": 112
         },
         {
-          "triangles": 997289,
-          "calls": 118
+          "triangles": 717109,
+          "calls": 112
         },
         {
-          "triangles": 997163,
-          "calls": 118
+          "triangles": 716857,
+          "calls": 112
         },
         {
-          "triangles": 994604,
-          "calls": 115
+          "triangles": 714382,
+          "calls": 109
         },
         {
-          "triangles": 994986,
-          "calls": 115
+          "triangles": 714764,
+          "calls": 109
         },
         {
-          "triangles": 995410,
-          "calls": 115
+          "triangles": 715104,
+          "calls": 109
         },
         {
-          "triangles": 995074,
-          "calls": 115
+          "triangles": 714852,
+          "calls": 109
         },
         {
-          "triangles": 996840,
-          "calls": 115
+          "triangles": 718720,
+          "calls": 109
         },
         {
-          "triangles": 996000,
-          "calls": 115
+          "triangles": 717964,
+          "calls": 109
         }
       ]
     },
     {
       "quality": "light",
       "size": "844x390",
-      "maxTriangles": 334136,
+      "maxTriangles": 335868,
       "maxCalls": 81,
       "samples": [
         {
-          "triangles": 334136,
+          "triangles": 335868,
           "calls": 81
         },
         {
-          "triangles": 334094,
+          "triangles": 335826,
           "calls": 81
         },
         {
-          "triangles": 328148,
+          "triangles": 329880,
           "calls": 78
         },
         {
-          "triangles": 323582,
+          "triangles": 325356,
           "calls": 76
         },
         {
-          "triangles": 323877,
+          "triangles": 325609,
           "calls": 74
         },
         {
-          "triangles": 323709,
+          "triangles": 325567,
           "calls": 74
         },
         {
-          "triangles": 323709,
+          "triangles": 325399,
           "calls": 74
         },
         {
-          "triangles": 320603,
-          "calls": 73
+          "triangles": 325263,
+          "calls": 74
         },
         {
-          "triangles": 318089,
+          "triangles": 320319,
           "calls": 72
         },
         {
-          "triangles": 317753,
+          "triangles": 320109,
           "calls": 72
         }
       ]
     }
   ],
   "branch": {
-    "distance": 115.7296944681616,
+    "distance": 115.68194087733809,
     "choices": [
       {
         "dest": "朝谷",

@@ -1,7 +1,8 @@
 // 植生の描画（モック仕様 5.4）。配置は Worker（vegetation-place）がタイルごとに決め、ここでインスタンス描画にまとめる。
-// - 木: 遠くは板の画像（十字に組んだ2枚）、いちばん近い数本は立体モデル。さらに遠くは地表の色
+// - 木: 板の画像。遠くは十字に組んだ2枚、近くは 60° ずつ回した3枚（同じ画像なので近づいても木が入れ替わって見えない）。さらに遠くは地表の色
+//   以前は いちばん近い数本を立体モデルに替えていたが、板と形・明るさが違い、近づくと別の木に置き換わって見えたのでやめた
 // - 低木・岩・草の株: 視点の近くのものだけ
-// downhill-3D の src/render/vegetation.ts の作法（板の木、近くの立体の木、草の株、素材の正規化）を移し、タイル単位に書き直した。
+// downhill-3D の src/render/vegetation.ts の作法（板の木、草の株、素材の正規化）を移し、タイル単位に書き直した。
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -12,14 +13,13 @@ import type { TerrainStreamer } from "./terrain-streamer.ts";
 const BASE = `${import.meta.env.BASE_URL}assets/nature/`;
 
 interface Limits {
-  trees3d: number;
   shrubs: number;
   rocks: number;
   grass: number;
   nearZone: number;
 }
-const LIMITS_STANDARD: Limits = { trees3d: 3, shrubs: 120, rocks: 100, grass: 5000, nearZone: 320 };
-const LIMITS_LIGHT: Limits = { trees3d: 0, shrubs: 40, rocks: 40, grass: 1500, nearZone: 220 };
+const LIMITS_STANDARD: Limits = { shrubs: 120, rocks: 100, grass: 5000, nearZone: 320 };
+const LIMITS_LIGHT: Limits = { shrubs: 40, rocks: 40, grass: 1500, nearZone: 220 };
 
 /** 容量を足りなくなったら作り直すインスタンス描画 */
 class Pool {
@@ -88,7 +88,7 @@ export class Vegetation {
   readonly group = new THREE.Group();
   private farBB: Pool;
   private nearBB: Pool;
-  private trees3d: Pool[] = [];
+
   private shrubs: Pool[] = [];
   private rocks: Pool[] = [];
   private grass: Pool;
@@ -99,7 +99,7 @@ export class Vegetation {
   private near3dKey = "";
   private originX = 0;
   private originZ = 0;
-  stats = { farTrees: 0, nearTrees: 0, trees3d: 0, shrubs: 0, rocks: 0, grass: 0 };
+  stats = { farTrees: 0, nearTrees: 0, shrubs: 0, rocks: 0, grass: 0 };
 
   constructor(private terrain: TerrainStreamer) {
     this.group.name = "vegetation";
@@ -110,8 +110,10 @@ export class Vegetation {
     const a = new THREE.PlaneGeometry(4.92128, 4.92128).translate(0, 2.27837, 0);
     const b = a.clone().rotateY(Math.PI / 2);
     const cross = mergeGeometries([a, b])!;
+    // 近くは 3 枚（0°・60°・120°）にして、どの向きから見ても薄く見えないようにする
+    const star = mergeGeometries([a.clone(), a.clone().rotateY(Math.PI / 3), a.clone().rotateY((Math.PI * 2) / 3)])!;
     this.farBB = new Pool(this.group, cross, this.bbMaterial, false);
-    this.nearBB = new Pool(this.group, cross, this.bbMaterial, true);
+    this.nearBB = new Pool(this.group, star, this.bbMaterial, true);
     // 草の株: 細い円錐を束ねる（不透明）
     let seed = 91827;
     const rand = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
@@ -155,19 +157,6 @@ export class Vegetation {
       return parts;
     };
     try {
-      const tree = await prepare("tree_small_02.glb", false);
-      // 板の木と同じ高さにそろえる（板は高さ約 4.9m）
-      const h = new THREE.Box3();
-      for (const p of tree) {
-        p.g.computeBoundingBox();
-        h.union(p.g.boundingBox!);
-      }
-      const k = 4.92128 / Math.max(0.01, h.max.y - h.min.y);
-      this.trees3d = tree.map((p) => new Pool(this.group, p.g.scale(k, k, k), p.m, true));
-    } catch (e) {
-      console.warn("tree model", e);
-    }
-    try {
       this.shrubs = (await prepare("shrub_stream.glb", true)).map((p) => new Pool(this.group, p.g, p.m, false));
     } catch (e) {
       console.warn("shrub model", e);
@@ -186,7 +175,7 @@ export class Vegetation {
   setQuality(light: boolean) {
     this.limits = light ? LIMITS_LIGHT : LIMITS_STANDARD;
     this.nearBB.setShadow(!light);
-    for (const p of this.trees3d) p.setShadow(!light);
+
     this.farKey = "";
     this.near3dKey = "";
   }
@@ -235,7 +224,7 @@ export class Vegetation {
       });
       this.stats.farTrees = count;
     }
-    // 近く: 立体の木、低木、岩、草
+    // 近く: 板の木（3枚）、低木、岩、草
     const trees: { d: number; t: TileVeg; i: number }[] = [];
     const shrubs: { d: number; t: TileVeg; i: number }[] = [];
     const rocks: { d: number; t: TileVeg; i: number }[] = [];
@@ -254,16 +243,12 @@ export class Vegetation {
       }
     }
     const nearest = (list: typeof trees, n: number) => (list.length > n ? list.sort((a, b) => a.d - b.d).slice(0, n) : list);
-    const solid = this.trees3d.length ? nearest(trees.filter((e) => e.d < 50 * 50), L.trees3d) : [];
-    const solidSet = new Set(solid.map((e) => `${e.t.key}:${e.i}`));
-    const key3d = [...solidSet].join("|") + `#${near.map((t) => t.key).join("|")}@${this.originX},${this.originZ}`;
-    if (key3d !== this.near3dKey) {
-      this.near3dKey = key3d;
-      const bb = trees.filter((e) => !solidSet.has(`${e.t.key}:${e.i}`));
-      this.nearBB.write(bb.length, (arr) => bb.forEach((e, k) => this.put(arr, k, e.t, e.i)));
-      for (const p of this.trees3d) p.write(solid.length, (arr) => solid.forEach((e, k) => this.put(arr, k, e.t, e.i)));
-      this.stats.nearTrees = bb.length;
-      this.stats.trees3d = solid.length;
+    // 近くの木はタイルの組が変わった時だけ作り直す
+    const nearKey = `${near.map((t) => t.key).join("|")}@${this.originX},${this.originZ}`;
+    if (nearKey !== this.near3dKey) {
+      this.near3dKey = nearKey;
+      this.nearBB.write(trees.length, (arr) => trees.forEach((e, k) => this.put(arr, k, e.t, e.i)));
+      this.stats.nearTrees = trees.length;
     }
     const sh = nearest(shrubs, L.shrubs);
     for (const p of this.shrubs) p.write(sh.length, (arr) => sh.forEach((e, k) => this.put(arr, k, e.t, e.i)));
