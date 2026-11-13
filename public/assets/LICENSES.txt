@@ -61,3 +61,11 @@ rider/ と nature/ の 3D モデルは M3 以降で必要になった時に写�
   新しい外部素材は足していない。
 - 自転車（src/render/cyclist/road-bike.ts）はコードで作成。特定の実在の車種を写した物ではない。
 - M3 で写した rider/cyclist.glb・rig.json は cyclist-v2 に置き換えて消した。
+2026-11-13 追記（M4 建物の写真素材）: Poly Haven（https://polyhaven.com/）から取得した。ライセンス CC0 1.0（https://polyhaven.com/license）。
+取得元は api.polyhaven.com/files/<id> の 1k jpg（md5 を照合済み）。置き場所 buildings/。
+- grey_roof_tiles（瓦屋根）: _Diffuse.jpg 596,156 B / _nor_gl.jpg 522,186 B
+- corrugated_iron（金属屋根）: _Diffuse.jpg 719,557 B / _nor_gl.jpg 755,185 B
+- exterior_wall_cladding_03（横張りの外壁）: _Diffuse.jpg 454,374 B / _nor_gl.jpg 835,495 B
+- white_plaster_02（モルタルの外壁）: _Diffuse.jpg 527,219 B / _nor_gl.jpg 652,310 B
+- japanese_cedar_planks（杉板の外壁）: _Diffuse.jpg 704,030 B / _nor_gl.jpg 745,514 B
+加工: なし。

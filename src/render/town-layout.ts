@@ -21,6 +21,20 @@ export interface Building {
   base: number;
   /** 地面の最高の高さ（屋根の高さの基準） */
   top: number;
+  /** 道路のある側（建物のローカル z の向き。+1 なら (−sin, cos) の向きに道路がある） */
+  front: 1 | -1;
+  /** 建物の正面から路面の端までの距離 (m) */
+  gap: number;
+  /** 前の道路の高さ */
+  roadY: number;
+  floors: number;
+  roof: "gable" | "hip" | "flat";
+  roofMat: "tile" | "metal";
+  wallMat: "siding" | "plaster";
+  /** 道路沿いのブロック塀 */
+  fence: boolean;
+  /** 窓の並びなど細部の種 */
+  seed: number;
 }
 
 export interface Cafe {
@@ -249,7 +263,8 @@ export function layoutTown(seed: number, node: WorldNode, roads: Road[], idx: Ro
             const d = 8 + u3 * 5;
             const floors = node.kind === "town" && central < 0.35 ? 2 + Math.floor(u4 * 3) : 1 + Math.floor(u4 * 2);
             const h = floors === 1 ? 4.2 : floors === 2 ? 6.6 : floors * 3.1;
-            const setback = hw + 2.5 + d / 2 + u2 * 3;
+            const gap = 2.5 + u2 * 3;
+            const setback = hw + gap + d / 2;
             const rx = -f.tz * side, rz = f.tx * side;
             const x = f.x + rx * setback, z = f.z + rz * setback;
             const angle = Math.atan2(f.tz, f.tx);
@@ -258,7 +273,38 @@ export function layoutTown(seed: number, node: WorldNode, roads: Road[], idx: Ro
               const site = siteOk(idx, ground, x, z, w, d, angle, 2);
               if (site) {
                 occ.add(x, z, rr);
-                out.push({ x, z, w, d, h, angle, tone: hash(seed, rh, k, side) % 7, base: site.base, top: site.top });
+                const hh = hash(seed, rh, k, side * 13);
+                const tall = floors >= 3;
+                // 塀は路面の端から 0.6m 内側。ほかの道路にかからない時だけ
+                const fz = gap - 0.6;
+                const fcx = x - rx * (d / 2 + fz), fcz = z - rz * (d / 2 + fz);
+                const ext = w / 2 + 1.5;
+                const fenceOk =
+                  !tall &&
+                  (hh & 3) < 2 &&
+                  idx.edge(fcx + f.tx * ext, fcz + f.tz * ext) > 0.3 &&
+                  idx.edge(fcx - f.tx * ext, fcz - f.tz * ext) > 0.3 &&
+                  idx.edge(fcx, fcz) > 0.3;
+                out.push({
+                  x,
+                  z,
+                  w,
+                  d,
+                  h,
+                  angle,
+                  tone: hash(seed, rh, k, side) % 7,
+                  base: site.base,
+                  top: site.top,
+                  front: (-side) as 1 | -1,
+                  gap,
+                  roadY: f.y,
+                  floors,
+                  roof: tall ? "flat" : (hh >>> 3) & 1 ? "hip" : "gable",
+                  roofMat: ((hh >>> 4) % 10) < 6 ? "tile" : "metal",
+                  wallMat: tall ? "plaster" : ((hh >>> 8) % 10) < 6 ? "siding" : "plaster",
+                  fence: fenceOk,
+                  seed: hh >>> 12,
+                });
               }
             }
           }
