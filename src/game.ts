@@ -109,9 +109,10 @@ export class Game {
       "音量",
       [
         ["1", "100%"],
-        ["0.7", "70%"],
-        ["0.4", "40%"],
-        ["0.2", "20%"],
+        ["0.6", "60%"],
+        ["0.3", "30%"],
+        ["0.15", "15%"],
+        ["0.05", "5%"],
       ],
       String(this.settings.volume),
       (v) => {
@@ -242,9 +243,13 @@ export class Game {
     this.setWatching(d.watching);
     this.routeSel.value = d.settings.watchRoute;
     this.volumeSel.value = String(d.settings.volume);
-    if (!this.volumeSel.value) this.volumeSel.value = "0.7";
+    // 選べる段階にない値（前の既定 0.7 など）は 30% にそろえる
+    if (!this.volumeSel.value) {
+      this.volumeSel.value = "0.3";
+      this.settings.volume = 0.3;
+    }
+    this.sound.setVolume(this.settings.volume, d.settings.muted);
     this.muteSel.value = d.settings.muted ? "on" : "off";
-    this.sound.setVolume(d.settings.volume, d.settings.muted);
     this.fpsSel.value = d.settings.fps30 ? "30" : "free";
     if (d.pos) this.anchor = { x: d.pos.x, z: d.pos.z };
     this.resume = { pos: d.pos, odometer: d.odometer, climb: d.climb, time: d.time, generator: d.generator };

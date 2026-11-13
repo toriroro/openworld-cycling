@@ -57,7 +57,7 @@ export const DEFAULT_SETTINGS: SaveSettings = {
   quality: null,
   hour: 14.5,
   camera: "chase",
-  volume: 0.7,
+  volume: 0.3,
   muted: false,
   fps30: true,
   watchRoute: "unridden",
