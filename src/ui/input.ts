@@ -11,6 +11,9 @@ export type Action =
   | "map"
   | "watch"
   | "pause"
+  | "outfit"
+  | "look-left"
+  | "look-right"
   | "u-turn";
 
 export class Input {
@@ -58,6 +61,12 @@ export class Input {
           break;
         case "KeyD":
           this.queue.push("lane-right");
+          break;
+        case "KeyQ":
+          this.queue.push("look-left");
+          break;
+        case "KeyR":
+          this.queue.push("look-right");
           break;
         case "KeyC":
           this.queue.push("camera");

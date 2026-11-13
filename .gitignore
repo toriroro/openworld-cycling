@@ -4,3 +4,7 @@ dist/
 test-results/
 playwright-report/
 *.log
+
+# Blender の作業ファイル（scripts/build-cyclist.py で作り直せる）
+assets-source/rider/cyclist-v2/*.blend
+assets-source/rider/cyclist-v2/*.blend1

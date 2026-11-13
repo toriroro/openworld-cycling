@@ -105,6 +105,7 @@ html, body {
   width: min(340px, calc(100vw - 20px - var(--safe-l) - var(--safe-r)));
   max-height: calc(100vh - 80px - var(--safe-t) - var(--safe-b));
   overflow: auto;
+  box-sizing: border-box;
   padding: 10px 12px;
   border-radius: 12px;
   background: rgba(14, 18, 24, 0.88);
