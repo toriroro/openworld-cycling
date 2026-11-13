@@ -65,6 +65,56 @@ export class World {
     this.terrain = new Terrain(seed);
   }
 
+  /**
+   * 覚えている結果のうち keep の外のものを捨てる（走り続けてもメモリが増えないように）。
+   * 捨てた結果は次に要る時に同じものが作り直される。
+   */
+  prune(keep: Rect) {
+    const outCell = (cx: number, cz: number) =>
+      (cx + 1) * NODE_CELL < keep.x0 || cx * NODE_CELL > keep.x1 || (cz + 1) * NODE_CELL < keep.z0 || cz * NODE_CELL > keep.z1;
+    const parse = (id: string) => {
+      const [, a, b] = id.split("_");
+      return [Number(a), Number(b)] as const;
+    };
+    for (const id of this.nodes.keys()) {
+      const [cx, cz] = parse(id);
+      if (outCell(cx, cz)) {
+        this.nodes.delete(id);
+        this.nodeEdges.delete(id);
+        this.poiCache.delete(`node:${id}`);
+      }
+    }
+    const edgeOut = (eid: string) => {
+      const [a, b] = eid.split("~");
+      const [ax, az] = parse(a);
+      const [bx, bz] = parse(b);
+      return outCell(ax, az) && outCell(bx, bz);
+    };
+    for (const [id, m] of this.mains)
+      if (edgeOut(id)) {
+        this.mains.delete(id);
+        if (m.road) this.poiCache.delete(m.road.id);
+      }
+    for (const [id, pieces] of this.branches)
+      if (edgeOut(id)) {
+        this.branches.delete(id);
+        for (const p of pieces) {
+          this.poiCache.delete(p.id);
+          this.attachments.delete(p.id);
+        }
+      }
+    for (const id of this.failedEdges) if (edgeOut(id)) this.failedEdges.delete(id);
+    for (const key of this.chunks.keys()) {
+      const kx = Math.floor(key / 2097152) - CHUNK_KEY_OFFSET;
+      const kz = (key % 2097152) - CHUNK_KEY_OFFSET;
+      const x0 = kx * CHUNK * ROUTE_GRID;
+      const z0 = kz * CHUNK * ROUTE_GRID;
+      const span = CHUNK * ROUTE_GRID;
+      if (x0 + span < keep.x0 || x0 > keep.x1 || z0 + span < keep.z0 || z0 > keep.z1) this.chunks.delete(key);
+    }
+    if (this.timings.length > 2000) this.timings.splice(0, this.timings.length - 2000);
+  }
+
   node(cx: number, cz: number): WorldNode | null {
     const id = nodeId(cx, cz);
     let n = this.nodes.get(id);

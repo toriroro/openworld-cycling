@@ -6,7 +6,8 @@ import type { CrossingInfo, Rect } from "../shared/world/world.ts";
 export type WorldRequest =
   | { type: "init"; seed: number }
   | { type: "tile"; id: number; x0: number; z0: number; mpp: number }
-  | { type: "region"; id: number; rect: Rect };
+  | { type: "region"; id: number; rect: Rect }
+  | { type: "prune"; keep: Rect };
 
 export interface RegionPayload {
   nodes: WorldNode[];

@@ -31,10 +31,11 @@ export function makeNode(seed: number, terrain: Terrain, cx: number, cz: number)
     const x = Math.floor((cx + ux) * NODE_CELL / ROUTE_GRID) * ROUTE_GRID;
     const z = Math.floor((cz + uz) * NODE_CELL / ROUTE_GRID) * ROUTE_GRID;
     const y = terrain.routeHeight(x, z);
-    if (y < 0.5) continue;
+    if (y < 0.02) continue;
     const slope = terrain.slope(x, z, 150);
-    // 低い所（谷・海沿い）を好む。山地では尾根の上ではなく谷に置き、道が峠を越えるようにする
-    const coastal = y < 40 ? 0.35 + 0.4 * terrain.seaNearness(x, z) : 0;
+    // 低い所（谷・海沿い）を好む。山地では尾根の上ではなく谷に置き、道が峠を越えるようにする。
+    // 海から 600m 以内を強く好み、海沿いの町と海岸を通る道ができるようにする（GENERATOR_VERSION 2）
+    const coastal = y < 40 ? 0.35 + 1.6 * terrain.seaNearness(x, z) : 0;
     const score = -slope * 12 - y / 250 + coastal;
     if (!best || score > best.score) best = { x, z, y, score, slope };
   }

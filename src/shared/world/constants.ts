@@ -5,7 +5,7 @@ export const WORLD_SEED = 6;
 /** 起点の町（葛郷）。世界座標 (m) と結節点の識別子 */
 export const ORIGIN = { x: -32500, z: 11250, node: "n_-9_2" } as const;
 /** 生成結果が変わる変更のたびに上げる。保存データのキーに含める（起点の決定以降、生成結果を変えたら必ず上げる） */
-export const GENERATOR_VERSION = 1;
+export const GENERATOR_VERSION = 2;
 
 /** 結節点を1つ置く格子の一辺 (m) */
 export const NODE_CELL = 4000;

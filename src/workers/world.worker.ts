@@ -18,6 +18,10 @@ self.onmessage = (ev: MessageEvent<WorldRequest>) => {
       return;
     }
     if (!world) throw new Error("world not initialized");
+    if (req.type === "prune") {
+      world.prune(req.keep);
+      return;
+    }
     if (req.type === "tile") {
       const t0 = now();
       const pixels = renderTile(world.terrain, req.x0, req.z0, req.mpp);

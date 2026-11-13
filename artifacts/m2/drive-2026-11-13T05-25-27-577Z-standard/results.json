@@ -1,0 +1,532 @@
+{
+  "date": "2026-11-13T05:25:30.942Z",
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Ti (0x00002803) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "speed": 200,
+  "legKm": 12.5,
+  "quality": "standard",
+  "viewport": "1440x900",
+  "measures": [
+    {
+      "name": "lap0-start",
+      "waitMs": 2,
+      "travelledKm": 0.019808400000000007,
+      "pos": {
+        "road": "n_-9_2~n_-8_2",
+        "s": 19.808400000000006,
+        "dir": 1
+      },
+      "eye": {
+        "x": -32489.194864338457,
+        "y": 127.29891186543546,
+        "z": 11248.243150025048
+      },
+      "terrainMeshes": 259,
+      "roadChunks": 21,
+      "geometries": 84,
+      "textures": 7,
+      "programs": 6,
+      "heapMB": 37.08787727355957,
+      "triangles": 175890,
+      "calls": 92,
+      "terrain": {
+        "tiles": 259,
+        "meshes": 259,
+        "visible": 251,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          127
+        ]
+      },
+      "roadsLoaded": 58,
+      "rebases": 1,
+      "ray": {
+        "rays": 1209,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    {
+      "name": "lap1-end",
+      "waitMs": 2,
+      "travelledKm": 12.521868400000166,
+      "pos": {
+        "road": "n_-7_4~n_-6_3",
+        "s": 2381.5181882961238,
+        "dir": -1
+      },
+      "eye": {
+        "x": -24445.858436824954,
+        "y": 5.506421282001324,
+        "z": 16263.57255953753
+      },
+      "terrainMeshes": 258,
+      "roadChunks": 33,
+      "geometries": 268,
+      "textures": 8,
+      "programs": 7,
+      "heapMB": 38.98818302154541,
+      "triangles": 215034,
+      "calls": 109,
+      "terrain": {
+        "tiles": 258,
+        "meshes": 258,
+        "visible": 250,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          126
+        ]
+      },
+      "roadsLoaded": 69,
+      "rebases": 6,
+      "ray": {
+        "rays": 1377,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    {
+      "name": "lap1-start",
+      "waitMs": 2,
+      "travelledKm": 25.023928400001548,
+      "pos": {
+        "road": "n_-9_2~n_-8_2",
+        "s": 19.808400000000006,
+        "dir": -1
+      },
+      "eye": {
+        "x": -32471.188372801105,
+        "y": 127.2074941292338,
+        "z": 11251.708774869554
+      },
+      "terrainMeshes": 259,
+      "roadChunks": 21,
+      "geometries": 272,
+      "textures": 8,
+      "programs": 7,
+      "heapMB": 38.4755744934082,
+      "triangles": 231154,
+      "calls": 117,
+      "terrain": {
+        "tiles": 259,
+        "meshes": 259,
+        "visible": 251,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          127
+        ]
+      },
+      "roadsLoaded": 71,
+      "rebases": 10,
+      "ray": {
+        "rays": 1209,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    {
+      "name": "lap2-end",
+      "waitMs": 2,
+      "travelledKm": 37.52598840000193,
+      "pos": {
+        "road": "n_-7_4~n_-6_3",
+        "s": 2381.5181882961238,
+        "dir": -1
+      },
+      "eye": {
+        "x": -24445.858436940664,
+        "y": 5.5064212818621865,
+        "z": 16263.57255959536
+      },
+      "terrainMeshes": 258,
+      "roadChunks": 33,
+      "geometries": 286,
+      "textures": 8,
+      "programs": 7,
+      "heapMB": 39.17355442047119,
+      "triangles": 215034,
+      "calls": 109,
+      "terrain": {
+        "tiles": 258,
+        "meshes": 258,
+        "visible": 250,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          126
+        ]
+      },
+      "roadsLoaded": 69,
+      "rebases": 14,
+      "ray": {
+        "rays": 1377,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    {
+      "name": "lap2-start",
+      "waitMs": 1,
+      "travelledKm": 50.0280484000021,
+      "pos": {
+        "road": "n_-9_2~n_-8_2",
+        "s": 19.808400000000006,
+        "dir": -1
+      },
+      "eye": {
+        "x": -32471.18837280112,
+        "y": 127.20749412923388,
+        "z": 11251.708774869556
+      },
+      "terrainMeshes": 259,
+      "roadChunks": 21,
+      "geometries": 272,
+      "textures": 8,
+      "programs": 7,
+      "heapMB": 38.42947196960449,
+      "triangles": 231154,
+      "calls": 117,
+      "terrain": {
+        "tiles": 259,
+        "meshes": 259,
+        "visible": 251,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          127
+        ]
+      },
+      "roadsLoaded": 71,
+      "rebases": 18,
+      "ray": {
+        "rays": 1209,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    {
+      "name": "lap3-end",
+      "waitMs": 2,
+      "travelledKm": 62.53010840000258,
+      "pos": {
+        "road": "n_-7_4~n_-6_3",
+        "s": 2381.5181882961238,
+        "dir": -1
+      },
+      "eye": {
+        "x": -24445.858436858583,
+        "y": 5.506421281960887,
+        "z": 16263.572559554335
+      },
+      "terrainMeshes": 258,
+      "roadChunks": 33,
+      "geometries": 286,
+      "textures": 8,
+      "programs": 7,
+      "heapMB": 45.83323574066162,
+      "triangles": 215034,
+      "calls": 109,
+      "terrain": {
+        "tiles": 258,
+        "meshes": 258,
+        "visible": 250,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          126
+        ]
+      },
+      "roadsLoaded": 69,
+      "rebases": 22,
+      "ray": {
+        "rays": 1377,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    {
+      "name": "lap3-start",
+      "waitMs": 2,
+      "travelledKm": 75.03216839999602,
+      "pos": {
+        "road": "n_-9_2~n_-8_2",
+        "s": 19.808400000000006,
+        "dir": -1
+      },
+      "eye": {
+        "x": -32471.188372787135,
+        "y": 127.2074941293598,
+        "z": 11251.708774869474
+      },
+      "terrainMeshes": 259,
+      "roadChunks": 21,
+      "geometries": 272,
+      "textures": 8,
+      "programs": 7,
+      "heapMB": 38.45709037780762,
+      "triangles": 231154,
+      "calls": 117,
+      "terrain": {
+        "tiles": 259,
+        "meshes": 259,
+        "visible": 251,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          127
+        ]
+      },
+      "roadsLoaded": 71,
+      "rebases": 26,
+      "ray": {
+        "rays": 1209,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    {
+      "name": "lap4-end",
+      "waitMs": 2,
+      "travelledKm": 87.53422839998733,
+      "pos": {
+        "road": "n_-7_4~n_-6_3",
+        "s": 2381.5181882961238,
+        "dir": -1
+      },
+      "eye": {
+        "x": -24445.858437154522,
+        "y": 5.506421281605029,
+        "z": 16263.572559702245
+      },
+      "terrainMeshes": 258,
+      "roadChunks": 33,
+      "geometries": 286,
+      "textures": 8,
+      "programs": 7,
+      "heapMB": 39.09652614593506,
+      "triangles": 215034,
+      "calls": 109,
+      "terrain": {
+        "tiles": 258,
+        "meshes": 258,
+        "visible": 250,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          126
+        ]
+      },
+      "roadsLoaded": 69,
+      "rebases": 30,
+      "ray": {
+        "rays": 1377,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    {
+      "name": "lap4-start",
+      "waitMs": 2,
+      "travelledKm": 100.0362883999805,
+      "pos": {
+        "road": "n_-9_2~n_-8_2",
+        "s": 19.808400000000006,
+        "dir": -1
+      },
+      "eye": {
+        "x": -32471.188372467994,
+        "y": 127.20749413210208,
+        "z": 11251.70877486764
+      },
+      "terrainMeshes": 259,
+      "roadChunks": 21,
+      "geometries": 272,
+      "textures": 8,
+      "programs": 7,
+      "heapMB": 38.48011589050293,
+      "triangles": 231154,
+      "calls": 117,
+      "terrain": {
+        "tiles": 259,
+        "meshes": 259,
+        "visible": 251,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          127
+        ]
+      },
+      "roadsLoaded": 71,
+      "rebases": 34,
+      "ray": {
+        "rays": 1209,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    }
+  ],
+  "drives": [
+    {
+      "label": "1周目 往路（記録）",
+      "seconds": 62.507,
+      "frames": 3741,
+      "median": 16.69999999999709,
+      "p95": 16.799999999999272,
+      "p99": 16.80000000000291,
+      "max": 50.10000000000218
+    },
+    {
+      "label": "1周目 復路",
+      "seconds": 62.992,
+      "frames": 3768,
+      "median": 16.69999999999709,
+      "p95": 16.80000000000291,
+      "p99": 16.80000000000291,
+      "max": 49.90000000000873
+    },
+    {
+      "label": "2周目 往路",
+      "seconds": 62.587,
+      "frames": 3747,
+      "median": 16.699999999982538,
+      "p95": 16.79999999998836,
+      "p99": 16.800000000017462,
+      "max": 33.29999999998836
+    },
+    {
+      "label": "2周目 復路",
+      "seconds": 62.986,
+      "frames": 3772,
+      "median": 16.699999999982538,
+      "p95": 16.79999999998836,
+      "p99": 16.800000000017462,
+      "max": 17
+    },
+    {
+      "label": "3周目 往路",
+      "seconds": 62.518,
+      "frames": 3744,
+      "median": 16.70000000001164,
+      "p95": 16.79999999998836,
+      "p99": 16.800000000046566,
+      "max": 17
+    },
+    {
+      "label": "3周目 復路",
+      "seconds": 63.056,
+      "frames": 3762,
+      "median": 16.70000000001164,
+      "p95": 16.79999999998836,
+      "p99": 16.800000000046566,
+      "max": 250.09999999997672
+    },
+    {
+      "label": "4周目 往路",
+      "seconds": 62.959,
+      "frames": 3770,
+      "median": 16.70000000001164,
+      "p95": 16.79999999998836,
+      "p99": 16.800000000046566,
+      "max": 17
+    },
+    {
+      "label": "4周目 復路",
+      "seconds": 62.528,
+      "frames": 3744,
+      "median": 16.70000000001164,
+      "p95": 16.79999999998836,
+      "p99": 16.800000000046566,
+      "max": 17.400000000023283
+    }
+  ],
+  "sameView": {
+    "終点 1周目と2周目": {
+      "meanAbs": 0,
+      "max": 0
+    },
+    "起点 1周目と2周目": {
+      "meanAbs": 0,
+      "max": 0
+    },
+    "終点 1周目と3周目": {
+      "meanAbs": 0,
+      "max": 0
+    },
+    "起点 1周目と3周目": {
+      "meanAbs": 0,
+      "max": 0
+    },
+    "終点 1周目と4周目": {
+      "meanAbs": 0,
+      "max": 0
+    },
+    "起点 1周目と4周目": {
+      "meanAbs": 0,
+      "max": 0
+    }
+  },
+  "framesAll": {
+    "frames": 30048,
+    "median": 16.69999999999709,
+    "p95": 16.79999999998836,
+    "p99": 16.800000000046566,
+    "max": 250.09999999997672
+  },
+  "errors": []
+}

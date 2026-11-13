@@ -1,0 +1,293 @@
+{
+  "date": "2026-11-13T05:21:37.840Z",
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Ti (0x00002803) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "speed": 200,
+  "legKm": 3,
+  "quality": "standard",
+  "measures": [
+    {
+      "name": "0-start",
+      "waitMs": 2,
+      "travelledKm": 0.01960920000000001,
+      "pos": {
+        "road": "n_-9_2~n_-8_2",
+        "s": 19.609200000000012,
+        "dir": 1
+      },
+      "eye": {
+        "x": -32489.394064298926,
+        "y": 127.29847981566844,
+        "z": 11248.243317369597
+      },
+      "geometries": 84,
+      "textures": 7,
+      "programs": 6,
+      "heapMB": 37.08476734161377,
+      "triangles": 175890,
+      "calls": 92,
+      "terrain": {
+        "tiles": 259,
+        "meshes": 259,
+        "visible": 251,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          127
+        ]
+      },
+      "roadChunks": 21,
+      "roadsLoaded": 58,
+      "rebases": 1,
+      "ray": {
+        "rays": 1209,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    {
+      "name": "1-end-a",
+      "waitMs": 2,
+      "travelledKm": 3.0408891999999987,
+      "pos": {
+        "road": "n_-8_2~n_-7_2",
+        "s": 300.1608416055816,
+        "dir": 1
+      },
+      "eye": {
+        "x": -29508.89526148966,
+        "y": 112.24359781490708,
+        "z": 11395.087178291073
+      },
+      "geometries": 211,
+      "textures": 7,
+      "programs": 6,
+      "heapMB": 38.95029544830322,
+      "triangles": 322382,
+      "calls": 151,
+      "terrain": {
+        "tiles": 261,
+        "meshes": 261,
+        "visible": 253,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          129
+        ]
+      },
+      "roadChunks": 29,
+      "roadsLoaded": 66,
+      "rebases": 2,
+      "ray": {
+        "rays": 1584,
+        "poke": 496,
+        "missed": 0,
+        "worst": {
+          "road": "n_-8_2~n_-7_2",
+          "s": 1085.9847213654314,
+          "over": 8.438408669398598
+        }
+      }
+    },
+    {
+      "name": "2-start-a",
+      "waitMs": 1,
+      "travelledKm": 6.062169199999992,
+      "pos": {
+        "road": "n_-9_2~n_-8_2",
+        "s": 19.609200000000012,
+        "dir": -1
+      },
+      "eye": {
+        "x": -32471.387571573207,
+        "y": 127.20582061913451,
+        "z": 11251.709340427013
+      },
+      "geometries": 242,
+      "textures": 7,
+      "programs": 6,
+      "heapMB": 38.13600254058838,
+      "triangles": 224242,
+      "calls": 114,
+      "terrain": {
+        "tiles": 259,
+        "meshes": 259,
+        "visible": 251,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          127
+        ]
+      },
+      "roadChunks": 21,
+      "roadsLoaded": 66,
+      "rebases": 2,
+      "ray": {
+        "rays": 1209,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    {
+      "name": "3-end-b",
+      "waitMs": 1,
+      "travelledKm": 9.08344920000002,
+      "pos": {
+        "road": "n_-8_2~n_-7_2",
+        "s": 300.1608416055816,
+        "dir": 1
+      },
+      "eye": {
+        "x": -29508.895261452093,
+        "y": 112.24359781475208,
+        "z": 11395.087178290414
+      },
+      "geometries": 257,
+      "textures": 7,
+      "programs": 6,
+      "heapMB": 39.12692356109619,
+      "triangles": 234830,
+      "calls": 113,
+      "terrain": {
+        "tiles": 261,
+        "meshes": 261,
+        "visible": 253,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          129
+        ]
+      },
+      "roadChunks": 29,
+      "roadsLoaded": 66,
+      "rebases": 2,
+      "ray": {
+        "rays": 1584,
+        "poke": 496,
+        "missed": 0,
+        "worst": {
+          "road": "n_-8_2~n_-7_2",
+          "s": 1085.9847213654314,
+          "over": 8.438408669398598
+        }
+      }
+    },
+    {
+      "name": "4-start-b",
+      "waitMs": 1,
+      "travelledKm": 12.10472920000025,
+      "pos": {
+        "road": "n_-9_2~n_-8_2",
+        "s": 19.609200000000012,
+        "dir": -1
+      },
+      "eye": {
+        "x": -32471.38757157342,
+        "y": 127.20582061913089,
+        "z": 11251.709340427014
+      },
+      "geometries": 244,
+      "textures": 7,
+      "programs": 6,
+      "heapMB": 38.268460273742676,
+      "triangles": 224242,
+      "calls": 114,
+      "terrain": {
+        "tiles": 259,
+        "meshes": 259,
+        "visible": 251,
+        "pending": 0,
+        "queued": 0,
+        "waitingRoads": 0,
+        "ready": 0,
+        "releasing": 0,
+        "byLevel": [
+          64,
+          60,
+          127
+        ]
+      },
+      "roadChunks": 21,
+      "roadsLoaded": 66,
+      "rebases": 2,
+      "ray": {
+        "rays": 1209,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    }
+  ],
+  "drives": [
+    {
+      "label": "記録しながら前進",
+      "seconds": 15.106,
+      "frames": 901,
+      "median": 16.69999999999891,
+      "p95": 16.799999999999272,
+      "p99": 16.80000000000109,
+      "max": 16.80000000000291
+    },
+    {
+      "label": "戻る 1",
+      "seconds": 15.12,
+      "frames": 902,
+      "median": 16.69999999999709,
+      "p95": 16.799999999999272,
+      "p99": 16.80000000000291,
+      "max": 16.80000000000291
+    },
+    {
+      "label": "進む 2",
+      "seconds": 15.138,
+      "frames": 903,
+      "median": 16.69999999999709,
+      "p95": 16.80000000000291,
+      "p99": 16.80000000000291,
+      "max": 16.900000000001455
+    },
+    {
+      "label": "戻る 2",
+      "seconds": 15.134,
+      "frames": 902,
+      "median": 16.69999999999709,
+      "p95": 16.80000000000291,
+      "p99": 16.80000000000291,
+      "max": 16.80000000000291
+    }
+  ],
+  "sameView": {
+    "終点（1回目と2回目）": {
+      "meanAbs": 0.24344135802469136,
+      "max": 29
+    },
+    "起点（戻り1回目と2回目）": {
+      "meanAbs": 0,
+      "max": 0
+    }
+  },
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}
