@@ -108,6 +108,8 @@ export class RoadClient {
     }
     if (dropped) {
       this.net.pruneJunctions();
+      // 結節点（地名）も捨てる（走り続けても増えないように）
+      for (const [id, n] of this.net.nodes) if (Math.abs(n.x - cx) > drop + ROAD_BLOCK || Math.abs(n.z - cz) > drop + ROAD_BLOCK) this.net.nodes.delete(id);
       const keep = drop + ROAD_BLOCK * 2;
       const msg: WorldRequest = { type: "prune", keep: { x0: cx - keep, z0: cz - keep, x1: cx + keep, z1: cz + keep } };
       if (this.worker) this.worker.postMessage(msg);
