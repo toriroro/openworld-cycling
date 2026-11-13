@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-13T14:39:09.207Z",
+  "seed": 6,
+  "center": [
+    -32500,
+    11250
+  ],
+  "size": 200000,
+  "cells": {
+    "cells": 7657,
+    "sea": 3249,
+    "pits": 233,
+    "channels": 194,
+    "lakes": 39
+  },
+  "seaRatio": 0.42431761786600497,
+  "rivers": {
+    "cells40": 1340,
+    "cells80": 1340,
+    "both": 1340,
+    "widthChanged10": 0,
+    "widthChanged30": 0,
+    "classChanged": 0,
+    "bands": [
+      1034,
+      280,
+      26
+    ],
+    "maxAreaKm2": 3560
+  },
+  "segs": {
+    "count": 1231,
+    "lengthKm": 3334.9557345769385,
+    "toSea": 62,
+    "lakes": 40,
+    "rise": 0,
+    "slopeMedian": 0.0025298850309350843,
+    "slopeP10": 0.0004819081930027699,
+    "slopeP90": 0.00900035447358566,
+    "slopeMax": 0.13029675205571012
+  },
+  "cost": {
+    "blocks": 56,
+    "blockMsAvg": 14.06587142857143,
+    "accMs": 50.94040000000001,
+    "tileMsRiver": 1.8639083333333322,
+    "tileMsBase": 1.4499083333333336
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "node": {
+    "id": "n_-9_2",
+    "name": "葛郷",
+    "kind": "town",
+    "x": -32500,
+    "y": 124.21104708971271,
+    "z": 11250,
+    "importance": 0.8828216596566779
+  },
+  "originConst": {
+    "x": -32500,
+    "z": 11250,
+    "node": "n_-9_2"
+  },
+  "moved": 0,
+  "metrics": {
+    "plainKm2": 144.6875,
+    "seaKm2": 122.4375,
+    "coastKm": 23,
+    "maxElev": 1529.5822517453926,
+    "mountainKm2": 207.75
+  },
+  "ok": true,
+  "rivers15km": {
+    "count": 18,
+    "largestKm2": 128,
+    "nearestM": 409.45035877560264,
+    "nearestKm2": 72,
+    "lakes": 0
+  }
+}

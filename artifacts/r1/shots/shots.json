@@ -1,0 +1,33 @@
+{
+  "results": [
+    {
+      "kind": "bigBridge",
+      "note": "大きな川の橋 218m を川の上から見る",
+      "file": "artifacts/r1/shots/bigBridge.png",
+      "triangles": 487358,
+      "calls": 162
+    },
+    {
+      "kind": "cycleway",
+      "note": "菱畑川自転車道 4.9km",
+      "file": "artifacts/r1/shots/cycleway.png",
+      "triangles": 426325,
+      "calls": 128
+    },
+    {
+      "kind": "mouth",
+      "note": "菱畑川自転車道（河口で終わる） 終点の 400m 手前",
+      "file": "artifacts/r1/shots/mouth.png",
+      "triangles": 450832,
+      "calls": 126
+    },
+    {
+      "kind": "originBridge",
+      "note": "起点から 0.8km の川の橋 26m を川の上から見る",
+      "file": "artifacts/r1/shots/originBridge.png",
+      "triangles": 803326,
+      "calls": 121
+    }
+  ],
+  "errors": []
+}

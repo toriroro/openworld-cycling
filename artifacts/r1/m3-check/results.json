@@ -1,0 +1,193 @@
+{
+  "date": "2026-11-13T15:07:07.149Z",
+  "sizes": [
+    {
+      "size": "1440x900",
+      "touch": false,
+      "elements": [
+        ".ride-info",
+        ".menu-btn",
+        ".road-name",
+        ".minimap"
+      ],
+      "overlaps": [],
+      "outside": [],
+      "smallButtons": 0,
+      "menuFits": true,
+      "errors": []
+    },
+    {
+      "size": "844x390",
+      "touch": true,
+      "elements": [
+        ".ride-info",
+        ".menu-btn",
+        ".road-name",
+        ".touch-left",
+        ".touch-right",
+        ".minimap"
+      ],
+      "overlaps": [],
+      "outside": [],
+      "smallButtons": 0,
+      "menuFits": true,
+      "errors": []
+    },
+    {
+      "size": "390x844",
+      "touch": true,
+      "elements": [
+        ".ride-info",
+        ".menu-btn",
+        ".road-name",
+        ".touch-left",
+        ".touch-right",
+        ".minimap"
+      ],
+      "overlaps": [],
+      "outside": [],
+      "smallButtons": 0,
+      "menuFits": true,
+      "errors": []
+    },
+    {
+      "size": "1024x768",
+      "touch": false,
+      "elements": [
+        ".ride-info",
+        ".menu-btn",
+        ".road-name",
+        ".minimap"
+      ],
+      "overlaps": [],
+      "outside": [],
+      "smallButtons": 0,
+      "menuFits": true,
+      "errors": []
+    }
+  ],
+  "budget": [
+    {
+      "quality": "standard",
+      "size": "1440x900",
+      "maxTriangles": 766269,
+      "maxCalls": 125,
+      "samples": [
+        {
+          "triangles": 765471,
+          "calls": 125
+        },
+        {
+          "triangles": 765765,
+          "calls": 125
+        },
+        {
+          "triangles": 765849,
+          "calls": 125
+        },
+        {
+          "triangles": 766269,
+          "calls": 125
+        },
+        {
+          "triangles": 764091,
+          "calls": 124
+        },
+        {
+          "triangles": 763920,
+          "calls": 122
+        },
+        {
+          "triangles": 764302,
+          "calls": 122
+        },
+        {
+          "triangles": 763966,
+          "calls": 122
+        },
+        {
+          "triangles": 762976,
+          "calls": 119
+        },
+        {
+          "triangles": 762598,
+          "calls": 119
+        }
+      ]
+    },
+    {
+      "quality": "light",
+      "size": "844x390",
+      "maxTriangles": 354082,
+      "maxCalls": 89,
+      "samples": [
+        {
+          "triangles": 353998,
+          "calls": 89
+        },
+        {
+          "triangles": 354082,
+          "calls": 89
+        },
+        {
+          "triangles": 348178,
+          "calls": 86
+        },
+        {
+          "triangles": 343864,
+          "calls": 84
+        },
+        {
+          "triangles": 344456,
+          "calls": 84
+        },
+        {
+          "triangles": 344327,
+          "calls": 82
+        },
+        {
+          "triangles": 344489,
+          "calls": 82
+        },
+        {
+          "triangles": 341717,
+          "calls": 81
+        },
+        {
+          "triangles": 339455,
+          "calls": 80
+        },
+        {
+          "triangles": 339497,
+          "calls": 80
+        }
+      ]
+    }
+  ],
+  "branch": {
+    "distance": 116.30568259469828,
+    "choices": [
+      {
+        "dest": "朝谷",
+        "angle": -117.08049074337207,
+        "km": 5.811033025759788
+      },
+      {
+        "dest": "白沢",
+        "angle": -26.661491939129178,
+        "km": 3.556316679271063
+      },
+      {
+        "dest": "楓津",
+        "angle": 34.435499037533646,
+        "km": 3.4938992429885123
+      }
+    ],
+    "defaultIndex": 1
+  },
+  "cameras": [
+    "chase",
+    "rider",
+    "drone"
+  ]
+}

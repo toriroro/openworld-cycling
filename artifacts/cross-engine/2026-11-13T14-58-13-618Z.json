@@ -1,0 +1,48 @@
+{
+  "query": "seed=6&x=-60000&z=50500&size=16000",
+  "results": [
+    {
+      "engine": "Node.js v22.23.1",
+      "hash": "c2b4b9ae",
+      "rivers": "a0e91a66 162/1",
+      "roads": 40,
+      "junctions": 43,
+      "pois": 264,
+      "ms": 2003
+    },
+    {
+      "engine": "Chrome (V8)",
+      "hash": "c2b4b9ae",
+      "rivers": "a0e91a66 162/1",
+      "roads": 40,
+      "junctions": 43,
+      "pois": 264,
+      "ms": 2199,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36"
+    },
+    {
+      "engine": "Edge (V8)",
+      "hash": "c2b4b9ae",
+      "rivers": "a0e91a66 162/1",
+      "roads": 40,
+      "junctions": 43,
+      "pois": 264,
+      "ms": 1951,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0"
+    },
+    {
+      "engine": "Firefox (SpiderMonkey)",
+      "error": "browserType.launch: spawn UNKNOWN"
+    },
+    {
+      "engine": "WebKit (JavaScriptCore)",
+      "hash": "c2b4b9ae",
+      "rivers": "a0e91a66 162/1",
+      "roads": 40,
+      "junctions": 43,
+      "pois": 264,
+      "ms": 1352,
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Safari/605.1.15"
+    }
+  ]
+}
