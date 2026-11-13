@@ -133,5 +133,63 @@ if (want("cafe")) {
   await ctx.close();
 }
 
+// 音（7.5）: 最初の操作で鳴り始め、走ると音が出る。未舗装でも鳴る。消音で消える
+if (want("audio")) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto(`${base}/?fresh=1`);
+  await ready(page);
+  const before = await page.evaluate(() => window.__dev.soundInfo());
+  await page.mouse.click(640, 400);
+  await pedal(page, true);
+  await page.waitForTimeout(8000);
+  const rms = async () => {
+    let m = 0;
+    for (let i = 0; i < 10; i++) {
+      m = Math.max(m, await page.evaluate(() => window.__dev.soundInfo().rms));
+      await page.waitForTimeout(100);
+    }
+    return m;
+  };
+  const paved = await rms();
+  const speedPaved = await page.evaluate(() => window.__dev.state().speed);
+  // 未舗装の道へ
+  const gravel = await page.evaluate(() => {
+    const p = window.__dev.game.ride.pose();
+    let best = null;
+    for (const e of window.__dev.roads.roadEntries()) {
+      if (e.road.surface !== "gravel") continue;
+      const r = e.road;
+      const i = Math.floor(r.points.length / 6);
+      const x = r.points[i * 3] + r.origin[0], z = r.points[i * 3 + 2] + r.origin[1];
+      const d = Math.hypot(x - p.x, z - p.z);
+      if (!best || d < best.d) best = { x, z, d, id: r.id };
+    }
+    if (best) window.__dev.teleport(best.x, best.z);
+    return best;
+  });
+  let gravelRms = null;
+  let gravelSurface = null;
+  if (gravel) {
+    await page.waitForFunction(() => window.__dev.state().ready, null, { timeout: 120000, polling: 250 });
+    await page.waitForTimeout(8000);
+    gravelSurface = await page.evaluate(() => window.__dev.game.ride.road?.surface);
+    gravelRms = await rms();
+  }
+  // 消音
+  await page.evaluate(() => {
+    const sel = [...document.querySelectorAll(".menu-row")].find((r) => r.textContent.startsWith("消音")).querySelector("select");
+    sel.value = "on";
+    sel.dispatchEvent(new Event("change"));
+  });
+  await page.waitForTimeout(1200);
+  const muted = await rms();
+  results.audio = { before: before.state, after: (await page.evaluate(() => window.__dev.soundInfo())).state, pavedRms: paved, speedPaved, gravel, gravelSurface, gravelRms, mutedRms: muted, errors };
+  console.log("音", JSON.stringify(results.audio));
+  await ctx.close();
+}
+
 writeFileSync(`${out}/results-${Object.keys(results).filter((k) => k !== "date").join("-") || "none"}.json`, JSON.stringify(results, null, 2));
 await browser.close();

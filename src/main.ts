@@ -81,6 +81,9 @@ if (q.get("mode") === "m2") {
         awake: platform.awake,
       };
     },
+    soundInfo() {
+      return game.sound.stats();
+    },
     stopInfo() {
       return { stop: game.stop ? game.stop.cafe.poi.id : null, stamps: game.stamps.map((st) => ({ ...st })) };
     },

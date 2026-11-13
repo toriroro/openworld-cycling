@@ -2,6 +2,7 @@
 // 描画と画面は sim の状態を読むだけ（モック仕様 3.3）。
 // 保存（モック仕様 7.3）: 現在地・総距離・獲得標高・走行時間・走った区間・スタンプ・設定・装いを platform の保存に残し、起動時は続きから始める。
 
+import { SoundSystem } from "./audio/sound.ts";
 import { platform } from "./platform/index.ts";
 import { DEFAULT_SETTINGS, parseSave, SAVE_KEY, SAVE_VERSION, type SaveData, type SaveSettings, type Stamp } from "./shared/save.ts";
 import { GENERATOR_VERSION, ORIGIN } from "./shared/world/constants.ts";
@@ -82,6 +83,10 @@ export class Game {
   /** 出発した店（60m 離れるまで、また止まっても立ち寄りにしない） */
   private lastCafe: { id: string; x: number; z: number } | null = null;
   private stopPanel = new StopPanel();
+  /** 音（モック仕様 7.5） */
+  readonly sound = new SoundSystem();
+  private volumeSel: HTMLSelectElement;
+  private muteSel: HTMLSelectElement;
   private stampBook = new StampBook();
   private fpsSel: HTMLSelectElement;
 
@@ -99,6 +104,36 @@ export class Game {
     this.minimap = new Minimap(this.hud.root, () => this.toggleMap());
     this.mapOverlay = new MapOverlay(roads.seed);
     this.mapOverlay.onClearGoal = () => this.ride?.setGoal(null);
+    // 音量と消音
+    this.volumeSel = this.hud.addSelect(
+      "音量",
+      [
+        ["1", "100%"],
+        ["0.7", "70%"],
+        ["0.4", "40%"],
+        ["0.2", "20%"],
+      ],
+      String(this.settings.volume),
+      (v) => {
+        this.settings.volume = Number(v);
+        this.sound.setVolume(this.settings.volume, this.settings.muted);
+        void this.save();
+      },
+    );
+    this.muteSel = this.hud.addSelect(
+      "消音",
+      [
+        ["off", "切"],
+        ["on", "入"],
+      ],
+      this.settings.muted ? "on" : "off",
+      (v) => {
+        this.settings.muted = v === "on";
+        this.sound.setVolume(this.settings.volume, this.settings.muted);
+        void this.save();
+      },
+    );
+    this.sound.setVolume(this.settings.volume, this.settings.muted);
     this.stopPanel.onDepart = () => this.depart();
     this.stampBook.onPick = (st) => this.startFrom(st);
     this.hud.addButton("スタンプ帳", () => {
@@ -206,6 +241,10 @@ export class Game {
     this.stampSet = new Set(d.stamps.map((st) => st.poi));
     this.setWatching(d.watching);
     this.routeSel.value = d.settings.watchRoute;
+    this.volumeSel.value = String(d.settings.volume);
+    if (!this.volumeSel.value) this.volumeSel.value = "0.7";
+    this.muteSel.value = d.settings.muted ? "on" : "off";
+    this.sound.setVolume(d.settings.volume, d.settings.muted);
     this.fpsSel.value = d.settings.fps30 ? "30" : "free";
     if (d.pos) this.anchor = { x: d.pos.x, z: d.pos.z };
     this.resume = { pos: d.pos, odometer: d.odometer, climb: d.climb, time: d.time, generator: d.generator };
@@ -494,6 +533,11 @@ export class Game {
     if (!this.ride) this.place();
     this.updateWatching(t);
     this.checkCafe(t);
+    this.sound.update({
+      speed: this.ride?.speed ?? 0,
+      surface: this.ride?.road?.surface ?? "paved",
+      riding: !!this.ride && !this.paused && !this.stop && !document.hidden,
+    });
     const ride = this.ride;
     this.manual.pedal = this.input.pedal;
     this.manual.brake = this.input.brake ? 1 : 0;

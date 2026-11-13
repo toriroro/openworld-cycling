@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-13T11:42:57.533Z",
+  "audio": {
+    "before": "uninitialized",
+    "after": "running",
+    "pavedRms": 0.013477333150536982,
+    "speedPaved": 6.293351122837266,
+    "gravel": {
+      "x": -26662.264965296654,
+      "z": 8809.920568635836,
+      "d": 6288.191509353364,
+      "id": "n_-7_1~n_-7_2#0"
+    },
+    "gravelSurface": "gravel",
+    "gravelRms": 0.03796456794168381,
+    "mutedRms": 0,
+    "errors": []
+  }
+}
