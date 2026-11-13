@@ -172,6 +172,7 @@ export class RoadClient {
       this.net.addRoad(r);
     }
     for (const j of d.junctions) this.net.addJunction(j);
+    for (const n of d.nodes) this.net.nodes.set(n.id, n);
     for (const p of d.pois) if (this.entries.has(p.road)) this.pois.set(p.id, p);
     for (const t of d.timings) this.roadMs.push(t.ms);
     if (this.roadMs.length > 5000) this.roadMs.splice(0, this.roadMs.length - 5000);

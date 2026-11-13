@@ -1,26 +1,26 @@
 [
   {
-    "kind": "gravel",
+    "kind": "plain",
     "quality": "standard",
-    "file": "artifacts/m2/shots/gravel-standard-1440x900.png",
-    "triangles": 236682,
-    "calls": 110,
+    "file": "artifacts/m2/shots/plain-standard-1440x900.png",
+    "triangles": 296410,
+    "calls": 144,
     "eye": {
-      "x": -26666.05115618566,
-      "y": 335.2371859422776,
-      "z": 8801.710006036628
+      "x": -26703.649617104515,
+      "y": 5,
+      "z": 18333.65113241188
     }
   },
   {
-    "kind": "gravel",
+    "kind": "plain",
     "quality": "light",
-    "file": "artifacts/m2/shots/gravel-light-844x390.png",
-    "triangles": 104058,
-    "calls": 49,
+    "file": "artifacts/m2/shots/plain-light-844x390.png",
+    "triangles": 154346,
+    "calls": 77,
     "eye": {
-      "x": -26666.05115618566,
-      "y": 335.2371859422776,
-      "z": 8801.710006036628
+      "x": -26703.649617104515,
+      "y": 5,
+      "z": 18333.65113241188
     }
   }
 ]

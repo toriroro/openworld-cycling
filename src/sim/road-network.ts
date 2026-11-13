@@ -1,6 +1,6 @@
 // 読み込み済みの道路網（道路・接続点）と、道路上の位置の計算。描画なしで使える（モック仕様 3.3: sim は shared/world だけに依存）。
 
-import type { Junction, JunctionArm, Road } from "../shared/world/types.ts";
+import type { Junction, JunctionArm, Road, WorldNode } from "../shared/world/types.ts";
 
 export interface RoadSample {
   x: number;
@@ -54,15 +54,52 @@ export interface RoadPosition {
 }
 
 /** 道路と接続点の集まり。読み込み・破棄は呼び出し側が行う */
+export interface JunctionOnRoad {
+  junction: Junction;
+  s: number;
+}
+
 export class RoadNetwork {
   readonly roads = new Map<string, Road>();
   readonly junctions = new Map<string, Junction>();
+  readonly nodes = new Map<string, WorldNode>();
+  /** 道路や接続点が変わるたびに増える */
+  version = 0;
+  private onRoadCache = new Map<string, JunctionOnRoad[]>();
+  private onRoadVersion = -1;
+
+  /** 道路の上にある接続点（道のりの順） */
+  junctionsOn(roadId: string): JunctionOnRoad[] {
+    if (this.onRoadVersion !== this.version) {
+      this.onRoadCache.clear();
+      this.onRoadVersion = this.version;
+      for (const j of this.junctions.values())
+        for (const a of j.arms) {
+          let l = this.onRoadCache.get(a.road);
+          if (!l) this.onRoadCache.set(a.road, (l = []));
+          if (!l.some((x) => x.junction === j && Math.abs(x.s - a.s) < 0.01)) l.push({ junction: j, s: a.s });
+        }
+      for (const l of this.onRoadCache.values()) l.sort((a, b) => a.s - b.s);
+    }
+    return this.onRoadCache.get(roadId) ?? [];
+  }
+
+  /** 腕の先（その向きに進んだ道路の端）の地名。結節点なら町の名前、そうでなければ道路の名前 */
+  destinationOf(arm: JunctionArm): { name: string; distance: number } {
+    const r = this.roads.get(arm.road);
+    if (!r) return { name: "", distance: 0 };
+    const endId = arm.dir > 0 ? r.end : r.start;
+    const node = this.nodes.get(endId);
+    return { name: node ? node.name : r.name, distance: arm.dir > 0 ? r.length - arm.s : arm.s };
+  }
 
   addRoad(r: Road) {
     this.roads.set(r.id, r);
+    this.version++;
   }
 
   addJunction(j: Junction) {
+    this.version++;
     const old = this.junctions.get(j.id);
     if (!old) {
       this.junctions.set(j.id, { ...j, arms: [...j.arms] });
@@ -74,11 +111,13 @@ export class RoadNetwork {
 
   removeRoad(id: string) {
     this.roads.delete(id);
+    this.version++;
   }
 
   /** 腕の道路が1本も残っていない接続点を捨てる */
   pruneJunctions() {
     for (const [id, j] of this.junctions) if (!j.arms.some((a) => this.roads.has(a.road))) this.junctions.delete(id);
+    this.version++;
   }
 
   /**

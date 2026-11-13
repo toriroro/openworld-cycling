@@ -48,3 +48,8 @@ openworld-cycling: 2026-11-13 に downhill-3D の public/assets/ から写した
 写した物: nature/ の aerial_grass_rock・asphalt_02・forest_floor の Diffuse・Rough・nor_gl（上記 Poly Haven、CC0 1.0）。
 加工: なし（downhill-3D で縮小・圧縮済みの物をそのまま使う）。
 rider/ と nature/ の 3D モデルは M3 以降で必要になった時に写し、ここに追記する。traffic/ と npc/ はモックでは使わない。
+2026-11-13 追記（M3）: downhill-3D の public/assets/ から写した。
+- rider/cyclist.glb, rider/rig.json（上記 Cyclist revision v5、MakeHuman / MPFB2 CC0 1.0）
+- nature/tree_small_02.glb, nature/tree_small_02_billboard.png（Poly Haven tree_small_02、CC0 1.0）
+- nature/shrub_stream.glb, nature/rock_stream.glb（Poly Haven shrub_01・rock_moss_set_01 を downhill-3D で軽量化した物、CC0 1.0）
+加工: なし。
