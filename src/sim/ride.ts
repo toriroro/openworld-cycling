@@ -9,6 +9,7 @@ import type { Junction, JunctionArm, Road } from "../shared/world/types.ts";
 import { type BikeParams, CRR, DEFAULT_BIKE, DT, integrateSpeed } from "./bicycle.ts";
 import type { PowerSource } from "./power.ts";
 import { type RoadNetwork, type RoadPosition, roadSpacing, sampleRoad } from "./road-network.ts";
+import { planRoute, type RoutePlan } from "./route-plan.ts";
 
 /** カーブで許す横加速度 (m/s²)【初期値】 */
 export const LATERAL_ACCEL = 4;
@@ -41,6 +42,8 @@ export interface Upcoming {
   defaultIndex: number;
   /** 選んだ候補（選んでいなければ null） */
   selected: number | null;
+  /** 経路に沿って自動で選んだ */
+  byPlan?: boolean;
 }
 
 export class Ride {
@@ -61,6 +64,12 @@ export class Ride {
   /** 行き止まりで折り返した回数（確認用） */
   uTurns = 0;
   bike: BikeParams = { ...DEFAULT_BIKE };
+  /** 行き先と、そこまでの経路（モック仕様 6.3） */
+  goal: { x: number; z: number } | null = null;
+  plan: RoutePlan | null = null;
+  goalReached = false;
+  private replanT = 0;
+  private replanAfterJunction = false;
   private lastY = NaN;
   private curveT = 0;
   private curveLimit = Infinity;
@@ -94,7 +103,10 @@ export class Ride {
 
   /** 候補を選ぶ（候補の番号） */
   choose(index: number) {
-    if (this.upcoming && index >= 0 && index < this.upcoming.choices.length) this.upcoming.selected = index;
+    if (this.upcoming && index >= 0 && index < this.upcoming.choices.length) {
+      this.upcoming.selected = index;
+      this.upcoming.byPlan = false;
+    }
   }
 
   /** 角度の向き（−1 左、0 直進、1 右）に近い候補を選ぶ */
@@ -111,7 +123,44 @@ export class Ride {
         best = i;
       }
     });
-    if (best >= 0) u.selected = best;
+    if (best >= 0) {
+      u.selected = best;
+      u.byPlan = false;
+    }
+  }
+
+  /** 行き先を指定する（null で解除）。分岐は経路に沿って自動で選ぶ */
+  setGoal(x: number, z: number): boolean;
+  setGoal(goal: null): boolean;
+  setGoal(x: number | null, z?: number): boolean {
+    this.goalReached = false;
+    if (x === null) {
+      this.goal = null;
+      this.plan = null;
+      return true;
+    }
+    this.goal = { x, z: z! };
+    this.replan();
+    return this.plan !== null;
+  }
+
+  private replan() {
+    this.replanT = 30;
+    this.plan = this.goal ? planRoute(this.net, this.pos, this.goal.x, this.goal.z) : null;
+    if (this.upcoming && this.upcoming.selected !== null && this.upcoming.byPlan) this.upcoming.selected = null;
+    this.applyPlan();
+  }
+
+  /** 近づいた接続点で、経路の腕を選んだ状態にする */
+  private applyPlan() {
+    const u = this.upcoming;
+    const step = this.plan?.steps[0];
+    if (!u || !step || step.junction !== u.junction.id || (u.selected !== null && !u.byPlan)) return;
+    const i = u.choices.findIndex((c) => c.arm.road === step.arm.road && c.arm.dir === step.arm.dir && Math.abs(c.arm.s - step.arm.s) < 0.5);
+    if (i >= 0) {
+      u.selected = i;
+      u.byPlan = true;
+    }
   }
 
   /** 停止中の U ターン */
@@ -120,6 +169,7 @@ export class Ride {
     this.pos.dir = (-this.pos.dir) as 1 | -1;
     this.upcoming = null;
     this.uTurns++;
+    if (this.goal) this.replan();
     return true;
   }
 
@@ -153,7 +203,22 @@ export class Ride {
     const y = sampleRoad(this.road!, this.pos.s).y;
     if (!Number.isNaN(this.lastY) && y > this.lastY) this.climb += y - this.lastY;
     this.lastY = y;
+    if (this.replanAfterJunction) {
+      this.replanAfterJunction = false;
+      this.replan();
+    }
+    if (this.goal) {
+      // 読み込んだ道路が増えるので、ときどき引き直す
+      this.replanT -= dt;
+      if (this.replanT <= 0) this.replan();
+      if (this.plan && this.pos.road === this.plan.goal.road && Math.abs(this.pos.s - this.plan.goal.s) < 15) {
+        this.goal = null;
+        this.plan = null;
+        this.goalReached = true;
+      }
+    }
     this.updateUpcoming();
+    this.applyPlan();
   }
 
   /** ds だけ道路網を進む */
@@ -237,6 +302,13 @@ export class Ride {
     }
     const pick = u.choices[u.selected ?? u.defaultIndex];
     this.upcoming = null;
+    // 経路: 予定どおりなら次の段へ、外れたら引き直す
+    if (this.plan) {
+      const st = this.plan.steps[0];
+      const onPlan = st && st.junction === j.id && pick && st.arm.road === pick.arm.road && st.arm.dir === pick.arm.dir;
+      if (onPlan) this.plan.steps.shift();
+      else this.replanAfterJunction = true;
+    }
     if (!pick) {
       // 行き止まり: 折り返す
       this.pos.dir = (-this.pos.dir) as 1 | -1;

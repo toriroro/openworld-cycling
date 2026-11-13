@@ -1,0 +1,68 @@
+{
+  "date": "2026-11-13T08:21:11.884Z",
+  "timeScale": 30,
+  "power": 180,
+  "legs": [
+    {
+      "kind": "coast",
+      "planned": true,
+      "seconds": 99.743,
+      "x": -40862.17875107294,
+      "y": 2,
+      "z": 20297.535625466524,
+      "goalReached": true,
+      "planSteps": null,
+      "odometer": 28035.783647353495,
+      "climb": 25.112193506822738,
+      "time": 2905.7999999997887,
+      "speed": 0,
+      "landscape": {
+        "coast": 1,
+        "plain": 0,
+        "mountain": 0,
+        "other": 0
+      }
+    },
+    {
+      "kind": "plain",
+      "planned": true,
+      "seconds": 124.182,
+      "x": -26626.529626276897,
+      "y": 2,
+      "z": 18287.01958030702,
+      "goalReached": true,
+      "planSteps": null,
+      "odometer": 61299.21223641399,
+      "climb": 69.17334113309515,
+      "time": 6521.649999947172,
+      "speed": 0,
+      "landscape": {
+        "coast": 0,
+        "plain": 1,
+        "mountain": 0,
+        "other": 0
+      }
+    },
+    {
+      "kind": "mountain",
+      "planned": true,
+      "seconds": 254.863,
+      "x": -37657.169371487485,
+      "y": 1140.7517744222428,
+      "z": -432.23743869180555,
+      "goalReached": true,
+      "planSteps": null,
+      "odometer": 95860.10127777355,
+      "climb": 1261.7764068559604,
+      "time": 14064.458333170744,
+      "speed": 0,
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 1,
+        "other": 0
+      }
+    }
+  ],
+  "errors": []
+}

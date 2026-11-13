@@ -23,6 +23,8 @@ export class Game {
   watching = false;
   paused = false;
   camera: CameraMode = "chase";
+  /** 時間の倍率（検証用） */
+  timeScale = 1;
   private acc = 0;
   private lastT = performance.now();
   private hudT = 0;
@@ -146,14 +148,15 @@ export class Game {
     this.manual.pedal = this.input.pedal;
     this.manual.brake = this.input.brake ? 1 : 0;
     if (ride && !this.paused) {
-      this.acc += dt;
+      this.acc += dt * this.timeScale;
       let n = 0;
-      while (this.acc >= DT && n < 24) {
+      const maxSteps = 24 * this.timeScale;
+      while (this.acc >= DT && n < maxSteps) {
         ride.step(DT);
         this.acc -= DT;
         n++;
       }
-      if (n === 24) this.acc = 0;
+      if (n >= maxSteps) this.acc = 0;
     }
 
     let eye = { x: this.anchor.x, y: this.view.heights.height(this.anchor.x, this.anchor.z) + 40, z: this.anchor.z };

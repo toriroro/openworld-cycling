@@ -59,6 +59,19 @@ if (q.get("mode") === "m2") {
       const a = game.ride ? game.ride.pose() : { x: startX, z: startZ };
       return rayCheck(view, a.x, a.z, radius);
     },
+    /** 行き先を指定する（地図からの指定は M4） */
+    setGoal(x: number, z: number) {
+      return game.ride?.setGoal(x, z) ?? false;
+    },
+    rideInfo() {
+      const r = game.ride;
+      if (!r || !r.road) return null;
+      const p = r.pose();
+      return { x: p.x, y: p.y, z: p.z, goalReached: r.goalReached, planSteps: r.plan?.steps.length ?? null, odometer: r.odometer, climb: r.climb, time: r.time, speed: r.speed, landscape: view.heights.landscape(p.x, p.z) };
+    },
+    setTimeScale(k: number) {
+      game.timeScale = k;
+    },
     frames(reset = false) {
       const out = game.frameDt.slice();
       if (reset) game.frameDt.length = 0;

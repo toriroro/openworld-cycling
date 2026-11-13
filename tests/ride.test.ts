@@ -91,3 +91,31 @@ describe("道路網の上を走る", () => {
     expect((p.x - c.x) * rightX + (p.z - c.z) * rightZ).toBeLessThan(0);
   });
 });
+
+describe("行き先までの経路（モック仕様 6.3）", () => {
+  const net = network(16000);
+  it("起点から海岸・平野・山岳の地点へ、経路に沿って分岐を選んで着く", () => {
+    const start = [...net.roads.values()].filter((r) => r.start === ORIGIN.node).sort((a, b) => (a.id < b.id ? -1 : 1))[0];
+    const ride = new Ride(net, { road: start.id, s: 5, dir: 1 }, new AutoPower(400));
+    const visited: string[] = [];
+    for (const [name, x, z] of [
+      ["海岸", -40856, 20297],
+      ["平野", -26695, 18331],
+      ["山岳", -37662, -432],
+    ] as const) {
+      expect(ride.setGoal(x, z), name).toBe(true);
+      let i = 0;
+      // 2 時間ぶんまで（山へは 1,100m 登る）
+      for (; i < 120 * 7200 && !ride.goalReached; i++) {
+        ride.step();
+        // 行き止まりで止まったら U ターン
+        if (ride.speed === 0 && i % 120 === 0) ride.uTurn();
+      }
+      expect(ride.goalReached, name).toBe(true);
+      const p = ride.pose();
+      expect(Math.hypot(p.x - x, p.z - z), name).toBeLessThan(60);
+      visited.push(name);
+    }
+    expect(visited).toEqual(["海岸", "平野", "山岳"]);
+  });
+});
