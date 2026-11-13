@@ -1,0 +1,54 @@
+[
+  {
+    "size": "1440x900",
+    "bike": {
+      "inside": true,
+      "small": 0
+    },
+    "rider": {
+      "inside": true,
+      "small": 0
+    },
+    "jersey": "#2b4f8e",
+    "errors": []
+  },
+  {
+    "size": "844x390",
+    "bike": {
+      "inside": true,
+      "small": 0
+    },
+    "rider": {
+      "inside": true,
+      "small": 0
+    },
+    "jersey": "#2b4f8e",
+    "errors": []
+  },
+  {
+    "size": "390x844",
+    "bike": {
+      "inside": true,
+      "small": 0
+    },
+    "rider": {
+      "inside": true,
+      "small": 0
+    },
+    "jersey": "#2b4f8e",
+    "errors": []
+  },
+  {
+    "size": "1024x768",
+    "bike": {
+      "inside": true,
+      "small": 0
+    },
+    "rider": {
+      "inside": true,
+      "small": 0
+    },
+    "jersey": "#2b4f8e",
+    "errors": []
+  }
+]

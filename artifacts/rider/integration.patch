@@ -1,0 +1,181 @@
+--- a/src/game.ts
++++ b/src/game.ts
+@@ -8,6 +8,9 @@
+ import { sampleRoad } from "./sim/road-network.ts";
+ import { CAMERA_MODES, type CameraMode, cameraPose } from "./render/camera-rig.ts";
+ import { PlayerModel } from "./render/player.ts";
++import { showcaseView } from "./render/cyclist/showcase.ts";
++import { DEFAULT_OUTFIT, type Outfit } from "./shared/outfit.ts";
++import { OutfitPanel } from "./ui/outfit-panel.ts";
+ import type { WorldView } from "./render/world-view.ts";
+ import { Hud, type Settings } from "./ui/hud.ts";
+ import { Input } from "./ui/input.ts";
+@@ -22,6 +25,10 @@
+   ride: Ride | null = null;
+   watching = false;
+   paused = false;
++  /** 自転車と装いの設定（M4 で platform の保存に載せる） */
++  outfit: Outfit = DEFAULT_OUTFIT;
++  private outfitPanel: OutfitPanel;
++  private pausedBeforeOutfit = false;
+   camera: CameraMode = "chase";
+   private acc = 0;
+   private lastT = performance.now();
+@@ -45,11 +52,27 @@
+         this.manual.setting = s.power;
+         this.auto.setting = s.power;
+       }
+-      if (s.quality) view.setQuality(s.quality);
++      if (s.quality) {
++        view.setQuality(s.quality);
++        this.player.setLod(s.quality === "light" ? "low" : "high");
++      }
+       if (s.hour !== undefined) view.env.setHour(s.hour);
+       if (s.camera) this.camera = s.camera;
+     };
+     view.scene.add(this.player.group);
++    // 軽量画質では自転車とライダーも簡略版
++    this.player.setLod(view.quality === "light" ? "low" : "high");
++    // 自転車と装いの設定画面。開いている間は一時停止し、自転車を横から見る
++    this.outfitPanel = new OutfitPanel(document.body, this.outfit);
++    this.outfitPanel.onChange = (o) => {
++      this.outfit = o;
++      this.player.setOutfit(o);
++    };
++    this.outfitPanel.onClose = () => {
++      this.paused = this.pausedBeforeOutfit;
++      this.hud.root.classList.remove("hidden");
++      this.smoothEye = null;
++    };
+     this.status = document.getElementById("status")!;
+     // タブが隠れたら一時停止（モック仕様 6.4）
+     document.addEventListener("visibilitychange", () => {
+@@ -122,6 +145,16 @@
+         case "u-turn":
+           ride?.uTurn();
+           break;
++        case "outfit":
++          if (this.outfitPanel.isOpen) this.outfitPanel.close();
++          else {
++            this.pausedBeforeOutfit = this.paused;
++            this.paused = true;
++            this.hud.toggleMenu(false);
++            this.hud.root.classList.add("hidden");
++            this.outfitPanel.open(this.outfit);
++          }
++          break;
+         case "map":
+           // 世界地図は M4
+           break;
+@@ -174,6 +207,15 @@
+       target = c.target;
+       fov = c.fov;
+       this.anchor = { x: pose.x, z: pose.z };
++      if (this.outfitPanel.isOpen) {
++        const r = this.outfitPanel.root.getBoundingClientRect();
++        const portrait = innerWidth / innerHeight < 0.8;
++        const share = portrait ? (innerHeight - r.top) / innerHeight : (innerWidth - r.left) / innerWidth;
++        const s = showcaseView(this.player.group, aspect, share);
++        eye = { x: s.eye.x + this.view.originX, y: s.eye.y, z: s.eye.z + this.view.originZ };
++        target = { x: s.target.x + this.view.originX, y: s.target.y, z: s.target.z + this.view.originZ };
++        fov = s.fov;
++      }
+     }
+     this.view.frame(eye, target, fov, () => {
+       this.player.group.visible = !!pose;
+@@ -189,7 +231,7 @@
+           ride.speed,
+           ride.watts,
+           ride.odometer,
+-          this.camera === "rider",
++          this.camera === "rider" && !this.outfitPanel.isOpen,
+         );
+       }
+     });
+--- a/src/ui/hud.ts
++++ b/src/ui/hud.ts
+@@ -109,6 +109,7 @@
+     mk("一時停止", "pause");
+     mk("視点", "camera");
+     mk("眺める", "watch");
++    mk("自転車と装い", "outfit");
+     const rp = row("出力");
+     const power = h("input", "", "", rp);
+     power.type = "range";
+--- a/src/ui/input.ts
++++ b/src/ui/input.ts
+@@ -11,6 +11,7 @@
+   | "map"
+   | "watch"
+   | "pause"
++  | "outfit"
+   | "u-turn";
+ 
+ export class Input {
+--- a/src/render/player.ts
++++ b/src/render/player.ts
+@@ -1,57 +1,12 @@
+-// 自分の自転車とライダー（downhill-3D のモデルを使う）。姿勢・傾き・ペダルの回転。sim の状態を読むだけ。
++// 自分の自転車とライダー。中身は src/render/cyclist/（形・色・姿勢）。sim の状態を読むだけ。
+ 
+-import * as THREE from "three";
+-import { mergeStatic } from "./merge-static.ts";
+-import { RoadBikeModel } from "./rider/bike.ts";
+-import { HumanRider } from "./rider/human-rider.ts";
++import { DEFAULT_OUTFIT, type Outfit } from "../shared/outfit.ts";
++import { CyclistModel } from "./cyclist/cyclist.ts";
++import type { Lod } from "./cyclist/road-bike.ts";
+ 
+-export class PlayerModel {
+-  readonly group = new THREE.Group();
+-  private bike = new RoadBikeModel();
+-  private rider = new HumanRider();
+-  private phase = 0;
+-  private lean = 0;
+-  private lastYaw = NaN;
+-
+-  constructor() {
++export class PlayerModel extends CyclistModel {
++  constructor(outfit: Outfit = DEFAULT_OUTFIT, lod: Lod = "high") {
++    super(outfit, lod);
+     this.group.name = "player";
+-    this.group.add(this.bike.group, this.rider.group);
+-    // 自転車の動かない部品を材質ごとにまとめる（スポークなど 100 近い部品があり、描画命令が多すぎるため）
+-    mergeStatic(this.bike.group);
+-    mergeStatic(this.bike.steering);
+-    for (const w of this.bike.wheels) mergeStatic(w);
+-    this.group.traverse((o) => {
+-      if (o instanceof THREE.Mesh) o.castShadow = true;
+-    });
+-  }
+-
+-  /**
+-   * 描画座標での位置 (x, y, z)、進行方向 (dx, dz)、勾配、速度、出力。
+-   * firstPerson なら体を隠して腕だけにする。
+-   */
+-  update(dt: number, x: number, y: number, z: number, dx: number, dz: number, grade: number, speed: number, watts: number, distance: number, firstPerson: boolean) {
+-    const yaw = Math.atan2(dx, dz);
+-    // 曲がる速さから傾き（横加速度 = 速度 × 向きの変わる速さ）
+-    let yawRate = 0;
+-    if (!Number.isNaN(this.lastYaw) && dt > 0) {
+-      let d = yaw - this.lastYaw;
+-      while (d > Math.PI) d -= Math.PI * 2;
+-      while (d < -Math.PI) d += Math.PI * 2;
+-      yawRate = d / dt;
+-    }
+-    this.lastYaw = yaw;
+-    const targetLean = Math.max(-0.5, Math.min(0.5, Math.atan((speed * yawRate) / 9.8)));
+-    this.lean += (targetLean - this.lean) * Math.min(1, dt * 4);
+-    this.group.position.set(x, y, z);
+-    this.group.rotation.set(0, 0, 0);
+-    this.group.rotateY(yaw);
+-    this.group.rotateX(-Math.atan(grade));
+-    this.group.rotateZ(this.lean);
+-    // ケイデンスは出力から（漕いでいない時は止める）
+-    const cadence = watts > 0 ? 75 + Math.min(1, watts / 400) * 25 : 0;
+-    this.phase = (this.phase + (cadence / 60) * Math.PI * 2 * dt) % (Math.PI * 2);
+-    const sprint = Math.max(0, Math.min(1, (watts - 300) / 300));
+-    this.rider.update({ phase: this.phase, sprint, tuck: speed > 13 && watts === 0, steeringAngle: -this.lean * 0.15, firstPerson });
+-    this.bike.update(distance, -this.lean * 0.15, speed);
+   }
+ }

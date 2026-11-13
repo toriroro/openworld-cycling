@@ -1,0 +1,111 @@
+{
+  "date": "2026-11-13T08:06:24.959Z",
+  "base": "http://localhost:5182",
+  "budget": {
+    "standard": {
+      "chase": {
+        "calls": 17,
+        "tris": 96780,
+        "totalCalls": 115,
+        "totalTris": 995220
+      },
+      "rider": {
+        "calls": 9,
+        "tris": 30156,
+        "totalCalls": 112,
+        "totalTris": 940204
+      },
+      "drone": {
+        "calls": 17,
+        "tris": 96822,
+        "totalCalls": 126,
+        "totalTris": 1011714
+      },
+      "model": {
+        "lod": "high",
+        "bike": {
+          "key": "climb/mid/high",
+          "draws": 7,
+          "triangles": 18894
+        },
+        "rider": {
+          "ready": true,
+          "error": null,
+          "bones": 53,
+          "reachExcess": 0,
+          "draws": 2,
+          "triangles": 29518
+        },
+        "draws": 9,
+        "triangles": 48412
+      }
+    },
+    "light": {
+      "chase": {
+        "calls": 8,
+        "tris": 15945,
+        "totalCalls": 74,
+        "totalTris": 323901
+      },
+      "rider": {
+        "calls": 3,
+        "tris": 9004,
+        "totalCalls": 74,
+        "totalTris": 327636
+      },
+      "drone": {
+        "calls": 8,
+        "tris": 15945,
+        "totalCalls": 93,
+        "totalTris": 355935
+      },
+      "model": {
+        "lod": "low",
+        "bike": {
+          "key": "climb/mid/low",
+          "draws": 6,
+          "triangles": 7132
+        },
+        "rider": {
+          "ready": true,
+          "error": null,
+          "bones": 53,
+          "reachExcess": 0,
+          "draws": 2,
+          "triangles": 8813
+        },
+        "draws": 8,
+        "triangles": 15945
+      }
+    }
+  },
+  "errors": [],
+  "outfit": {
+    "version": 1,
+    "bike": {
+      "frame": "aero",
+      "frameColor": "#2b4f8e",
+      "accentColor": "#16191c",
+      "wheels": "mid",
+      "rimColor": "#16191c",
+      "tireWall": "tan",
+      "tapeColor": "#16191c",
+      "saddleColor": "#16191c"
+    },
+    "rider": {
+      "jerseyPattern": "shoulder",
+      "jerseyColor": "#3f9aa8",
+      "jerseyAccent": "#16191c",
+      "bibColor": "#16191c",
+      "helmet": "road",
+      "helmetColor": "#e9e7e0",
+      "lensColor": "#1a2a30",
+      "shoeColor": "#e9e7e0",
+      "sockLength": "long",
+      "sockColor": "#e9e7e0",
+      "skinColor": "#b07850",
+      "hairColor": "#141210"
+    }
+  },
+  "pausedAfterClose": true
+}

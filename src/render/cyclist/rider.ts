@@ -198,9 +198,9 @@ export class Rider {
     if (!this.model) return;
     const useLod1 = this.lod === "low" && this.hasLod1();
     for (const p of this.parts) {
-      let visible = p.firstPerson === t.firstPerson && p.lod1 === useLod1;
+      // 一人称の腕は簡略版を持たないので画質によらず出す
+      let visible = p.firstPerson === t.firstPerson && (p.firstPerson || p.lod1 === useLod1);
       if (p.helmet && p.helmet !== this.helmet) visible = false;
-      // 一人称では頭も隠す（腕だけ）
       p.mesh.visible = visible;
     }
     this.reachExcess = 0;
