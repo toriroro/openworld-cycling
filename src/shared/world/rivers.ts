@@ -754,8 +754,9 @@ export class RiverNet {
     const bi = Math.floor(x / BLOCK_SIZE);
     const bj = Math.floor(z / BLOCK_SIZE);
     const b = this.block(bi, bj);
-    const gx = Math.floor((x - bi * BLOCK_SIZE) / INDEX_CELL);
-    const gz = Math.floor((z - bj * BLOCK_SIZE) / INDEX_CELL);
+    // ブロックの右端・下端のすぐ手前では引き算の丸めで INDEX_N になり得るので抑える
+    const gx = Math.min(INDEX_N - 1, Math.floor((x - bi * BLOCK_SIZE) / INDEX_CELL));
+    const gz = Math.min(INDEX_N - 1, Math.floor((z - bj * BLOCK_SIZE) / INDEX_CELL));
     const list = b.index[gz * INDEX_N + gx];
     let clear = 1;
     let leveeMax = 0;
