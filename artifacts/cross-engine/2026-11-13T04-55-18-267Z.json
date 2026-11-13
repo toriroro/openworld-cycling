@@ -1,0 +1,39 @@
+{
+  "query": "seed=6&x=-32500&z=11250&size=16000",
+  "results": [
+    {
+      "engine": "Node.js v22.23.1",
+      "hash": "57214590",
+      "roads": 41,
+      "junctions": 40,
+      "pois": 253,
+      "ms": 2020
+    },
+    {
+      "engine": "Chrome (V8)",
+      "hash": "57214590",
+      "roads": 41,
+      "junctions": 40,
+      "pois": 253,
+      "ms": 1747,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36"
+    },
+    {
+      "engine": "Edge (V8)",
+      "hash": "57214590",
+      "roads": 41,
+      "junctions": 40,
+      "pois": 253,
+      "ms": 1773,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0"
+    },
+    {
+      "engine": "Firefox (SpiderMonkey)",
+      "error": "browserType.launch: Executable doesn't exist at C:\\Users\\peropero~\\AppData\\Local\\ms-playwright\\firefox-1555\\firefox\\firefox.exe"
+    },
+    {
+      "engine": "WebKit (JavaScriptCore)",
+      "error": "browserType.launch: Executable doesn't exist at C:\\Users\\peropero~\\AppData\\Local\\ms-playwright\\webkit-2370\\Playwright.exe"
+    }
+  ]
+}

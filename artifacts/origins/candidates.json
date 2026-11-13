@@ -1,0 +1,227 @@
+[
+  {
+    "seed": 6,
+    "x": -32500,
+    "z": 11250,
+    "town": "n_-9_2",
+    "townName": "葛郷",
+    "metrics": {
+      "plainKm2": 143.125,
+      "seaKm2": 122.4375,
+      "coastKm": 23,
+      "maxElev": 1529.5822517453926,
+      "mountainKm2": 207.75
+    },
+    "score": 9.533333333333333
+  },
+  {
+    "seed": 4,
+    "x": 30400,
+    "z": -64950,
+    "town": "n_7_-17",
+    "townName": "樫倉",
+    "metrics": {
+      "plainKm2": 137.6875,
+      "seaKm2": 106.5625,
+      "coastKm": 20.25,
+      "maxElev": 1537.6433107868854,
+      "mountainKm2": 126.0625
+    },
+    "score": 9.35
+  },
+  {
+    "seed": 6,
+    "x": 101100,
+    "z": 86600,
+    "town": "n_25_21",
+    "townName": "霜沢",
+    "metrics": {
+      "plainKm2": 136.875,
+      "seaKm2": 78.6875,
+      "coastKm": 21.25,
+      "maxElev": 1322.9438458533705,
+      "mountainKm2": 248.4375
+    },
+    "score": 9.062554358373408
+  },
+  {
+    "seed": 4,
+    "x": -71650,
+    "z": 103050,
+    "town": "n_-18_25",
+    "townName": "楓根",
+    "metrics": {
+      "plainKm2": 342.5,
+      "seaKm2": 32.5,
+      "coastKm": 9.5,
+      "maxElev": 1530.6029247344381,
+      "mountainKm2": 59.75
+    },
+    "score": 8.127083333333333
+  },
+  {
+    "seed": 3,
+    "x": 123500,
+    "z": -118300,
+    "town": "n_30_-30",
+    "townName": "鱒倉",
+    "metrics": {
+      "plainKm2": 339.75,
+      "seaKm2": 66.125,
+      "coastKm": 17.5,
+      "maxElev": 878.1390369257141,
+      "mountainKm2": 72.625
+    },
+    "score": 7.738569740518095
+  },
+  {
+    "seed": 7,
+    "x": -8350,
+    "z": 49300,
+    "town": "n_-3_12",
+    "townName": "桐戸",
+    "metrics": {
+      "plainKm2": 352.6875,
+      "seaKm2": 104.9375,
+      "coastKm": 19.5,
+      "maxElev": 1281.9380378744822,
+      "mountainKm2": 31.1875
+    },
+    "score": 7.643563575748964
+  },
+  {
+    "seed": 8,
+    "x": -15500,
+    "z": -17000,
+    "town": "n_-4_-5",
+    "townName": "宮池",
+    "metrics": {
+      "plainKm2": 283.6875,
+      "seaKm2": 124,
+      "coastKm": 10.5,
+      "maxElev": 1271.6469330331527,
+      "mountainKm2": 46.125
+    },
+    "score": 7.3964188660663055
+  },
+  {
+    "seed": 3,
+    "x": -48850,
+    "z": -57250,
+    "town": "n_-13_-15",
+    "townName": "鶴森",
+    "metrics": {
+      "plainKm2": 331.4375,
+      "seaKm2": 82.8125,
+      "coastKm": 19.5,
+      "maxElev": 824.5241923561545,
+      "mountainKm2": 29.5625
+    },
+    "score": 6.688110884712309
+  },
+  {
+    "seed": 5,
+    "x": -105700,
+    "z": -89400,
+    "town": "n_-27_-23",
+    "townName": "千崎",
+    "metrics": {
+      "plainKm2": 295.8125,
+      "seaKm2": 45.9375,
+      "coastKm": 16.75,
+      "maxElev": 973.7965219873983,
+      "mountainKm2": 22.625
+    },
+    "score": 6.629884710641464
+  },
+  {
+    "seed": 2,
+    "x": -56900,
+    "z": -120900,
+    "town": "n_-15_-31",
+    "townName": "月橋",
+    "metrics": {
+      "plainKm2": 487.0625,
+      "seaKm2": 82.5625,
+      "coastKm": 18.5,
+      "maxElev": 906.7056441693834,
+      "mountainKm2": 15.125
+    },
+    "score": 6.4248696216721
+  },
+  {
+    "seed": 2,
+    "x": 79550,
+    "z": -121750,
+    "town": "n_19_-31",
+    "townName": "楓生",
+    "metrics": {
+      "plainKm2": 357.9375,
+      "seaKm2": 100.75,
+      "coastKm": 21.25,
+      "maxElev": 780.7813962513986,
+      "mountainKm2": 11.75
+    },
+    "score": 6.271979459169464
+  },
+  {
+    "seed": 2,
+    "x": -43400,
+    "z": 3050,
+    "town": "n_-11_0",
+    "townName": "杉瀬",
+    "metrics": {
+      "plainKm2": 245.125,
+      "seaKm2": 72.6875,
+      "coastKm": 18.25,
+      "maxElev": 742.5925177107074,
+      "mountainKm2": 8.25
+    },
+    "score": 5.908101702088081
+  },
+  {
+    "seed": 8,
+    "x": 71600,
+    "z": -39150,
+    "town": "n_17_-10",
+    "townName": "雲池",
+    "metrics": {
+      "plainKm2": 422.4375,
+      "seaKm2": 67.9375,
+      "coastKm": 12.25,
+      "maxElev": 756.3237305277283,
+      "mountainKm2": 9.4375
+    },
+    "score": 5.565251627722123
+  },
+  {
+    "seed": 1,
+    "x": -33750,
+    "z": 120400,
+    "town": "n_-9_30",
+    "townName": "東谷",
+    "metrics": {
+      "plainKm2": 466.0625,
+      "seaKm2": 52.5625,
+      "coastKm": 10,
+      "maxElev": 736.9884046470366,
+      "mountainKm2": 13.5
+    },
+    "score": 5.47814347596074
+  },
+  {
+    "seed": 1,
+    "x": 88500,
+    "z": 111200,
+    "town": "n_22_27",
+    "townName": "萩平",
+    "metrics": {
+      "plainKm2": 532.3125,
+      "seaKm2": 71.4375,
+      "coastKm": 9.25,
+      "maxElev": 646.8582250906226,
+      "mountainKm2": 2
+    },
+    "score": 4.960383116847912
+  }
+]

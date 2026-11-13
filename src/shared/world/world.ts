@@ -3,6 +3,7 @@
 
 import {
   EDGE_CELL_REACH,
+  PASS_PROMINENCE,
   NODE_CELL,
   ROAD_CLASSES,
   ROUTE_GRID,
@@ -11,6 +12,7 @@ import {
 import { now } from "./clock.ts";
 import { hashString } from "./hash.ts";
 import { edgesOf, type EdgeInfo, makeNode, nodeId } from "./nodes.ts";
+import { passName, viewpointName } from "./names.ts";
 import { pickPois } from "./pois.ts";
 import { DEFAULT_ROUTE_PARAMS, findRoute, type RouteGrid } from "./route.ts";
 import { computeProfile, detectBridges, polylineLength, shapeCenterline } from "./shape.ts";
@@ -369,12 +371,48 @@ export class World {
     return p;
   }
 
+  /**
+   * 結節点が峠になる場合（その結節点から出る主要道のうち2本以上が 100m 以上下る）。
+   * 道路の縦断の極大が道路の端（結節点）にある時、道路ごとの判定では見つからないため。
+   */
+  nodePois(n: WorldNode): Poi[] {
+    const key = `node:${n.id}`;
+    let p = this.poiCache.get(key);
+    if (p) return p;
+    p = [];
+    const descents: { road: Road; s: number }[] = [];
+    for (const e of this.edgesOfNode(n)) {
+      if (e.kind !== "main") continue;
+      const road = this.mainRoad(e).road;
+      if (!road) continue;
+      const atStart = road.start === n.id;
+      const cnt = road.points.length / 3;
+      let lo = n.y;
+      for (let k = 0; k < cnt; k++) {
+        const y = road.points[(atStart ? k : cnt - 1 - k) * 3 + 1];
+        if (y > n.y + 1) break;
+        if (y < lo) lo = y;
+        if (n.y - lo >= PASS_PROMINENCE) break;
+      }
+      if (n.y - lo >= PASS_PROMINENCE) descents.push({ road, s: atStart ? 0 : road.length });
+    }
+    if (descents.length >= 2) {
+      descents.sort((a, b) => (a.road.id < b.road.id ? -1 : 1));
+      const d = descents[0];
+      p.push({ id: `p_${n.id}`, kind: "pass", road: d.road.id, s: d.s, side: 1, name: passName(this.seed, n.cx, n.cz) });
+      p.push({ id: `v_${n.id}`, kind: "viewpoint", road: d.road.id, s: d.s, side: -1, name: viewpointName(this.seed, n.cx, n.cz) });
+    }
+    this.poiCache.set(key, p);
+    return p;
+  }
+
   /** rect にかかる世界のデータ一式 */
   region(r: Rect): { nodes: WorldNode[]; roads: Road[]; junctions: Junction[]; pois: Poi[]; crossings: CrossingInfo[] } {
     const roads = this.roadsInRect(r);
     const { junctions, crossings } = buildJunctions(this, roads);
-    const pois = roads.flatMap((road) => this.poisOf(road));
-    return { nodes: this.nodesInRect(r), roads, junctions, pois, crossings };
+    const nodes = this.nodesInRect(r);
+    const pois = [...roads.flatMap((road) => this.poisOf(road)), ...nodes.flatMap((n) => this.nodePois(n))];
+    return { nodes, roads, junctions, pois, crossings };
   }
 }
 

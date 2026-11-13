@@ -50,6 +50,7 @@ const map = new WorldMap(canvas, {
 });
 (window as unknown as { __map: WorldMap }).__map = map;
 
+if (window.innerWidth < 700) legend.classList.add("hidden");
 document.getElementById("toggle-legend")!.addEventListener("click", () => legend.classList.toggle("hidden"));
 document.getElementById("close-road")?.addEventListener("click", () => map.select(null));
 

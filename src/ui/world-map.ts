@@ -437,6 +437,19 @@ export class WorldMap {
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       const zoomK = Math.max(0.6, Math.min(2.2, 6 / Math.sqrt(this.mpp)));
+      if (this.selected) {
+        const r = this.selected;
+        const path = new Path2D();
+        for (let i = 0; i < r.points.length; i += 3) {
+          const x = r.points[i] + r.origin[0] - this.anchorX;
+          const zz = r.points[i + 2] + r.origin[1] - this.anchorZ;
+          if (i === 0) path.moveTo(x, zz);
+          else path.lineTo(x, zz);
+        }
+        ctx.strokeStyle = "rgba(0,240,255,0.9)";
+        ctx.lineWidth = (CLASS_PX[r.cls] * zoomK + 8) * this.mpp;
+        ctx.stroke(path);
+      }
       // 縁取り
       ctx.strokeStyle = "rgba(20,20,20,0.75)";
       for (const p of this.paths) {
@@ -454,21 +467,6 @@ export class WorldMap {
       ctx.setLineDash([3 * this.mpp, 2 * this.mpp]);
       ctx.stroke(this.bridgePath);
       ctx.setLineDash([]);
-      if (this.selected) {
-        const r = this.selected;
-        const path = new Path2D();
-        for (let i = 0; i < r.points.length; i += 3) {
-          const x = r.points[i] + r.origin[0] - this.anchorX;
-          const zz = r.points[i + 2] + r.origin[1] - this.anchorZ;
-          if (i === 0) path.moveTo(x, zz);
-          else path.lineTo(x, zz);
-        }
-        ctx.strokeStyle = "rgba(0,240,255,0.9)";
-        ctx.lineWidth = (CLASS_PX[r.cls] * zoomK + 5) * this.mpp;
-        ctx.globalCompositeOperation = "destination-over";
-        ctx.stroke(path);
-        ctx.globalCompositeOperation = "source-over";
-      }
       ctx.restore();
     }
 
@@ -492,7 +490,9 @@ export class WorldMap {
     // 立ち寄り地点
     if (this.showPois && this.mpp <= ROADS_VISIBLE_MPP) {
       const byId = this.roads;
-      for (const p of this.pois.values()) {
+      const order = { viewpoint: 0, cafe: 1, pass: 2 } as const;
+      const list = [...this.pois.values()].sort((a, b) => order[a.kind] - order[b.kind]);
+      for (const p of list) {
         const rd = byId.get(p.road)?.road;
         if (!rd) continue;
         const pos = roadPoint(rd, p.s);

@@ -211,9 +211,25 @@ export function shapeCenterline(raw: Polyline, keep: Uint8Array, minRadius: numb
   const thin = simplify(raw, keep, 12);
   const smooth = catmullRom(thin, 4);
   const spacing = Math.max(4, Math.min(16, minRadius / 3));
-  const relaxed = enforceMinRadius(smooth, minRadius, spacing);
-  const curve = catmullRom(relaxed, 1);
-  return resample(curve, ROAD_STEP);
+  let relaxed = enforceMinRadius(smooth, minRadius, spacing);
+  let out = resample(catmullRom(relaxed, 1), ROAD_STEP);
+  // 曲線で補間した後に半径が足りない所が残れば、間隔を変えてやり直す
+  for (let round = 0; round < 3 && minRadiusShortfall(out, minRadius); round++) {
+    relaxed = enforceMinRadius(out, minRadius * (1.05 + 0.05 * round), Math.max(4, spacing * 0.6));
+    out = resample(catmullRom(relaxed, 1), ROAD_STEP);
+  }
+  return out;
+}
+
+/** 前後 6m の3点で測った半径が最小曲線半径の 95% を下回る点があるか */
+function minRadiusShortfall(p: Polyline, minRadius: number): boolean {
+  const n = p.length / 2;
+  const k = 3;
+  for (let i = k; i < n - k; i++) {
+    const r = circumradius(p[(i - k) * 2], p[(i - k) * 2 + 1], p[i * 2], p[i * 2 + 1], p[(i + k) * 2], p[(i + k) * 2 + 1]);
+    if (r < minRadius * 0.95) return true;
+  }
+  return false;
 }
 
 /** 長さ L の道の各点で許す勾配（両端の接続点の前後はゆるく） */

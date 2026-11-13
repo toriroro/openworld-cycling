@@ -1,0 +1,220 @@
+{
+  "date": "2026-11-13T04:58:33.257Z",
+  "seed": 6,
+  "rect": {
+    "x0": -48500,
+    "z0": -4750,
+    "x1": -16500,
+    "z1": 27250
+  },
+  "generationSeconds": 3.9452949,
+  "hash": "5a8f7a53",
+  "totals": {
+    "nodes": 52,
+    "nodesByKind": {
+      "town": 22,
+      "village": 22,
+      "junction": 8
+    },
+    "roads": 110,
+    "mainRoads": 85,
+    "branchPieces": 25,
+    "km": 460.87564228035814,
+    "byClass": [
+      {
+        "cls": "幹線",
+        "roads": 33,
+        "km": 113.7382045096855
+      },
+      {
+        "cls": "一般道",
+        "roads": 42,
+        "km": 171.15154782029444
+      },
+      {
+        "cls": "山道",
+        "roads": 20,
+        "km": 112.15223071033526
+      },
+      {
+        "cls": "林道",
+        "roads": 15,
+        "km": 63.833659240042856
+      }
+    ],
+    "junctions": 135,
+    "bridges": 51,
+    "bridgeKm": 9.082416341492557,
+    "pois": {
+      "cafe": 30,
+      "pass": 10,
+      "viewpoint": 10
+    },
+    "kmPerCafe": 15.362521409345272,
+    "failedEdges": 0
+  },
+  "reproducibility": {
+    "order": {
+      "same": 110,
+      "diff": []
+    },
+    "origin": {
+      "same": 110,
+      "diff": []
+    }
+  },
+  "connectivity": {
+    "nodes": 52,
+    "largest": 52,
+    "isolated": [],
+    "detached": [],
+    "components": 1,
+    "isolatedInfo": []
+  },
+  "grades": {
+    "over": 0,
+    "maxRatio": 1.0002853090390642,
+    "worst": {
+      "road": "n_-8_-1~n_-7_-1",
+      "s": 2307.247808584433,
+      "grade": 0.12003423708468769,
+      "limit": 0.12
+    }
+  },
+  "radius": {
+    "under": 0,
+    "points": 229942,
+    "byClass": [
+      {
+        "cls": 0,
+        "under": 0,
+        "points": 56720,
+        "minRadius": 60
+      },
+      {
+        "cls": 1,
+        "under": 0,
+        "points": 85387,
+        "minRadius": 30
+      },
+      {
+        "cls": 2,
+        "under": 0,
+        "points": 55986,
+        "minRadius": 12
+      },
+      {
+        "cls": 3,
+        "under": 0,
+        "points": 31849,
+        "minRadius": 10
+      }
+    ],
+    "worst": null
+  },
+  "parallel": {
+    "length": 1969.6183871783737,
+    "totalLength": 460875.6422803581,
+    "ratio": 0.004273643921455547,
+    "runs": 6
+  },
+  "earthwork": {
+    "p01": -7.148383896154883,
+    "p05": -4.65493651846873,
+    "p50": 0.0668586921234331,
+    "p95": 3.9195579587139093,
+    "p99": 5.450826399363564,
+    "min": -11.936545410195436,
+    "max": 6.566621591389094,
+    "extreme": 0,
+    "extremeLength": 0,
+    "samples": 45247,
+    "histogram": [
+      {
+        "from": null,
+        "to": -30,
+        "count": 0
+      },
+      {
+        "from": -30,
+        "to": -20,
+        "count": 0
+      },
+      {
+        "from": -20,
+        "to": -10,
+        "count": 22
+      },
+      {
+        "from": -10,
+        "to": -5,
+        "count": 1834
+      },
+      {
+        "from": -5,
+        "to": -2,
+        "count": 6612
+      },
+      {
+        "from": -2,
+        "to": 2,
+        "count": 29261
+      },
+      {
+        "from": 2,
+        "to": 5,
+        "count": 6623
+      },
+      {
+        "from": 5,
+        "to": 10,
+        "count": 895
+      },
+      {
+        "from": 10,
+        "to": 20,
+        "count": 0
+      },
+      {
+        "from": 20,
+        "to": 30,
+        "count": 0
+      },
+      {
+        "from": 30,
+        "to": null,
+        "count": 0
+      }
+    ]
+  },
+  "crossings": {
+    "total": 35,
+    "separated": 0,
+    "dyP50": 0.000004455872840480879,
+    "dyP95": 0.0028943189461188013,
+    "dyMax": 0.6818933134480858
+  },
+  "timing": {
+    "roads": 151,
+    "medianMs": 13.235500000000002,
+    "p95Ms": 74.24930000000006,
+    "maxMs": 157.4952,
+    "slowest": [
+      {
+        "id": "n_-10_-1~n_-9_-1",
+        "ms": 157.4952,
+        "expanded": 108474
+      },
+      {
+        "id": "n_-11_0~n_-10_0",
+        "ms": 105.17929999999978,
+        "expanded": 234314
+      },
+      {
+        "id": "n_-5_-1~n_-4_-1",
+        "ms": 100.71669999999995,
+        "expanded": 155435
+      }
+    ]
+  }
+}
