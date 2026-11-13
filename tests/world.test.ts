@@ -104,7 +104,7 @@ describe("道路網（12km 四方）", () => {
   });
 
   it("点列のハッシュ（生成器の変更を検出する固定値）", () => {
-    expect(roadsHash(roads)).toMatchInlineSnapshot(`"1b626920"`);
+    expect(roadsHash(roads)).toMatchInlineSnapshot(`"63b49c98"`);
   });
 
   it("すべての道路が等級の最大勾配以内", () => {
