@@ -8,6 +8,9 @@ import { Ride } from "./sim/ride.ts";
 import { sampleRoad } from "./sim/road-network.ts";
 import { CAMERA_MODES, type CameraMode, cameraPose } from "./render/camera-rig.ts";
 import { PlayerModel } from "./render/player.ts";
+import { showcaseView } from "./render/cyclist/showcase.ts";
+import { DEFAULT_OUTFIT, type Outfit } from "./shared/outfit.ts";
+import { OutfitPanel } from "./ui/outfit-panel.ts";
 import type { WorldView } from "./render/world-view.ts";
 import { Hud, type Settings } from "./ui/hud.ts";
 import { Input } from "./ui/input.ts";
@@ -22,6 +25,10 @@ export class Game {
   ride: Ride | null = null;
   watching = false;
   paused = false;
+  /** 自転車と装いの設定（M4 で platform の保存に載せる） */
+  outfit: Outfit = DEFAULT_OUTFIT;
+  private outfitPanel: OutfitPanel;
+  private pausedBeforeOutfit = false;
   camera: CameraMode = "chase";
   private acc = 0;
   private lastT = performance.now();
@@ -45,11 +52,27 @@ export class Game {
         this.manual.setting = s.power;
         this.auto.setting = s.power;
       }
-      if (s.quality) view.setQuality(s.quality);
+      if (s.quality) {
+        view.setQuality(s.quality);
+        this.player.setLod(s.quality === "light" ? "low" : "high");
+      }
       if (s.hour !== undefined) view.env.setHour(s.hour);
       if (s.camera) this.camera = s.camera;
     };
     view.scene.add(this.player.group);
+    // 軽量画質では自転車とライダーも簡略版
+    this.player.setLod(view.quality === "light" ? "low" : "high");
+    // 自転車と装いの設定画面。開いている間は一時停止し、自転車を横から見る
+    this.outfitPanel = new OutfitPanel(document.body, this.outfit);
+    this.outfitPanel.onChange = (o) => {
+      this.outfit = o;
+      this.player.setOutfit(o);
+    };
+    this.outfitPanel.onClose = () => {
+      this.paused = this.pausedBeforeOutfit;
+      this.hud.root.classList.remove("hidden");
+      this.smoothEye = null;
+    };
     this.status = document.getElementById("status")!;
     // タブが隠れたら一時停止（モック仕様 6.4）
     document.addEventListener("visibilitychange", () => {
@@ -122,6 +145,16 @@ export class Game {
         case "u-turn":
           ride?.uTurn();
           break;
+        case "outfit":
+          if (this.outfitPanel.isOpen) this.outfitPanel.close();
+          else {
+            this.pausedBeforeOutfit = this.paused;
+            this.paused = true;
+            this.hud.toggleMenu(false);
+            this.hud.root.classList.add("hidden");
+            this.outfitPanel.open(this.outfit);
+          }
+          break;
         case "map":
           // 世界地図は M4
           break;
@@ -174,6 +207,15 @@ export class Game {
       target = c.target;
       fov = c.fov;
       this.anchor = { x: pose.x, z: pose.z };
+      if (this.outfitPanel.isOpen) {
+        const r = this.outfitPanel.root.getBoundingClientRect();
+        const portrait = innerWidth / innerHeight < 0.8;
+        const share = portrait ? (innerHeight - r.top) / innerHeight : (innerWidth - r.left) / innerWidth;
+        const s = showcaseView(this.player.group, aspect, share);
+        eye = { x: s.eye.x + this.view.originX, y: s.eye.y, z: s.eye.z + this.view.originZ };
+        target = { x: s.target.x + this.view.originX, y: s.target.y, z: s.target.z + this.view.originZ };
+        fov = s.fov;
+      }
     }
     this.view.frame(eye, target, fov, () => {
       this.player.group.visible = !!pose;
@@ -189,7 +231,7 @@ export class Game {
           ride.speed,
           ride.watts,
           ride.odometer,
-          this.camera === "rider",
+          this.camera === "rider" && !this.outfitPanel.isOpen,
         );
       }
     });

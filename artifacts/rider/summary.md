@@ -1,6 +1,6 @@
 # ライダーと自転車: 作り直しの結果（2026-11-13）
 
-ブランチ `rider-detail`。決めた範囲: 外部素材は足さない／色・形の差し替え・ジャージの柄・体（肌・髪）を選べる／設定画面は横から見て選ぶ／ゲームへのつなぎ込みは M3 のコミットを待つ。
+ブランチ `rider-detail`（main の M3 コミット 539d2b6 の上）。決めた範囲: 外部素材は足さない／色・形の差し替え・ジャージの柄・体（肌・髪）を選べる／設定画面は横から見て選ぶ。
 
 ## 画面写真
 
@@ -11,7 +11,7 @@
 | 設定画面（ゲーム内、メニューから開いた所と色・形を変えた所） | なし | `after/outfit-panel.png`, `after/outfit-panel-changed.png` |
 | 設定画面（4つの画面の大きさ、ガレージ） | なし | `panel/panel-*.png` |
 
-`after/` はゲームの中で撮った物で、M3 の未コミットの作業ファイルをこのブランチの作業ツリーに写して、試しにつないだ状態で撮った（コミットしていない）。
+`after/` は、このブランチでゲームにつないだ状態で撮った物。
 
 ## 描画量（自分の自転車とライダーをシーンから外した時との差）
 
@@ -39,9 +39,13 @@
 - 設定画面（`src/ui/outfit-panel.ts`）: メニューの「自転車と装い」から開く。開いている間は一時停止し、自転車を右の斜め前から見る（`src/render/cyclist/showcase.ts`、横画面は左、縦画面は上に寄せる）。閉じると元に戻る。4つの画面の大きさで、はみ出しなし・44px 未満のボタンなし（`panel/results.json`）。
 - 開発用: `garage.html`（自転車とライダーだけの場面）、`scripts/rider-garage-shots.mjs`、`scripts/rider-shot.mjs`、`scripts/rider-panel-shots.mjs`。
 
-## つなぎ込み（M3 のコミット後）
+## つなぎ込み
 
-`integration.patch` が、M3 の作業ファイル（2026-11-13 時点）に対する差分。`game.ts`（設定画面の開閉・横からの視点・画質と簡略版の連動）、`hud.ts`（メニューのボタン1つ）、`input.ts`（操作の種類1つ）、`player.ts`（新しいモデルを包む形に置き換え）。つないだ後は `src/render/rider/`、`src/render/merge-static.ts`、`public/assets/rider/cyclist.glb`・`rig.json` を使わなくなる。
+M3 のコミット 539d2b6 の上で、`game.ts`（設定画面の開閉・横からの視点・画質と簡略版の連動）、`hud.ts`（メニューのボタン1つ）、`input.ts`（操作の種類1つ）、`player.ts`（新しいモデルを包む形に置き換え）を変えた。使わなくなった `src/render/rider/`、`src/render/merge-static.ts`、`public/assets/rider/cyclist.glb`・`rig.json` は消した。
+
+メニューにボタンが1つ増えて 844×390 でメニューが画面の下に 2px はみ出したため、`game.css` の `.menu` に `box-sizing: border-box` を足した（はみ出した分はメニューの中で送る）。
+
+`scripts/m3-check.mjs` の結果（`m3-check/`）: 4つの画面の大きさで重なり・はみ出し・44px 未満なし、メニューは収まる。描画量の最大は 標準 123 命令・100.5万三角形（M3 のコミット時 198・99万）、軽量 83 命令・33.6万三角形（同 122・36万）。
 
 ## 確かめていないこと・残り
 

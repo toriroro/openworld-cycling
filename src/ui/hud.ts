@@ -109,6 +109,7 @@ export class Hud {
     mk("一時停止", "pause");
     mk("視点", "camera");
     mk("眺める", "watch");
+    mk("自転車と装い", "outfit");
     const rp = row("出力");
     const power = h("input", "", "", rp);
     power.type = "range";

@@ -11,6 +11,7 @@ export type Action =
   | "map"
   | "watch"
   | "pause"
+  | "outfit"
   | "u-turn";
 
 export class Input {

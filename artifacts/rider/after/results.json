@@ -1,25 +1,25 @@
 {
-  "date": "2026-11-13T08:06:24.959Z",
+  "date": "2026-11-13T08:20:18.369Z",
   "base": "http://localhost:5182",
   "budget": {
     "standard": {
       "chase": {
         "calls": 17,
-        "tris": 96780,
+        "tris": 96822,
         "totalCalls": 115,
-        "totalTris": 995220
+        "totalTris": 995094
       },
       "rider": {
         "calls": 9,
         "tris": 30156,
         "totalCalls": 112,
-        "totalTris": 940204
+        "totalTris": 940120
       },
       "drone": {
         "calls": 17,
         "tris": 96822,
         "totalCalls": 126,
-        "totalTris": 1011714
+        "totalTris": 1011630
       },
       "model": {
         "lod": "high",
