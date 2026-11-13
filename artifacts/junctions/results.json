@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-13T10:30:38.211Z",
+  "shots": [
+    "top-node-3way.png",
+    "top-merge-T.png",
+    "top-fork-shallow.png",
+    "turn-chase.png"
+  ],
+  "turn": {
+    "frames": 944,
+    "roads": [
+      "n_-9_2~n_-8_2",
+      "n_-9_2~n_-9_3"
+    ],
+    "maxHeadingChangePerFrameDeg": 0.45095912338310323,
+    "minSpeedInTurnKmh": 8.710753315395916
+  },
+  "errors": []
+}

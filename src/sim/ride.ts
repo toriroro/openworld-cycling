@@ -3,10 +3,12 @@
 // - カーブの手前で自動的に減速する（先の曲率から上限速度を求め、間に合うように制動する）
 // - 接続点の 150m 手前から進路の候補を出す。選ばなければいちばん直進に近い道
 // - 行き止まりでは自動で折り返す。停止中は U ターンできる
+// - 別の道路へ曲がる時は、接続点の口から口まで、左側の車線から左側の車線へ曲線で走る
 // 描画に依存しない。
 
 import type { Junction, JunctionArm, Road } from "../shared/world/types.ts";
 import { type BikeParams, CRR, DEFAULT_BIKE, DT, integrateSpeed } from "./bicycle.ts";
+import { cornerCurve, junctionShape, type Vec3 } from "./junction-shape.ts";
 import type { PowerSource } from "./power.ts";
 import { type RoadNetwork, type RoadPosition, roadSpacing, sampleRoad } from "./road-network.ts";
 import { planRoute, type RoutePlan } from "./route-plan.ts";
@@ -46,6 +48,30 @@ export interface Upcoming {
   byPlan?: boolean;
 }
 
+/** 接続点を曲がる途中の線 */
+interface Turn {
+  junction: string;
+  pts: Vec3[];
+  /** 各点までの距離 */
+  acc: number[];
+  /** 両端の向き（入る道路・出る道路の向き） */
+  d0: [number, number];
+  d1: [number, number];
+  length: number;
+  /** 進んだ距離 */
+  d: number;
+  /** 曲がり終えた所（出る腕の口） */
+  to: RoadPosition;
+}
+
+/** 曲がる線の計画（状態を変えない） */
+interface TurnPlan {
+  /** 入る道路で曲がり始める道のり */
+  entryS: number;
+  to: RoadPosition;
+  offOut: number;
+}
+
 export class Ride {
   pos: RoadPosition;
   speed = 0;
@@ -73,6 +99,8 @@ export class Ride {
   private lastY = NaN;
   private curveT = 0;
   private curveLimit = Infinity;
+  /** 接続点を曲がっている途中なら、その線（pos は曲がり終える所） */
+  turn: Turn | null = null;
 
   constructor(
     private net: RoadNetwork,
@@ -165,7 +193,7 @@ export class Ride {
 
   /** 停止中の U ターン */
   uTurn(): boolean {
-    if (this.speed > 0.5) return false;
+    if (this.speed > 0.5 || this.turn) return false;
     this.pos.dir = (-this.pos.dir) as 1 | -1;
     this.upcoming = null;
     this.uTurns++;
@@ -182,7 +210,7 @@ export class Ride {
     }
     const { watts, brake } = this.power.read(dt);
     const here = sampleRoad(road, this.pos.s);
-    this.grade = here.grade * this.pos.dir;
+    this.grade = this.turn ? this.turnGrade() : here.grade * this.pos.dir;
     this.bike.crr = CRR[road.surface];
     // カーブの上限速度は 1/20 秒ごとに求める
     this.curveT -= dt;
@@ -200,7 +228,7 @@ export class Ride {
     // 左右位置はなめらかに目標へ
     const target = this.defaultOffset();
     this.offset += (target - this.offset) * Math.min(1, dt * 1.5);
-    const y = sampleRoad(this.road!, this.pos.s).y;
+    const y = this.turn ? this.turnPoint(this.turn.d).y : sampleRoad(this.road!, this.pos.s).y;
     if (!Number.isNaN(this.lastY) && y > this.lastY) this.climb += y - this.lastY;
     this.lastY = y;
     if (this.replanAfterJunction) {
@@ -225,26 +253,137 @@ export class Ride {
   private advance(ds: number) {
     let left = ds;
     for (let guard = 0; left > 1e-9 && guard < 16; guard++) {
+      const t = this.turn;
+      if (t) {
+        const rest = t.length - t.d;
+        if (rest > left) {
+          t.d += left;
+          this.odometer += left;
+          return;
+        }
+        this.odometer += rest;
+        left -= rest;
+        this.turn = null;
+        continue;
+      }
       const road = this.road;
       if (!road) return;
       const next = this.nextJunction(road);
-      const end = next ? next.s : this.pos.dir > 0 ? road.length : 0;
+      // 別の道路へ曲がるなら、入る腕の口で曲がり始める
+      const plan = next && (next.s - this.pos.s) * this.pos.dir < 40 ? this.turnPlanAt(next.junction, next.s) : null;
+      const end = plan ? plan.entryS : next ? next.s : this.pos.dir > 0 ? road.length : 0;
       const remain = (end - this.pos.s) * this.pos.dir;
       if (remain > left) {
         this.pos.s += left * this.pos.dir;
         this.odometer += left;
         return;
       }
-      this.pos.s = end;
-      this.odometer += Math.max(0, remain);
-      left -= Math.max(0, remain);
+      if (remain > 0) {
+        this.pos.s = end;
+        this.odometer += remain;
+        left -= remain;
+      }
       if (!next) {
         // 接続点が読み込まれていない道路の端: 止まって待つ
         this.speed = 0;
         return;
       }
-      this.passJunction(next.junction, next.s);
+      if (plan) this.startTurn(next.junction, next.s, plan);
+      else {
+        this.pos.s = next.s;
+        this.passJunction(next.junction, next.s);
+      }
     }
+  }
+
+  /** 接続点 j で選んでいる（選んでいなければ既定の）候補 */
+  private pickAt(j: Junction, s: number): Choice | undefined {
+    const u = this.upcoming && this.upcoming.junction.id === j.id ? this.upcoming : null;
+    if (u) return u.choices[u.selected ?? u.defaultIndex];
+    const c = this.choicesAt(j, s);
+    return c.choices[c.defaultIndex];
+  }
+
+  /** 接続点 j（今の道路の道のり s）で別の道路・向きへ曲がるなら、曲がり始める所と曲がり終える所 */
+  private turnPlanAt(j: Junction, s: number, pick = this.pickAt(j, s)): TurnPlan | null {
+    if (!pick) return null;
+    const road = this.road!;
+    if (pick.arm.road === road.id && pick.arm.dir === this.pos.dir) return null;
+    const shape = junctionShape(this.net, j);
+    const inArm = shape.arms.find((a) => a.arm.road === road.id && a.arm.dir === -this.pos.dir && Math.abs(a.arm.s - s) < 0.5);
+    const outArm = shape.arms.find((a) => a.arm.road === pick.arm.road && a.arm.dir === pick.arm.dir && Math.abs(a.arm.s - pick.arm.s) < 0.5);
+    if (!inArm || !outArm) return null;
+    const out = this.net.roads.get(pick.arm.road)!;
+    const hw = out.width / 2;
+    const offOut = Math.max(-hw + 0.5, Math.min(hw - 0.5, -out.width / 4 + this.laneShift));
+    return { entryS: inArm.mouthS, to: { road: out.id, s: outArm.mouthS, dir: pick.arm.dir }, offOut };
+  }
+
+  /** 曲がる線: 入る道路の fromS（左右位置 offIn）から、出る腕の口の車線へ */
+  private turnLine(plan: TurnPlan, fromS: number, offIn: number): { pts: Vec3[]; acc: number[]; d0: [number, number]; d1: [number, number] } {
+    const road = this.road!;
+    const a = sampleRoad(road, fromS);
+    const dx = a.dx * this.pos.dir;
+    const dz = a.dz * this.pos.dir;
+    const p0 = { x: a.x - dz * offIn, y: a.y, z: a.z + dx * offIn };
+    const out = this.net.roads.get(plan.to.road)!;
+    const b = sampleRoad(out, plan.to.s);
+    const ex = b.dx * plan.to.dir;
+    const ez = b.dz * plan.to.dir;
+    const p1 = { x: b.x - ez * plan.offOut, y: b.y, z: b.z + ex * plan.offOut };
+    const chord = Math.sqrt((p1.x - p0.x) ** 2 + (p1.z - p0.z) ** 2);
+    const pts = cornerCurve(p0, dx, dz, p1, ex, ez, Math.max(4, Math.ceil(chord / 1.5)));
+    const acc = [0];
+    for (let i = 1; i < pts.length; i++) acc.push(acc[i - 1] + Math.sqrt((pts[i].x - pts[i - 1].x) ** 2 + (pts[i].z - pts[i - 1].z) ** 2));
+    return { pts, acc, d0: [dx, dz], d1: [ex, ez] };
+  }
+
+  private startTurn(j: Junction, s: number, plan: TurnPlan) {
+    const line = this.turnLine(plan, this.pos.s, this.offset);
+    // 接続点を通った扱い（経路の段を進める、候補を消す）は曲がり始めた時にする
+    this.passJunction(j, s, true);
+    this.pos = { ...plan.to };
+    this.offset = plan.offOut;
+    const length = line.acc[line.acc.length - 1];
+    this.turn = length > 0.05 ? { junction: j.id, pts: line.pts, acc: line.acc, d0: line.d0, d1: line.d1, length, d: 0, to: plan.to } : null;
+  }
+
+  /** 曲がる線の上で距離 d の点と向き */
+  private turnPoint(d: number): Vec3 & { dx: number; dz: number } {
+    const t = this.turn!;
+    let i = 1;
+    while (i < t.pts.length - 1 && t.acc[i] < d) i++;
+    const a = t.pts[i - 1];
+    const b = t.pts[i];
+    const seg = t.acc[i] - t.acc[i - 1] || 1;
+    const f = Math.max(0, Math.min(1, (d - t.acc[i - 1]) / seg));
+    // 向きは点ごとの向き（前後の点の差）の間を補間する
+    const dirAt = (k: number) => {
+      if (k <= 0) return t.d0;
+      if (k >= t.pts.length - 1) return t.d1;
+      const p = t.pts[Math.max(0, k - 1)];
+      const q = t.pts[Math.min(t.pts.length - 1, k + 1)];
+      const x = q.x - p.x;
+      const z = q.z - p.z;
+      const l = Math.sqrt(x * x + z * z) || 1;
+      return [x / l, z / l];
+    };
+    const da = dirAt(i - 1);
+    const db = dirAt(i);
+    let dx = da[0] + (db[0] - da[0]) * f;
+    let dz = da[1] + (db[1] - da[1]) * f;
+    const l = Math.sqrt(dx * dx + dz * dz) || 1;
+    dx /= l;
+    dz /= l;
+    return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f, dx, dz };
+  }
+
+  private turnGrade(): number {
+    const t = this.turn!;
+    const a = this.turnPoint(Math.max(0, t.d - 1));
+    const b = this.turnPoint(Math.min(t.length, t.d + 1));
+    const h = Math.sqrt((b.x - a.x) ** 2 + (b.z - a.z) ** 2);
+    return h > 0.01 ? (b.y - a.y) / h : 0;
   }
 
   /** 進む向きで次にある接続点（今いる位置ちょうどのものは除く） */
@@ -294,7 +433,7 @@ export class Ride {
     return { choices, defaultIndex: def };
   }
 
-  private passJunction(j: Junction, s: number) {
+  private passJunction(j: Junction, s: number, turning = false) {
     let u = this.upcoming;
     if (!u || u.junction.id !== j.id) {
       const c = this.choicesAt(j, s);
@@ -316,7 +455,7 @@ export class Ride {
       this.uTurns++;
       return;
     }
-    if (pick.arm.road !== this.pos.road || pick.arm.dir !== this.pos.dir) {
+    if (!turning && (pick.arm.road !== this.pos.road || pick.arm.dir !== this.pos.dir)) {
       this.pos = { road: pick.arm.road, s: pick.arm.s, dir: pick.arm.dir };
     }
   }
@@ -360,7 +499,7 @@ export class Ride {
     return limit;
   }
 
-  /** 進む向きの先の点の列（接続点では選んだ／既定の進路へ） */
+  /** 進む向きの先の点の列（接続点では選んだ／既定の進路へ、曲がる線に沿って） */
   pathAhead(dist: number, step: number): { x: number; z: number; d: number }[] {
     const out: { x: number; z: number; d: number }[] = [];
     let road = this.road;
@@ -368,8 +507,23 @@ export class Ride {
     let s = this.pos.s;
     let dir = this.pos.dir;
     let d = 0;
+    // 曲がっている途中なら、残りの線から
+    if (this.turn) {
+      const t = this.turn;
+      const p = this.turnPoint(t.d);
+      out.push({ x: p.x, z: p.z, d: 0 });
+      for (let q = 0; q < t.pts.length; q++) {
+        if (t.acc[q] <= t.d) continue;
+        d = t.acc[q] - t.d;
+        out.push({ x: t.pts[q].x, z: t.pts[q].z, d });
+      }
+      if (d > dist) return out;
+      d += step;
+      s += dir * step;
+    }
     let usedChoice = false;
     for (let guard = 0; d <= dist && guard < 200; guard++) {
+      if (s < 0 || s > road.length) break;
       const p = sampleRoad(road, s);
       out.push({ x: p.x, z: p.z, d });
       let ns = s + dir * step;
@@ -378,6 +532,21 @@ export class Ride {
       if (!usedChoice && u && road.id === this.pos.road && (u.s - s) * dir >= 0 && (u.s - ns) * dir < 0) {
         const pick = u.choices[u.selected ?? u.defaultIndex];
         usedChoice = true;
+        const plan = pick ? this.turnPlanAt(u.junction, u.s, pick) : null;
+        if (plan) {
+          // 入る口から出る口までは曲がる線をたどる（口が後ろにあれば今の位置から）
+          const from = (plan.entryS - this.pos.s) * dir > 0 ? plan.entryS : this.pos.s;
+          const line = this.turnLine(plan, from, this.defaultOffset());
+          const base = d - (s - from) * dir;
+          // 入る口より先に置いた点は捨てる
+          while (out.length > 1 && out[out.length - 1].d > base) out.pop();
+          for (let q = 0; q < line.pts.length; q++) out.push({ x: line.pts[q].x, z: line.pts[q].z, d: base + line.acc[q] });
+          road = this.net.roads.get(plan.to.road)!;
+          dir = plan.to.dir;
+          d = base + line.acc[line.acc.length - 1] + step;
+          s = plan.to.s + dir * step;
+          continue;
+        }
         if (pick && (pick.arm.road !== road.id || pick.arm.dir !== dir)) {
           const r2 = this.net.roads.get(pick.arm.road);
           if (r2) {
@@ -398,6 +567,10 @@ export class Ride {
   /** 今の位置（世界座標、左右位置を含む）と進行方向 */
   pose() {
     const road = this.road!;
+    if (this.turn) {
+      const p = this.turnPoint(this.turn.d);
+      return { x: p.x, y: p.y, z: p.z, dx: p.dx, dz: p.dz, grade: this.turnGrade(), spacing: roadSpacing(road) };
+    }
     const p = sampleRoad(road, this.pos.s);
     const dx = p.dx * this.pos.dir;
     const dz = p.dz * this.pos.dir;

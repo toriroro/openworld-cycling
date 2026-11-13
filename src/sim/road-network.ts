@@ -29,11 +29,19 @@ export function sampleRoad(r: Road, s: number): RoadSample {
   const t = f - i;
   const ax = P[i * 3], ay = P[i * 3 + 1], az = P[i * 3 + 2];
   const bx = P[i * 3 + 3], by = P[i * 3 + 4], bz = P[i * 3 + 5];
-  // 向きは前後 2 点の差で少しなめらかにする
-  const i0 = Math.max(0, i - 2);
-  const i1 = Math.min(n - 1, i + 3);
-  let dx = P[i1 * 3] - P[i0 * 3];
-  let dz = P[i1 * 3 + 2] - P[i0 * 3 + 2];
+  // 向きは前後 2 点の差で少しなめらかにし、点 i と点 i+1 の向きの間を補間する（点をまたぐ時に向きと左右位置が飛ばないように）
+  const dirAt = (k: number) => {
+    const k0 = Math.max(0, k - 2);
+    const k1 = Math.min(n - 1, k + 2);
+    const x = P[k1 * 3] - P[k0 * 3];
+    const z = P[k1 * 3 + 2] - P[k0 * 3 + 2];
+    const l = Math.sqrt(x * x + z * z) || 1;
+    return [x / l, z / l];
+  };
+  const da = dirAt(i);
+  const db = dirAt(i + 1);
+  let dx = da[0] + (db[0] - da[0]) * t;
+  let dz = da[1] + (db[1] - da[1]) * t;
   const len = Math.sqrt(dx * dx + dz * dz) || 1;
   dx /= len;
   dz /= len;

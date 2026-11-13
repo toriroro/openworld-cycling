@@ -1,10 +1,12 @@
 // 道路のメッシュ（モック仕様 5.3）。道路を 250m ごとに分け、近くのものだけ作る。
-// 路面、中央線・外側線（等級による）、路肩、谷側のガードレール、橋（床版・欄干・橋脚）。接続点は円形の舗装面でつなぐ。
+// 路面、中央線・外側線（等級による）、路肩、谷側のガードレール、橋（床版・欄干・橋脚）。
+// 接続点: 道路は接続点の口で止め、口の内側を舗装面で埋める。隣り合う腕の路肩は曲線（隅切り）でつなぎ、外側線も曲線に沿って引く。
 
 import * as THREE from "three";
 import type { Terrain } from "../shared/world/terrain.ts";
-import type { Junction, Road } from "../shared/world/types.ts";
+import type { Road } from "../shared/world/types.ts";
 import { hashString } from "../shared/world/hash.ts";
+import { junctionShape, type JunctionShape, roadFrame, type Vec3 } from "../sim/junction-shape.ts";
 import { rectDist, type RoadClient } from "../workers/road-client.ts";
 import { buildAsphaltSurface } from "./asphalt-profile.ts";
 import { buildGravelSurface } from "./gravel-profile.ts";
@@ -26,6 +28,29 @@ interface Chunk {
   mesh: THREE.Mesh;
   ox: number;
   oz: number;
+  /** 作った時の、この区間にかかる接続点の切れ目 */
+  gapKey: string;
+}
+
+/** 道路の上で、接続点の舗装面に任せて路面を作らない区間 */
+interface Gap {
+  from: number;
+  to: number;
+}
+
+/** [i0, i1] の点のうち切れ目の内側にない点の連続（2点以上） */
+function runsOf(cut: boolean[]): [number, number][] {
+  const out: [number, number][] = [];
+  let a = -1;
+  for (let j = 0; j <= cut.length; j++) {
+    if (j < cut.length && !cut[j]) {
+      if (a < 0) a = j;
+    } else if (a >= 0) {
+      if (j - 1 > a) out.push([a, j - 1]);
+      a = -1;
+    }
+  }
+  return out;
 }
 
 const C_LINE = [0.92, 0.92, 0.9];
@@ -35,6 +60,8 @@ const C_CONCRETE = [0.62, 0.61, 0.58];
 const C_SHOULDER = [0.72, 0.7, 0.66];
 /** 未舗装路の路肩（sRGB 0.42, 0.5, 0.28 を線形に） */
 const C_GRAVEL_VERGE = [0.148, 0.218, 0.061];
+/** 接続点の舗装面（道路の路面の平均に近い明るさ） */
+const C_JUNCTION = [1, 1, 0.99];
 
 class GeoBuilder {
   pos: number[] = [];
@@ -85,6 +112,8 @@ export class RoadMeshes {
   private releaseQueue: THREE.Mesh[] = [];
   private discs: THREE.Mesh | null = null;
   private discKey = "";
+  private gapCache = new Map<string, Gap[]>();
+  private gapVersion = -1;
   range = 1600;
   buildPerFrame = 3;
   private originX = 0;
@@ -139,6 +168,12 @@ export class RoadMeshes {
           }
           if (d > this.range) continue;
           const key = `${road.id}#${k}`;
+          const have = this.chunks.get(key);
+          if (have && have.gapKey !== this.gapKey(road, k)) {
+            // 接続点の形が変わった（腕の道路が読み込まれた）ので作り直す
+            this.chunks.delete(key);
+            this.releaseQueue.push(have.mesh);
+          }
           keep.add(key);
           if (!this.chunks.has(key)) wanted.push({ key, road, k, d });
         }
@@ -210,22 +245,29 @@ export class RoadMeshes {
     const at = (j: number, off: number, dy: number) => [px[j] + rx[j] * off, py[j] + dy, pz[j] + rz[j] * off];
     const sOf = (j: number) => (i0 + j) * ds;
     const isBridge = (j: number) => bridge[i0 + j] === 1;
+    // 接続点の口の内側の点（路面・路肩・区画線・ガードレールを作らない）
+    const gaps = this.gapsOf(road);
+    const cut: boolean[] = [];
+    for (let j = 0; j < cnt; j++) {
+      const s = sOf(j);
+      cut.push(gaps.some((g) => s > g.from + 1e-3 && s < g.to - 1e-3));
+    }
+    const runs = runsOf(cut);
 
     // 路面
-    const L: number[][] = [], R: number[][] = [];
-    for (let j = 0; j < cnt; j++) {
-      const ext = isBridge(j) ? 0.3 : 0;
-      L.push(at(j, -hw - ext, 0));
-      R.push(at(j, hw + ext, 0));
-    }
     const gravel = road.surface === "gravel";
-    if (gravel) buildGravelSurface(surf, at, cnt, sOf, hw, hashString(road.id));
-    else buildAsphaltSurface(surf, pat, at, cnt, sOf, hw, road.cls <= 1, hashString(road.id), (j) => (isBridge(j) ? 0.3 : 0));
+    for (const [r0, r1] of runs) {
+      const at2 = (j: number, off: number, dy: number) => at(r0 + j, off, dy);
+      const s2 = (j: number) => sOf(r0 + j);
+      if (gravel) buildGravelSurface(surf, at2, r1 - r0 + 1, s2, hw, hashString(road.id));
+      else buildAsphaltSurface(surf, pat, at2, r1 - r0 + 1, s2, hw, road.cls <= 1, hashString(road.id), (j) => (isBridge(r0 + j) ? 0.3 : 0));
+    }
 
     // 路肩（土の部分）: 端から 0.7m は少し下げて平ら、そこから 0.7m で地面の下へ
-    for (const sign of [-1, 1]) {
+    for (const sign of [-1, 1])
+      for (const [r0, r1] of runs) {
       const a: number[][] = [], b: number[][] = [], c: number[][] = [];
-      for (let j = 0; j < cnt; j++) {
+      for (let j = r0; j <= r1; j++) {
         const br = isBridge(j);
         a.push(at(j, sign * hw, gravel ? -0.03 : 0));
         b.push(at(j, sign * (hw + 0.7), br ? 0 : gravel ? -0.08 : -0.04));
@@ -258,7 +300,7 @@ export class RoadMeshes {
         run = [];
       };
       for (let j = 0; j < cnt; j++) {
-        const on = !dashed || Math.floor(sOf(j) / 5) % 2 === 0;
+        const on = !cut[j] && (!dashed || Math.floor(sOf(j) / 5) % 2 === 0);
         if (on) run.push(j);
         else flush();
       }
@@ -276,7 +318,7 @@ export class RoadMeshes {
     for (const sign of [-1, 1]) {
       const valley: boolean[] = [];
       for (let j = 0; j < cnt; j++) {
-        if (isBridge(j)) {
+        if (isBridge(j) || cut[j]) {
           valley.push(false);
           continue;
         }
@@ -293,7 +335,7 @@ export class RoadMeshes {
         }
         let e = j;
         while (e < cnt && valley[e]) e++;
-        if (e - j >= minRun || j === 0 || e === cnt) this.rail(str, at, j, e - 1, sign * (hw + 0.6), sOf);
+        if (e - j >= minRun || ((j === 0 || e === cnt) && e - j >= 2)) this.rail(str, at, j, e - 1, sign * (hw + 0.6), sOf);
         j = e;
       }
     }
@@ -337,7 +379,7 @@ export class RoadMeshes {
     mesh.matrixAutoUpdate = false;
     mesh.position.set(ox - this.originX, 0, oz - this.originZ);
     mesh.updateMatrix();
-    return { key: `${road.id}#${k}`, road: road.id, k, mesh, ox, oz };
+    return { key: `${road.id}#${k}`, road: road.id, k, mesh, ox, oz, gapKey: this.gapKey(road, k) };
   }
 
   private rail(
@@ -446,49 +488,81 @@ export class RoadMeshes {
     }
   }
 
-  /** 範囲内の接続点の円形の舗装面を1つのメッシュにまとめる */
+  /** 道路の上の接続点の切れ目（口の内側）。道路網が変わるたびに求め直す */
+  private gapsOf(road: Road): Gap[] {
+    const net = this.roads.net;
+    if (this.gapVersion !== net.version) {
+      this.gapCache.clear();
+      this.gapVersion = net.version;
+    }
+    let gaps = this.gapCache.get(road.id);
+    if (gaps) return gaps;
+    gaps = [];
+    for (const { junction } of net.junctionsOn(road.id)) {
+      const shape = junctionShape(net, junction);
+      if (shape.arms.length < 2) continue;
+      for (const a of shape.arms) {
+        if (a.arm.road !== road.id) continue;
+        gaps.push({ from: Math.min(a.arm.s, a.mouthS), to: Math.max(a.arm.s, a.mouthS) });
+      }
+    }
+    gaps.sort((p, q) => p.from - q.from);
+    this.gapCache.set(road.id, gaps);
+    return gaps;
+  }
+
+  /** 区画 k にかかる切れ目を文字列にしたもの（変わったら区画を作り直す） */
+  private gapKey(road: Road, k: number): string {
+    const s0 = k * CHUNK_LENGTH - 4;
+    const s1 = (k + 1) * CHUNK_LENGTH + 4;
+    return this.gapsOf(road)
+      .filter((g) => g.to >= s0 && g.from <= s1)
+      .map((g) => `${g.from.toFixed(2)}-${g.to.toFixed(2)}`)
+      .join(",");
+  }
+
+  /** 範囲内の接続点の舗装面・路肩・外側線を1つのメッシュにまとめる */
   private updateDiscs(cx: number, cz: number) {
-    const list: Junction[] = [];
+    const shapes: JunctionShape[] = [];
     for (const j of this.roads.net.junctions.values()) {
       const dx = j.x - cx, dz = j.z - cz;
       if (dx * dx + dz * dz > this.range * this.range) continue;
-      if (j.arms.length < 2) continue;
-      list.push(j);
+      const shape = junctionShape(this.roads.net, j);
+      if (shape.arms.length < 2) continue;
+      shapes.push(shape);
     }
-    const key = list.map((j) => j.id).join("|");
+    const key = shapes.map((s) => `${s.junction.id}=${s.key}`).join("|");
     if (key === this.discKey) return;
     this.discKey = key;
     if (this.discs) this.releaseQueue.push(this.discs);
     this.discs = null;
-    if (!list.length) return;
+    if (!shapes.length) return;
     const ox = Math.round(cx), oz = Math.round(cz);
-    const b = new GeoBuilder();
-    const SEG = 20;
-    for (const j of list) {
-      let w = 0;
-      for (const a of j.arms) w = Math.max(w, this.roads.net.roads.get(a.road)?.width ?? 0);
-      const r = w / 2 + 1.5;
-      const cxl = j.x - ox, czl = j.z - oz, y = j.y + 0.006;
-      const base = b.pos.length / 3;
-      b.pos.push(cxl, y, czl);
-      b.col.push(1, 1, 1);
-      b.uv.push(0, 0);
-      for (let k = 0; k <= SEG; k++) {
-        const a = (k / SEG) * Math.PI * 2;
-        b.pos.push(cxl + Math.cos(a) * r, y, czl + Math.sin(a) * r);
-        b.col.push(1, 1, 1);
-        b.uv.push(Math.cos(a) * r / 4, Math.sin(a) * r / 4);
-      }
-      for (let k = 0; k < SEG; k++) b.idx.push(base, base + 2 + k, base + 1 + k);
-    }
+    const paved = new GeoBuilder();
+    const gravel = new GeoBuilder();
+    const lines = new GeoBuilder();
+    for (const sh of shapes) this.junctionPatch(sh, ox, oz, paved, gravel, lines);
+    const all = new GeoBuilder();
+    const parts = [paved, gravel, lines];
     const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(b.pos, 3));
-    g.setAttribute("color", new THREE.Float32BufferAttribute(b.col, 3));
-    g.setAttribute("uv", new THREE.Float32BufferAttribute(b.uv, 2));
-    g.setIndex(b.idx);
+    let start = 0;
+    let vbase = 0;
+    parts.forEach((p, mi) => {
+      all.pos.push(...p.pos);
+      all.col.push(...p.col);
+      all.uv.push(...p.uv);
+      for (const v of p.idx) all.idx.push(v + vbase);
+      if (p.idx.length) g.addGroup(start, p.idx.length, mi);
+      start += p.idx.length;
+      vbase += p.pos.length / 3;
+    });
+    g.setAttribute("position", new THREE.Float32BufferAttribute(all.pos, 3));
+    g.setAttribute("color", new THREE.Float32BufferAttribute(all.col, 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(all.uv, 2));
+    g.setIndex(all.pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(all.idx, 1) : new THREE.Uint16BufferAttribute(all.idx, 1));
     g.computeVertexNormals();
     g.computeBoundingSphere();
-    const m = new THREE.Mesh(g, this.mats.paved);
+    const m = new THREE.Mesh(g, [this.mats.paved, this.mats.gravel, this.mats.structure]);
     m.name = "road";
     m.userData.ox = ox;
     m.userData.oz = oz;
@@ -498,5 +572,108 @@ export class RoadMeshes {
     m.updateMatrix();
     this.discs = m;
     this.group.add(m);
+  }
+
+  /** 接続点1つ: 中心から外周への扇形の舗装面、隅切りの曲線に沿った路肩と外側線 */
+  private junctionPatch(sh: JunctionShape, ox: number, oz: number, paved: GeoBuilder, gravel: GeoBuilder, lines: GeoBuilder) {
+    const allGravel = sh.arms.every((a) => a.road.surface === "gravel");
+    const b = allGravel ? gravel : paved;
+    // 外周: 腕ごとに −r の点、+r の点、そこから次の腕までの曲線
+    const ring: Vec3[] = [];
+    sh.arms.forEach((a, i) => {
+      ring.push(a.minus, a.plus);
+      const e = sh.edges[i];
+      for (let q = 1; q < e.length - 1; q++) ring.push(e[q]);
+    });
+    const c = sh.center;
+    const base = b.pos.length / 3;
+    const surfCol = allGravel ? [1, 1, 1] : C_JUNCTION;
+    b.pos.push(c.x - ox, c.y, c.z - oz);
+    b.col.push(...surfCol);
+    b.uv.push(c.x / 4, c.z / 4);
+    for (const p of ring) {
+      b.pos.push(p.x - ox, p.y, p.z - oz);
+      b.col.push(...surfCol);
+      b.uv.push(p.x / 4, p.z / 4);
+    }
+    const n = ring.length;
+    for (let k = 0; k < n; k++) b.idx.push(base, base + 1 + ((k + 1) % n), base + 1 + k);
+
+    // 優先の道路（接続点を通り抜け、等級がいちばん高い）の中央線は接続点の中も引く
+    for (const a of sh.arms) {
+      if (a.arm.dir !== 1) continue;
+      const other = sh.arms.find((o) => o.arm.road === a.arm.road && o.arm.dir === -1 && Math.abs(o.arm.s - a.arm.s) < 0.5);
+      const r = a.road;
+      if (!other || r.surface !== "paved" || r.cls > 1) continue;
+      if (sh.arms.some((o) => o.road !== r && o.road.cls <= r.cls)) continue;
+      const ds = r.length / (r.points.length / 3 - 1);
+      const i0 = Math.round(other.mouthS / ds);
+      const i1 = Math.round(a.mouthS / ds);
+      let run: number[][][] = [];
+      const flush = () => {
+        if (run.length >= 2) lines.strip(run.map((q) => q[0]), run.map((q) => q[1]), C_LINE);
+        run = [];
+      };
+      for (let i = i0; i <= i1; i++) {
+        if (r.cls === 1 && Math.floor((i * ds) / 5) % 2 !== 0) {
+          flush();
+          continue;
+        }
+        const f = roadFrame(r, i);
+        const rx = -f.tz, rz = f.tx;
+        run.push([
+          [f.x - rx * 0.075 - ox, f.y + 0.012, f.z - rz * 0.075 - oz],
+          [f.x + rx * 0.075 - ox, f.y + 0.012, f.z + rz * 0.075 - oz],
+        ]);
+      }
+      flush();
+    }
+
+    // 曲線に沿って路肩（道路の路肩と同じ断面）と外側線
+    const sh2 = allGravel ? C_GRAVEL_VERGE : C_SHOULDER;
+    sh.edges.forEach((e, i) => {
+      const a = sh.arms[i];
+      const nb = sh.arms[(i + 1) % sh.arms.length];
+      // 進む向きの左が外（接続点の外側）
+      const outN = e.map((_, q) => {
+        const p0 = e[Math.max(0, q - 1)];
+        const p1 = e[Math.min(e.length - 1, q + 1)];
+        let tx = p1.x - p0.x;
+        let tz = p1.z - p0.z;
+        const l = Math.sqrt(tx * tx + tz * tz) || 1;
+        tx /= l;
+        tz /= l;
+        return [tz, -tx];
+      });
+      // 両端は道路の断面の向きにそろえる（道路の路肩とすき間なくつなぐ）
+      outN[0] = [-a.oz, a.ox];
+      outN[e.length - 1] = [nb.oz, -nb.ox];
+      const off = (q: number, d: number, dy: number) => [e[q].x + outN[q][0] * d - ox, e[q].y + dy, e[q].z + outN[q][1] * d - oz];
+      const A: number[][] = [], B: number[][] = [], C: number[][] = [];
+      for (let q = 0; q < e.length; q++) {
+        A.push(off(q, 0, allGravel ? -0.03 : 0));
+        B.push(off(q, 0.7, allGravel ? -0.08 : -0.04));
+        C.push(off(q, 1.4, -0.45));
+      }
+      let acc = 0;
+      const sAt: number[] = [0];
+      for (let q = 1; q < e.length; q++) {
+        acc += Math.sqrt((e[q].x - e[q - 1].x) ** 2 + (e[q].z - e[q - 1].z) ** 2);
+        sAt.push(acc);
+      }
+      const uvf = (q: number, side: 0 | 1) => [side * 0.2, sAt[q] / 4] as [number, number];
+      b.strip(B, A, sh2, uvf);
+      b.strip(C, B, sh2, uvf);
+      // 外側線: 両側の道路に外側線がある時（舗装の一般道以上）
+      const edgeLine = (r: Road) => r.surface === "paved" && r.cls <= 2;
+      if (edgeLine(a.road) && edgeLine(nb.road)) {
+        const l1: number[][] = [], l2: number[][] = [];
+        for (let q = 0; q < e.length; q++) {
+          l1.push(off(q, -0.3 - 0.075, 0.012));
+          l2.push(off(q, -0.3 + 0.075, 0.012));
+        }
+        lines.strip(l2, l1, C_LINE);
+      }
+    });
   }
 }

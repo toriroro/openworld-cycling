@@ -36,6 +36,8 @@ interface MainData {
   road: Road | null;
   /** 経路の格子番号 [ix, iz, ...] */
   cells: Int32Array | null;
+  /** 格子ごとにその場所を通る道路（結節点で別の主要道へ合流させた区間は合流先の道路） */
+  owners?: Road[];
 }
 
 export interface RoadTiming {
@@ -51,6 +53,7 @@ export class World {
   readonly terrain: Terrain;
   private nodes = new Map<string, WorldNode | null>();
   private nodeEdges = new Map<string, EdgeInfo[]>();
+  private raws = new Map<string, MainData>();
   private mains = new Map<string, MainData>();
   private branches = new Map<string, Road[]>();
   private chunks = new Map<number, Float64Array>();
@@ -90,10 +93,14 @@ export class World {
       const [bx, bz] = parse(b);
       return outCell(ax, az) && outCell(bx, bz);
     };
+    for (const id of this.raws.keys()) if (edgeOut(id)) this.raws.delete(id);
     for (const [id, m] of this.mains)
       if (edgeOut(id)) {
         this.mains.delete(id);
-        if (m.road) this.poiCache.delete(m.road.id);
+        if (m.road) {
+          this.poiCache.delete(m.road.id);
+          this.attachments.delete(m.road.id);
+        }
       }
     for (const [id, pieces] of this.branches)
       if (edgeOut(id)) {
@@ -199,9 +206,9 @@ export class World {
     return { ix0, iz0, w, h, heights };
   }
 
-  /** 主要道。両端の結節点だけで決まる */
-  mainRoad(e: EdgeInfo): MainData {
-    let m = this.mains.get(e.id);
+  /** 主要道の探索と整形の結果。両端の結節点だけで決まる */
+  private rawMain(e: EdgeInfo): MainData {
+    let m = this.raws.get(e.id);
     if (m) return m;
     const t0 = now();
     const spec = ROAD_CLASSES[e.cls];
@@ -222,8 +229,106 @@ export class World {
       m = { road, cells: res.cells };
       this.timings.push({ id: e.id, ms: now() - t0, expanded: res.expanded });
     }
+    this.raws.set(e.id, m);
+    return m;
+  }
+
+  /**
+   * 主要道。結節点から優先の高い主要道に重なって出る区間は除き、重なりが終わる所でその道へ合流させる
+   * （主要道は互いを見ずに引くので、同じ結節点から同じ谷へ出る2本が重なるため。GENERATOR_VERSION 4）。
+   * 優先は 等級の高い順、同じ等級なら識別子の順。結節点を共有する主要道だけを見る。
+   */
+  mainRoad(e: EdgeInfo): MainData {
+    let m = this.mains.get(e.id);
+    if (m) return m;
+    const raw = this.rawMain(e);
+    m = raw;
+    if (raw.road && raw.cells) {
+      const road = raw.road;
+      const ca = this.overlapAtNode(e, e.a, road, false);
+      const cb = this.overlapAtNode(e, e.b, road, true);
+      if (ca || cb) {
+        const s0 = ca ? ca.s : 0;
+        const s1 = cb ? road.length - cb.s : road.length;
+        let piece: Road | null = null;
+        if (s1 - s0 > 60) {
+          const pa = pointAt(road, s0);
+          const pb = pointAt(road, s1);
+          const sa = ca ? nearestOnRoad(ca.target, pa.x, pa.z) : null;
+          const sb = cb ? nearestOnRoad(cb.target, pb.x, pb.z) : null;
+          piece = this.rebuildPiece(e, e.id, "main", road, s0, s1, sa, sb);
+        }
+        const owners: Road[] = [];
+        for (let i = 0; i < raw.cells.length; i += 2) {
+          const x = raw.cells[i] * ROUTE_GRID;
+          const z = raw.cells[i + 1] * ROUTE_GRID;
+          let best: Road | null = piece;
+          let bd = piece ? nearestOnRoad(piece, x, z).d2 : Infinity;
+          for (const c of [ca, cb]) {
+            if (!c) continue;
+            const d = nearestOnRoad(c.target, x, z).d2;
+            if (d < bd) {
+              bd = d;
+              best = c.target;
+            }
+          }
+          owners.push(best!);
+        }
+        m = { road: piece, cells: raw.cells, owners };
+      }
+    }
     this.mains.set(e.id, m);
     return m;
+  }
+
+  /** 結節点 node から出る道路 road が、同じ結節点から出る優先の高い主要道に重なって走る長さ（node の側からの道のり）と、その道路 */
+  private overlapAtNode(e: EdgeInfo, node: WorldNode, road: Road, fromEnd: boolean): { s: number; target: Road } | null {
+    let best: { s: number; target: Road } | null = null;
+    for (const o of this.edgesOfNode(node)) {
+      if (o.kind !== "main" || o.id === e.id) continue;
+      if (!(o.cls < e.cls || (o.cls === e.cls && o.id < e.id))) continue;
+      const t = this.mainRoad(o).road;
+      // 相手がこの結節点まで届いていなければ（相手もここで別の道へ合流していれば）見ない
+      if (!t || (t.start !== node.id && t.end !== node.id)) continue;
+      const s = overlapLength(road, t, fromEnd);
+      if (s >= OVERLAP_MIN && (!best || s > best.s || (s === best.s && t.id < best.target.id))) best = { s, target: t };
+    }
+    return best;
+  }
+
+  /** 道路の [s0, s1] の区間を、端を合流先の道路の上に置いて作り直す（端が合流しなければ結節点のまま） */
+  private rebuildPiece(e: EdgeInfo, id: string, kind: "main" | "branch", road: Road, s0: number, s1: number, sa: SnapPoint | null, sb: SnapPoint | null): Road | null {
+    const pts: number[] = [];
+    const keep: number[] = [];
+    const startJ = sa ? attachJunction(sa) : { id: e.a.id, y: e.a.y };
+    const endJ = sb ? attachJunction(sb) : { id: e.b.id, y: e.b.y };
+    if (startJ.id === endJ.id) return null;
+    if (sa) pts.push(sa.x, sa.z);
+    else pts.push(e.a.x, e.a.z);
+    keep.push(0);
+    // 合流点の 20m 先からは元の中心線を 10m ごとにたどる
+    const a = s0 + (sa ? 20 : 10);
+    const b = s1 - (sb ? 20 : 10);
+    for (let s = a; s < b; s += 10) {
+      const p = pointAt(road, s);
+      pts.push(p.x, p.z);
+      keep.push(inBridge(road, s) ? 1 : 0);
+    }
+    if (sb) pts.push(sb.x, sb.z);
+    else pts.push(e.b.x, e.b.z);
+    keep.push(0);
+    const poly = Float64Array.from(pts);
+    if (polylineLength(poly) < 30) return null;
+    const out = this.buildRoad(id, e, poly, Uint8Array.from(keep), startJ.y, endJ.y, startJ.id, endJ.id, kind);
+    this.setAttachments(id, sa, sb);
+    return out;
+  }
+
+  private setAttachments(id: string, sa: SnapPoint | null, sb: SnapPoint | null) {
+    const att: { start?: Attachment; end?: Attachment } = {};
+    if (sa && !sa.atEnd) att.start = { road: sa.road.id, s: sa.s };
+    if (sb && !sb.atEnd) att.end = { road: sb.road.id, s: sb.s };
+    if (att.start || att.end) this.attachments.set(id, att);
   }
 
   /** 枝道。主要道に重なる区間は主要道を使い、残りを道路の断片として返す */
@@ -235,23 +340,25 @@ export class World {
     // 探索範囲にかかる主要道
     const mains = this.edgesNear(sr, "main")
       .map((me) => this.mainRoad(me))
-      .filter((m): m is { road: Road; cells: Int32Array } => m.road !== null && m.cells !== null);
+      .filter((m) => m.cells !== null && (m.road !== null || m.owners !== undefined));
     const t0 = now();
     const spec = ROAD_CLASSES[e.cls];
     const grid = this.routeGrid(sr);
     const mask = new Uint8Array(grid.w * grid.h);
     const cellRoads = new Map<number, Road[]>();
     for (const m of mains) {
-      for (let i = 0; i < m.cells.length; i += 2) {
-        const lx = m.cells[i] - grid.ix0;
-        const lz = m.cells[i + 1] - grid.iz0;
+      const cells = m.cells!;
+      for (let i = 0; i < cells.length; i += 2) {
+        const lx = cells[i] - grid.ix0;
+        const lz = cells[i + 1] - grid.iz0;
         if (lx < 0 || lz < 0 || lx >= grid.w || lz >= grid.h) continue;
         const c = lz * grid.w + lx;
+        const owner = m.owners ? m.owners[i / 2] : m.road!;
         mask[c] = 1;
         const list = cellRoads.get(c);
         if (list) {
-          if (!list.includes(m.road)) list.push(m.road);
-        } else cellRoads.set(c, [m.road]);
+          if (!list.includes(owner)) list.push(owner);
+        } else cellRoads.set(c, [owner]);
       }
     }
     grid.mainMask = mask;
@@ -342,10 +449,20 @@ export class World {
     const poly = Float64Array.from(pts);
     if (polylineLength(poly) < 30) return null;
     const road = this.buildRoad(id, e, poly, Uint8Array.from(keep), startJ.y, endJ.y, startJ.id, endJ.id, "branch");
-    const att: { start?: Attachment; end?: Attachment } = {};
-    if (sa && !sa.atEnd) att.start = { road: sa.road.id, s: sa.s };
-    if (sb && !sb.atEnd) att.end = { road: sb.road.id, s: sb.s };
-    if (att.start || att.end) this.attachments.set(id, att);
+    // 整形した後も合流先の道路に重なって走る区間があれば、重なりの終わる所で合流させ直す（GENERATOR_VERSION 4）
+    const oa = sa ? overlapLength(road, sa.road, false) : 0;
+    const ob = sb ? overlapLength(road, sb.road, true) : 0;
+    if (oa >= OVERLAP_MIN || ob >= OVERLAP_MIN) {
+      const s0 = oa >= OVERLAP_MIN ? oa : 0;
+      const s1 = road.length - (ob >= OVERLAP_MIN ? ob : 0);
+      if (s1 - s0 <= 60) return null;
+      const pa = pointAt(road, s0);
+      const pb = pointAt(road, s1);
+      const na = sa && oa >= OVERLAP_MIN ? nearestOnRoad(sa.road, pa.x, pa.z) : sa;
+      const nb = sb && ob >= OVERLAP_MIN ? nearestOnRoad(sb.road, pb.x, pb.z) : sb;
+      return this.rebuildPiece(e, id, "branch", road, s0, s1, na, nb);
+    }
+    this.setAttachments(id, sa, sb);
     return road;
   }
 
@@ -434,7 +551,7 @@ export class World {
     for (const e of this.edgesOfNode(n)) {
       if (e.kind !== "main") continue;
       const road = this.mainRoad(e).road;
-      if (!road) continue;
+      if (!road || (road.start !== n.id && road.end !== n.id)) continue;
       const atStart = road.start === n.id;
       const cnt = road.points.length / 3;
       let lo = n.y;
@@ -475,6 +592,28 @@ export interface SnapPoint {
   d2: number;
   /** 道路の端（結節点）に当たる */
   atEnd: boolean;
+}
+
+/** 重なりとみなす最短の長さ (m) */
+const OVERLAP_MIN = 20;
+
+/**
+ * 道路 road が端（fromEnd なら終点側）から道路 t に重なって走る長さ。
+ * 重なり = 中心線の距離が 2本の幅の半分の和 + 2m 以内。離れても 40m 以内なら重なりの続きとみなす（浅い角度で交わり直すため）。
+ */
+function overlapLength(road: Road, t: Road, fromEnd: boolean): number {
+  const thr = (road.width + t.width) / 2 + 2;
+  const n = road.points.length / 3;
+  const ds = road.length / (n - 1);
+  let last = -1;
+  for (let k = 0; k < n; k += 2) {
+    const i = fromEnd ? n - 1 - k : k;
+    const p = pointAt(road, i * ds);
+    const d2 = nearestOnRoad(t, p.x, p.z).d2;
+    if (d2 <= thr * thr) last = k;
+    else if (d2 > 1600) break;
+  }
+  return last > 0 ? last * ds : 0;
 }
 
 function attachJunction(p: SnapPoint): { id: string; y: number } {

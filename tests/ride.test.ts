@@ -69,6 +69,42 @@ describe("道路網の上を走る", () => {
     expect(checked).toBeGreaterThan(0);
   });
 
+  it("別の道路へ曲がる時、位置も向きも飛ばずに曲線で曲がる", () => {
+    const ride = new Ride(net, { road: startRoad.id, s: 5, dir: 1 }, new AutoPower(220));
+    let prev = ride.pose();
+    let turns = 0;
+    let maxJump = 0;
+    let maxBend = 0;
+    let uTurns = ride.uTurns;
+    for (let i = 0; i < 120 * 60 * 60 && turns < 6; i++) {
+      const u = ride.upcoming;
+      // 直進でない候補を選ぶ
+      if (u && u.selected === null && u.choices.length >= 2) {
+        const k = u.choices.findIndex((c) => !c.straightOn && Math.abs(c.angle) > 0.5);
+        if (k >= 0) ride.choose(k);
+      }
+      const wasTurning = !!ride.turn;
+      ride.step();
+      if (!wasTurning && ride.turn) turns++;
+      const p = ride.pose();
+      const moved = Math.hypot(p.x - prev.x, p.z - prev.z);
+      if (ride.uTurns === uTurns) {
+        maxJump = Math.max(maxJump, moved - ride.speed / 120);
+        let dh = Math.atan2(p.dz, p.dx) - Math.atan2(prev.dz, prev.dx);
+        while (dh > Math.PI) dh -= 2 * Math.PI;
+        while (dh < -Math.PI) dh += 2 * Math.PI;
+        if (moved > 0.02) maxBend = Math.max(maxBend, Math.abs(dh) / moved);
+      }
+      uTurns = ride.uTurns;
+      prev = p;
+    }
+    expect(turns).toBeGreaterThanOrEqual(3);
+    // 1歩（1/120 秒）で進む距離を 5cm 以上超えて動かない
+    expect(maxJump).toBeLessThan(0.05);
+    // 向きの変わり方は 1m あたり 0.35 rad 以内（半径 3m 弱より急に曲がらない）
+    expect(maxBend).toBeLessThan(0.35);
+  });
+
   it("手動: 漕がなければ平地で止まり、停止中は U ターンできる", () => {
     const flat = [...net.roads.values()].find((r) => r.cls === 0)!;
     const power = new ManualPower();
