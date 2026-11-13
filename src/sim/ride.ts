@@ -10,6 +10,7 @@ import type { Junction, JunctionArm, Road } from "../shared/world/types.ts";
 import { type BikeParams, CRR, DEFAULT_BIKE, DT, integrateSpeed } from "./bicycle.ts";
 import { cornerCurve, junctionShape, type Vec3 } from "./junction-shape.ts";
 import type { PowerSource } from "./power.ts";
+import { RiddenLog } from "./ridden.ts";
 import { type RoadNetwork, type RoadPosition, roadSpacing, sampleRoad } from "./road-network.ts";
 import { planRoute, type RoutePlan } from "./route-plan.ts";
 
@@ -101,6 +102,8 @@ export class Ride {
   private curveLimit = Infinity;
   /** 接続点を曲がっている途中なら、その線（pos は曲がり終える所） */
   turn: Turn | null = null;
+  /** 走った道路の区間 */
+  ridden = new RiddenLog();
 
   constructor(
     private net: RoadNetwork,
@@ -225,6 +228,7 @@ export class Ride {
     this.speed = r.speed;
     this.advance(r.distance);
     this.time += dt;
+    if (r.distance > 0) this.ridden.mark(this.pos.road, this.pos.s);
     // 左右位置はなめらかに目標へ
     const target = this.defaultOffset();
     this.offset += (target - this.offset) * Math.min(1, dt * 1.5);

@@ -31,7 +31,9 @@ if (q.get("mode") === "m2") {
   startM2(view, roads, q, startX, startZ);
 } else {
   document.getElementById("hud")!.hidden = true;
-  const game = new Game(view, roads, { x: startX, z: startZ });
+  // 保存データがあれば続きから（?x= ?z= で場所を指定した時と ?fresh=1 の時は使わない。検証用）
+  const resume = !q.has("x") && !q.has("z") && q.get("fresh") !== "1";
+  const game = new Game(view, roads, { x: startX, z: startZ }, { resume });
   // 計測・検証用の窓口（scripts/m3-*.mjs から使う）
   const dev = {
     view,
@@ -68,6 +70,13 @@ if (q.get("mode") === "m2") {
       if (!r || !r.road) return null;
       const p = r.pose();
       return { x: p.x, y: p.y, z: p.z, goalReached: r.goalReached, planSteps: r.plan?.steps.length ?? null, odometer: r.odometer, climb: r.climb, time: r.time, speed: r.speed, landscape: view.heights.landscape(p.x, p.z) };
+    },
+    snapshot() {
+      return game.snapshot();
+    },
+    async save() {
+      await game.save();
+      return game.lastSaved;
     },
     setTimeScale(k: number) {
       game.timeScale = k;

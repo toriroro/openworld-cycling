@@ -190,6 +190,10 @@ export class Hud {
   syncSettings(s: Partial<Settings>) {
     if (s.camera) this.settingsEls.camera.value = s.camera;
     if (s.quality) this.settingsEls.quality.value = s.quality;
+    if (s.hour !== undefined) {
+      this.settingsEls.hour.value = String(s.hour);
+      this.settingsEls.hourOut.textContent = fmtHour(s.hour);
+    }
     if (s.power !== undefined) {
       this.settingsEls.power.value = String(s.power);
       this.settingsEls.powerOut.textContent = `${s.power} W`;

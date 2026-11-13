@@ -1,12 +1,17 @@
-// 走るゲームの本体（M3）。走行（sim）を 120Hz で進め、描画・画面・入力をつなぐ。
+// 走るゲームの本体。走行（sim）を 120Hz で進め、描画・画面・入力をつなぐ。
 // 描画と画面は sim の状態を読むだけ（モック仕様 3.3）。
+// 保存（モック仕様 7.3）: 現在地・総距離・獲得標高・走行時間・走った区間・スタンプ・設定・装いを platform の保存に残し、起動時は続きから始める。
 
-import { ORIGIN } from "./shared/world/constants.ts";
+import { platform } from "./platform/index.ts";
+import { DEFAULT_SETTINGS, parseSave, SAVE_KEY, SAVE_VERSION, type SaveData, type SaveSettings, type Stamp } from "./shared/save.ts";
+import { GENERATOR_VERSION, ORIGIN } from "./shared/world/constants.ts";
+import { RiddenLog } from "./sim/ridden.ts";
 import { DT } from "./sim/bicycle.ts";
 import { AutoPower, ManualPower } from "./sim/power.ts";
 import { Ride } from "./sim/ride.ts";
 import { sampleRoad } from "./sim/road-network.ts";
 import { CAMERA_MODES, type CameraMode, cameraPose } from "./render/camera-rig.ts";
+import type { Quality } from "./render/world-view.ts";
 import { PlayerModel } from "./render/player.ts";
 import { showcaseView } from "./render/cyclist/showcase.ts";
 import { DEFAULT_OUTFIT, type Outfit } from "./shared/outfit.ts";
@@ -43,27 +48,29 @@ export class Game {
   /** フレーム間隔（計測用） */
   readonly frameDt: number[] = [];
   private status: HTMLElement;
+  /** 保存する設定 */
+  settings: SaveSettings = { ...DEFAULT_SETTINGS };
+  /** 走った道路の区間（走り直しても引き継ぐ） */
+  ridden = new RiddenLog();
+  stamps: Stamp[] = [];
+  /** 保存データを読み終えた（読み終えるまで道路に乗せない） */
+  private loaded = false;
+  /** 続きから始める位置と記録 */
+  private resume: { pos: SaveData["pos"]; odometer: number; climb: number; time: number; generator: number } | null = null;
+  private saveT = 0;
+  /** 最後に保存した時刻（確認用） */
+  lastSaved = "";
 
   constructor(
     private view: WorldView,
     private roads: RoadClient,
     start: { x: number; z: number } = { x: ORIGIN.x, z: ORIGIN.z },
+    opts: { resume?: boolean } = {},
   ) {
     this.anchor = { ...start };
     const settings: Settings = { power: this.manual.setting, quality: view.quality, hour: view.env.hour, camera: this.camera };
     this.hud = new Hud(this.input, settings);
-    this.hud.onSettings = (s) => {
-      if (s.power !== undefined) {
-        this.manual.setting = s.power;
-        this.auto.setting = s.power;
-      }
-      if (s.quality) {
-        view.setQuality(s.quality);
-        this.player.setLod(s.quality === "light" ? "low" : "high");
-      }
-      if (s.hour !== undefined) view.env.setHour(s.hour);
-      if (s.camera) this.camera = s.camera;
-    };
+    this.hud.onSettings = (s) => this.applySettings(s, true);
     view.scene.add(this.player.group);
     // 軽量画質では自転車とライダーも簡略版
     this.player.setLod(view.quality === "light" ? "low" : "high");
@@ -72,6 +79,7 @@ export class Game {
     this.outfitPanel = new OutfitPanel(document.body, this.outfit);
     this.outfitPanel.onChange = (o) => {
       this.outfit = o;
+      void this.save();
       this.player.setOutfit(o);
     };
     this.outfitPanel.onClose = () => {
@@ -80,17 +88,105 @@ export class Game {
       this.smoothEye = null;
     };
     this.status = document.getElementById("status")!;
-    // タブが隠れたら一時停止（モック仕様 6.4）
+    // タブが隠れたら一時停止（モック仕様 6.4）し、保存する
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) this.paused = true;
+      if (document.hidden) {
+        this.paused = true;
+        void this.save();
+      }
     });
+    addEventListener("pagehide", () => void this.save());
+    if (opts.resume === false) this.loaded = true;
+    else
+      void platform.storage.load(SAVE_KEY).then((text) => {
+        const data = parseSave(text);
+        if (data) this.applySave(data);
+        this.loaded = true;
+      });
     requestAnimationFrame((t) => this.tick(t));
+  }
+
+  /** 設定を変える（画面から、または保存データから） */
+  private applySettings(s: Partial<Settings>, fromUser: boolean) {
+    const view = this.view;
+    if (s.power !== undefined) {
+      this.manual.setting = s.power;
+      this.auto.setting = s.power;
+      this.settings.power = s.power;
+    }
+    if (s.quality) {
+      view.setQuality(s.quality);
+      this.player.setLod(s.quality === "light" ? "low" : "high");
+      // 画質は選んだ時だけ残す（選んでいなければ端末に合わせた既定）
+      if (fromUser) this.settings.quality = s.quality;
+    }
+    if (s.hour !== undefined) {
+      view.env.setHour(s.hour);
+      this.settings.hour = s.hour;
+    }
+    if (s.camera) {
+      this.camera = s.camera;
+      this.settings.camera = s.camera;
+    }
+    if (!fromUser) this.hud.syncSettings(s);
+  }
+
+  private applySave(d: SaveData) {
+    this.settings = { ...d.settings };
+    const cam = (CAMERA_MODES as readonly string[]).includes(d.settings.camera) ? (d.settings.camera as CameraMode) : undefined;
+    this.applySettings({ power: d.settings.power, hour: d.settings.hour, camera: cam, quality: (d.settings.quality ?? undefined) as Quality | undefined }, false);
+    this.settings.quality = d.settings.quality;
+    this.outfit = d.outfit;
+    this.player.setOutfit(d.outfit);
+    this.ridden = RiddenLog.fromJSON(d.ridden);
+    this.stamps = d.stamps;
+    this.watching = d.watching;
+    if (d.pos) this.anchor = { x: d.pos.x, z: d.pos.z };
+    this.resume = { pos: d.pos, odometer: d.odometer, climb: d.climb, time: d.time, generator: d.generator };
+    this.ride = null;
+  }
+
+  /** 今の状態を保存データにする */
+  snapshot(): SaveData {
+    const r = this.ride;
+    const p = r?.road ? r.pose() : null;
+    return {
+      version: SAVE_VERSION,
+      generator: GENERATOR_VERSION,
+      savedAt: new Date().toISOString(),
+      pos: r && p ? { road: r.pos.road, s: r.pos.s, dir: r.pos.dir, x: p.x, z: p.z } : this.resume?.pos ?? null,
+      odometer: r?.odometer ?? this.resume?.odometer ?? 0,
+      climb: r?.climb ?? this.resume?.climb ?? 0,
+      time: r?.time ?? this.resume?.time ?? 0,
+      ridden: this.ridden.toJSON(),
+      stamps: this.stamps,
+      settings: this.settings,
+      outfit: this.outfit,
+      watching: this.watching,
+    };
+  }
+
+  async save() {
+    if (!this.loaded) return;
+    const d = this.snapshot();
+    await platform.storage.save(SAVE_KEY, JSON.stringify(d));
+    this.lastSaved = d.savedAt;
   }
 
   /** 起点の近くの道路に乗せる（起点の町から出る道を選ぶ） */
   private place(): boolean {
+    if (!this.loaded) return false;
     const a = this.anchor;
     if (!this.roads.ready({ x0: a.x - 600, z0: a.z - 600, x1: a.x + 600, z1: a.z + 600 })) return false;
+    // 続きから: 保存した道路がそのままあれば、その位置と向きに乗せる
+    const res = this.resume;
+    if (res?.pos && res.generator === GENERATOR_VERSION) {
+      const road = this.roads.net.roads.get(res.pos.road);
+      if (road && res.pos.s >= 0 && res.pos.s <= road.length) {
+        this.startRide({ road: road.id, s: res.pos.s, dir: res.pos.dir });
+        return true;
+      }
+    }
     let best: { road: string; s: number; d: number } | null = null;
     for (const e of this.roads.roadEntries()) {
       const r = e.road;
@@ -107,11 +203,27 @@ export class Game {
     const r = this.roads.net.roads.get(best.road)!;
     // 端に近ければ道の内側へ向く
     const dir: 1 | -1 = best.s > r.length / 2 ? -1 : 1;
-    this.ride = new Ride(this.roads.net, { road: best.road, s: Math.min(r.length - 1, Math.max(1, best.s)), dir }, this.manual);
+    this.startRide({ road: best.road, s: Math.min(r.length - 1, Math.max(1, best.s)), dir });
     return true;
   }
 
+  private startRide(pos: { road: string; s: number; dir: 1 | -1 }) {
+    const ride = new Ride(this.roads.net, pos, this.watching ? this.auto : this.manual);
+    ride.ridden = this.ridden;
+    const res = this.resume;
+    if (res) {
+      ride.odometer = res.odometer;
+      ride.climb = res.climb;
+      ride.time = res.time;
+      this.resume = null;
+    }
+    this.ride = ride;
+  }
+
   teleport(x: number, z: number) {
+    // 記録は引き継ぐ
+    const r = this.ride;
+    if (r) this.resume = { pos: null, odometer: r.odometer, climb: r.climb, time: r.time, generator: GENERATOR_VERSION };
     this.anchor = { x, z };
     this.ride = null;
     this.smoothEye = null;
@@ -259,6 +371,11 @@ export class Game {
   }
 
   private updateHud(t: number) {
+    // 10 秒ごとに保存する
+    if (this.ride && t - this.saveT > 10000) {
+      this.saveT = t;
+      void this.save();
+    }
     // 眺める乗り方では操作がなければ 5 秒で HUD を消す（M4 で仕上げる）
     this.hud.setVisible(!this.watching || performance.now() - this.input.lastActivity < 5000 || this.hud.menuOpen);
     if (t - this.hudT < 100) return;
