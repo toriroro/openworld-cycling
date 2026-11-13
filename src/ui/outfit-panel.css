@@ -1,0 +1,126 @@
+/* 自転車と装いの設定画面。横画面では右に、縦画面では下半分に置き、自転車を見ながら選ぶ。 */
+.outfit-panel {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 10px);
+  right: calc(env(safe-area-inset-right) + 10px);
+  bottom: calc(env(safe-area-inset-bottom) + 10px);
+  width: min(400px, 46vw);
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  background: rgba(14, 18, 24, 0.9);
+  color: #f4f4f2;
+  font-family: system-ui, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+  font-size: 14px;
+  z-index: 6;
+  pointer-events: auto;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.outfit-panel.hidden {
+  display: none;
+}
+.of-head,
+.of-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.of-head {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.of-foot {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.of-tabs {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+.of-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.of-btn.active {
+  background: rgba(255, 211, 77, 0.88);
+  color: #111;
+}
+.of-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 10px 10px;
+  touch-action: pan-y;
+}
+.of-row {
+  padding: 8px 0 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.of-label {
+  margin-bottom: 6px;
+  color: rgba(244, 244, 242, 0.75);
+  font-size: 13px;
+}
+.of-choices,
+.of-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.of-swatch {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+.of-swatch::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 7px;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+.of-swatch.active {
+  box-shadow: inset 0 0 0 3px #ffd34d;
+}
+
+/* 縦画面: 下半分 */
+@media (max-aspect-ratio: 4/5) {
+  .outfit-panel {
+    top: auto;
+    left: calc(env(safe-area-inset-left) + 8px);
+    right: calc(env(safe-area-inset-right) + 8px);
+    bottom: calc(env(safe-area-inset-bottom) + 8px);
+    width: auto;
+    height: 52vh;
+  }
+}
+/* 横に狭い画面（スマホの横画面） */
+@media (max-height: 480px) and (min-aspect-ratio: 4/5) {
+  .outfit-panel {
+    width: min(360px, 52vw);
+    top: calc(env(safe-area-inset-top) + 6px);
+    bottom: calc(env(safe-area-inset-bottom) + 6px);
+  }
+  .of-head,
+  .of-foot {
+    padding: 4px 8px;
+  }
+}

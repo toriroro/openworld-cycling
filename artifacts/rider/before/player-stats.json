@@ -1,0 +1,14 @@
+{
+  "stats": {
+    "meshes": 91,
+    "tris": 58812,
+    "rider": {
+      "ready": true,
+      "error": null,
+      "bones": 53,
+      "reachExcess": 0,
+      "source": "makehuman-cc0"
+    }
+  },
+  "errors": []
+}

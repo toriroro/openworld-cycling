@@ -53,3 +53,10 @@ rider/ と nature/ の 3D モデルは M3 以降で必要になった時に写�
 - nature/tree_small_02.glb, nature/tree_small_02_billboard.png（Poly Haven tree_small_02、CC0 1.0）
 - nature/shrub_stream.glb, nature/rock_stream.glb（Poly Haven shrub_01・rock_moss_set_01 を downhill-3D で軽量化した物、CC0 1.0）
 加工: なし。
+2026-11-13 追記（ライダーと自転車の作り直し）:
+- rider/cyclist-v2.glb, rider/rig-v2.json: 本プロジェクトの scripts/build-cyclist.py で作成。
+  元データは上記 Cyclist revision v5 と同じ MakeHuman / MPFB2 の CC0 データ（固定コミット d0a32e57a7f915cb2f2b95410e2117648c7bbb7e）。
+  downhill-3D の assets-source/rider/makehuman-v1/ から本プロジェクトの同じ場所へ写した（ハッシュは assets-source/rider/cyclist-v2/source-manifest.json）。
+  加工: 服・髪・眉・グラス・あごひも・靴・ヘルメット2形を Blender の手順で作成し、1つの材質（色の表）にまとめ、軽量画質用の簡略版を加えた。
+  新しい外部素材は足していない。
+- 自転車（src/render/cyclist/road-bike.ts）はコードで作成。特定の実在の車種を写した物ではない。

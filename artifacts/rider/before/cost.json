@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-13",
+  "note": "自分の自転車とライダーの描画量。シーンから外した時との差。一時停止中、標準 1440x900、軽量 844x390。開発サーバーは main の作業ツリー（M3 実装中の未コミットの状態）。calls は描画命令、tris は三角形。標準は影の描画を含む。",
+  "standard": {
+    "chase": { "calls": 92, "tris": 83466, "totalCalls": 197, "totalTris": 991962 },
+    "rider": { "calls": 32, "tris": 27214, "totalCalls": 135, "totalTris": 936918 },
+    "drone": { "calls": 92, "tris": 83424, "totalCalls": 204, "totalTris": 1006958 }
+  },
+  "light": {
+    "chase": { "calls": 47, "tris": 41712, "totalCalls": 121, "totalTris": 361860 },
+    "rider": { "calls": 7, "tris": 9756, "totalCalls": 82, "totalTris": 337250 },
+    "drone": { "calls": 47, "tris": 41712, "totalCalls": 133, "totalTris": 386450 }
+  }
+}
