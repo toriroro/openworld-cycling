@@ -243,6 +243,9 @@ function gradeLimits(n: number, ds: number, maxGrade: number, flatStart: boolean
   return g;
 }
 
+/** 川・湖の橋の取り付けの坂の勾配の上限（等級の最大勾配の 6 割と小さい方） */
+const APPROACH_GRADE_MAX = 0.04;
+
 export interface ProfileInput {
   /** 中心線（ROAD_STEP 間隔の x, z） */
   xz: Polyline;
@@ -269,6 +272,26 @@ export function computeProfile(inp: ProfileInput): Float64Array {
     const dk = inp.deck ? inp.deck[i] : NaN;
     if (dk === dk) target[i] = Math.max(dk, inp.routeGround[i], ROAD_MIN_ELEVATION);
     else target[i] = inp.water[i] ? BRIDGE_DECK_OVER_WATER : Math.max(inp.routeGround[i], ROAD_MIN_ELEVATION);
+  }
+  // 橋の取り付け: 路面の目標の高さ（川・湖の橋）から前後へ APPROACH_GRADE で下りる坂を地面の代わりの下限にする
+  if (inp.deck) {
+    const g = Math.min(APPROACH_GRADE_MAX, inp.maxGrade * 0.6) * ds;
+    const env = new Float64Array(n).fill(-Infinity);
+    let e = -Infinity;
+    for (let i = 0; i < n; i++) {
+      e -= g;
+      const dk = inp.deck[i];
+      if (dk === dk && dk > e) e = dk;
+      env[i] = e;
+    }
+    e = -Infinity;
+    for (let i = n - 1; i >= 0; i--) {
+      e -= g;
+      const dk = inp.deck[i];
+      if (dk === dk && dk > e) e = dk;
+      if (e > env[i]) env[i] = e;
+      if (env[i] > target[i]) target[i] = env[i];
+    }
   }
   // ガウスの平滑化
   const sig = PROFILE_SIGMA / ds;

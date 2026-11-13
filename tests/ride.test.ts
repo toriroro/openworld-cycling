@@ -178,3 +178,25 @@ describe("行き先までの経路（モック仕様 6.3）", () => {
     expect(visited).toEqual(["海岸", "平野", "山岳"]);
   });
 });
+
+describe("河川敷の自転車道を走る（R1）", () => {
+  it("河口で終わる自転車道を走り、行き止まりで折り返して橋のたもとの道路へ出る", () => {
+    const w = new World(WORLD_SEED);
+    const reg = w.region({ x0: -68000, z0: 42500, x1: -52000, z1: 58500 });
+    const net = new RoadNetwork();
+    for (const road of reg.roads) net.addRoad(road);
+    for (const j of reg.junctions) net.addJunction(j);
+    for (const n of reg.nodes) net.nodes.set(n.id, n);
+    const mouth = reg.roads.find((r) => r.kind === "cycleway" && r.id.endsWith("~mouth"))!;
+    expect(mouth).toBeDefined();
+    const ride = new Ride(net, { road: mouth.id, s: 5, dir: 1 }, new AutoPower(200));
+    const seen = new Set<string>();
+    for (let i = 0; i < 120 * 60 * 30 && ride.odometer < mouth.length * 2 + 800; i++) {
+      ride.step();
+      seen.add(ride.pos.road);
+    }
+    expect(ride.uTurns).toBeGreaterThanOrEqual(1);
+    // 折り返して自転車道の始まり（橋のたもと）を越え、別の道路へ出ている
+    expect([...seen].some((id) => id !== mouth.id)).toBe(true);
+  });
+});

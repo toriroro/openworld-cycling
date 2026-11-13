@@ -106,6 +106,7 @@ const report = {
     roads: roads.length,
     mainRoads: roads.filter((r) => r.kind === "main").length,
     branchPieces: roads.filter((r) => r.kind === "branch").length,
+    cycleways: roads.filter((r) => r.kind === "cycleway").length,
     km: totalKm,
     byClass,
     junctions: reg.junctions.length,
@@ -179,7 +180,7 @@ function renderMarkdown(r: typeof report, rs: Road[]): string {
   lines.push("", "| 数量 | 値 |", "|---|---|");
   const t = r.totals;
   lines.push(`| 結節点 | ${t.nodes}（町 ${t.nodesByKind.town}、集落 ${t.nodesByKind.village}、分岐のみ ${t.nodesByKind.junction}） |`);
-  lines.push(`| 道路 | ${t.roads} 本（主要道 ${t.mainRoads}、枝道の断片 ${t.branchPieces}）、${f1(t.km)} km、経路が見つからない辺 ${t.failedEdges} |`);
+  lines.push(`| 道路 | ${t.roads} 本（主要道 ${t.mainRoads}、枝道の断片 ${t.branchPieces}、自転車道 ${t.cycleways}）、${f1(t.km)} km、経路が見つからない辺 ${t.failedEdges} |`);
   lines.push(`| 等級別 | ${t.byClass.map((c) => `${c.cls} ${c.roads} 本 ${f1(c.km)} km`).join("、")} |`);
   lines.push(`| 接続点 | ${t.junctions} |`);
   lines.push(
