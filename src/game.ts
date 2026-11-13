@@ -11,6 +11,7 @@ import { PlayerModel } from "./render/player.ts";
 import { showcaseView } from "./render/cyclist/showcase.ts";
 import { DEFAULT_OUTFIT, type Outfit } from "./shared/outfit.ts";
 import { OutfitPanel } from "./ui/outfit-panel.ts";
+import { OrbitDrag, orbitView } from "./ui/orbit-drag.ts";
 import type { WorldView } from "./render/world-view.ts";
 import { Hud, type Settings } from "./ui/hud.ts";
 import { Input } from "./ui/input.ts";
@@ -28,6 +29,8 @@ export class Game {
   /** 自転車と装いの設定（M4 で platform の保存に載せる） */
   outfit: Outfit = DEFAULT_OUTFIT;
   private outfitPanel: OutfitPanel;
+  /** 画面のドラッグで視点を回す */
+  readonly orbit: OrbitDrag;
   private pausedBeforeOutfit = false;
   camera: CameraMode = "chase";
   private acc = 0;
@@ -63,6 +66,7 @@ export class Game {
     // 軽量画質では自転車とライダーも簡略版
     this.player.setLod(view.quality === "light" ? "low" : "high");
     // 自転車と装いの設定画面。開いている間は一時停止し、自転車を横から見る
+    this.orbit = new OrbitDrag(view.renderer.domElement);
     this.outfitPanel = new OutfitPanel(document.body, this.outfit);
     this.outfitPanel.onChange = (o) => {
       this.outfit = o;
@@ -138,10 +142,14 @@ export class Game {
           break;
         case "lane-left":
           ride?.shiftLane(-0.5);
-          this.player.lookBack(1); // 寄せる側の後ろを見る
           break;
         case "lane-right":
           ride?.shiftLane(0.5);
+          break;
+        case "look-left":
+          this.player.lookBack(1);
+          break;
+        case "look-right":
           this.player.lookBack(-1);
           break;
         case "u-turn":
@@ -200,6 +208,12 @@ export class Game {
       pose = ride.pose();
       const aspect = this.view.camera.aspect;
       const c = cameraPose(this.camera, pose, aspect, (x, z) => this.view.surfaceHeight(x, z));
+      this.orbit.update(dt);
+      if (this.orbit.active && !this.outfitPanel.isOpen) {
+        const o = orbitView(c.eye, c.target, { x: pose.x, y: pose.y + 1.0, z: pose.z }, this.orbit.yaw, this.orbit.pitch, this.camera === "rider");
+        c.eye = o.eye;
+        c.target = o.target;
+      }
       if (!this.smoothEye) this.smoothEye = { ...c.eye };
       const k = this.camera === "rider" ? 1 : 1 - Math.exp(-dt * 8);
       this.smoothEye.x += (c.eye.x - this.smoothEye.x) * k;
@@ -214,7 +228,7 @@ export class Game {
         const r = this.outfitPanel.root.getBoundingClientRect();
         const portrait = innerWidth / innerHeight < 0.8;
         const share = portrait ? (innerHeight - r.top) / innerHeight : (innerWidth - r.left) / innerWidth;
-        const s = showcaseView(this.player.group, aspect, share);
+        const s = showcaseView(this.player.group, aspect, share, 0.35 + this.orbit.yaw);
         eye = { x: s.eye.x + this.view.originX, y: s.eye.y, z: s.eye.z + this.view.originZ };
         target = { x: s.target.x + this.view.originX, y: s.target.y, z: s.target.z + this.view.originZ };
         fov = s.fov;

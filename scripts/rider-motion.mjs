@@ -91,12 +91,15 @@ await page.waitForTimeout(3000);
 }
 console.log("curve", JSON.stringify(curve));
 
-// 2. 右へ寄せる: 右の肩越しに後方を見て、ハンドルを右へ切る。いちばん切れた所で止めて撮る
+// 2. 右へ寄せる（D）と同時に R で右の肩越しに後方を見て、ハンドルを右へ切る。いちばん切れた所で止めて撮る
 await page.evaluate(() => (window.__dev.game.manual.setting = 200));
 await page.waitForTimeout(4000);
 await page.evaluate(() => {
   window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyD" }));
   window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyD" }));
+  // 後方を見るのは R（右）
+  window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyR" }));
+  window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyR" }));
 });
 let lane = null;
 for (let i = 0; i < 40; i++) {
@@ -131,6 +134,30 @@ for (let k = 0; k < 4; k++) {
   await page.screenshot({ path: `${out}/pedal-${k * 90}.png` });
   frames.push(await page.evaluate(() => window.__dev.game.player.bike.pedalPitch(-1)));
 }
-writeFileSync(`${out}/results.json`, JSON.stringify({ curve, lane, pedalPitchRight: frames, errors }, null, 2));
+// 4. ドラッグで視点を回す（後方の視点で左へ 320px、少し下へ。一人称で右へ 260px）
+await page.evaluate(() => {
+  window.__dev.view.renderer.render = window.__dev.view.__origRender;
+  window.__dev.game.paused = false;
+  window.__dev.game.camera = "chase";
+});
+await page.waitForTimeout(1500);
+const drag = async (dx, dy) => {
+  await page.mouse.move(640, 400);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(640 + (dx * i) / 10, 400 + (dy * i) / 10);
+  await page.mouse.up();
+};
+await drag(-320, 60);
+await page.waitForTimeout(800);
+await page.screenshot({ path: `${out}/orbit-chase.png` });
+const orbit = await page.evaluate(() => ({ yaw: window.__dev.game.orbit.yaw, pitch: window.__dev.game.orbit.pitch }));
+await page.waitForTimeout(6000);
+const orbitBack = await page.evaluate(() => ({ yaw: window.__dev.game.orbit.yaw, pitch: window.__dev.game.orbit.pitch }));
+await page.evaluate(() => (window.__dev.game.camera = "rider"));
+await drag(260, -40);
+await page.waitForTimeout(500);
+await page.screenshot({ path: `${out}/orbit-rider.png` });
+console.log("orbit", JSON.stringify({ orbit, orbitBack }));
+writeFileSync(`${out}/results.json`, JSON.stringify({ curve, lane, orbit, orbitBack, pedalPitchRight: frames, errors }, null, 2));
 console.log("errors", errors.length);
 await browser.close();

@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-13T08:15:34.898Z",
+  "date": "2026-11-13T09:41:56.244Z",
   "sizes": [
     {
       "size": "1440x900",
@@ -66,15 +66,15 @@
     {
       "quality": "standard",
       "size": "1440x900",
-      "maxTriangles": 1005464,
+      "maxTriangles": 1005506,
       "maxCalls": 123,
       "samples": [
         {
-          "triangles": 1005380,
+          "triangles": 1005254,
           "calls": 123
         },
         {
-          "triangles": 1005464,
+          "triangles": 1005506,
           "calls": 123
         },
         {
@@ -90,7 +90,7 @@
           "calls": 115
         },
         {
-          "triangles": 994968,
+          "triangles": 995052,
           "calls": 115
         },
         {
@@ -98,11 +98,11 @@
           "calls": 115
         },
         {
-          "triangles": 995392,
+          "triangles": 995224,
           "calls": 115
         },
         {
-          "triangles": 996612,
+          "triangles": 996948,
           "calls": 115
         },
         {
@@ -126,11 +126,11 @@
           "calls": 83
         },
         {
-          "triangles": 336177,
-          "calls": 82
+          "triangles": 336155,
+          "calls": 83
         },
         {
-          "triangles": 329657,
+          "triangles": 329699,
           "calls": 77
         },
         {
@@ -142,7 +142,7 @@
           "calls": 74
         },
         {
-          "triangles": 323901,
+          "triangles": 323943,
           "calls": 74
         },
         {
@@ -150,7 +150,7 @@
           "calls": 73
         },
         {
-          "triangles": 318071,
+          "triangles": 318281,
           "calls": 72
         },
         {
@@ -161,7 +161,7 @@
     }
   ],
   "branch": {
-    "distance": 116.79686357139963,
+    "distance": 114.48017651200871,
     "choices": [
       {
         "dest": "朝谷",

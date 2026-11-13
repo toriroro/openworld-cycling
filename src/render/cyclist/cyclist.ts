@@ -29,6 +29,19 @@ const LOOK_IN = 0.35;
 const LOOK_HOLD = 0.75;
 const LOOK_OUT = 0.5;
 
+/** 進む向きを求める区間（秒）。走行の計算の刻みと描画のずれを均す */
+const HEADING_WINDOW = 0.25;
+/** 向きの追従の速さ（ばねの固有角振動数、1/秒） */
+const HEADING_OMEGA = 5;
+/**
+ * 力み（0..1）の始まりと最大を FTP（1時間の最大出力）に対する割合で【初期値】。
+ * 力むほど腰・肩・車体の左右の振れが大きくなる。値は追って決める。
+ */
+export const EFFORT_FROM_FTP = 1.2;
+export const EFFORT_FULL_FTP = 2.4;
+
+const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+
 export class CyclistModel {
   readonly group = new THREE.Group();
   readonly material = new PaletteMaterial();
@@ -38,11 +51,15 @@ export class CyclistModel {
   private lod: Lod;
   private phase = 0;
   private lean = 0;
-  private lastYaw = NaN;
   private steer = 0;
-  private lastPos: { x: number; z: number } | null = null;
-  /** 道の向きに対する進む向きのずれ（車線を移る時、左が正） */
-  private drift = 0;
+  /** 最近の位置（進む向きを求める） */
+  private trail: { t: number; x: number; z: number }[] = [];
+  private clock = 0;
+  /** 滑らかにした向きと、その変わる速さ（左に曲がると正） */
+  private yaw = NaN;
+  private yawRate = 0;
+  /** FTP（W）。力みの始まりを決める。設定ができるまでの【初期値】 */
+  ftp = 250;
   private headYaw = 0;
   private lookSide = 0;
   private lookTime = Infinity;
@@ -75,7 +92,7 @@ export class CyclistModel {
   /** 姿勢だけを付ける（位置・向きは group を呼ぶ側で置く） */
   pose(_dt: number, p: CyclistPose) {
     this.bike.update(p.distance, p.steer, p.speed, p.phase);
-    const effort = Math.max(0, Math.min(1, (p.watts - 300) / 300));
+    const effort = this.effort(p.watts);
     this.rider.update({
       pedals: [this.bike.pedalPoint(1, p.phase), this.bike.pedalPoint(-1, p.phase)],
       hands: [this.bike.hoodPoint(1), this.bike.hoodPoint(-1)],
@@ -95,35 +112,40 @@ export class CyclistModel {
    * firstPerson なら体を隠して腕だけにする。
    */
   update(dt: number, x: number, y: number, z: number, dx: number, dz: number, grade: number, speed: number, watts: number, distance: number, firstPerson: boolean) {
-    // 車線を移る時は、道の向きから少し斜めに進む（横の速さ / 速度）
-    let lateral = 0;
-    if (this.lastPos && dt > 0) {
-      const mx = x - this.lastPos.x;
-      const mz = z - this.lastPos.z;
-      // 原点の置き直しなどの飛びは無視する
-      if (Math.hypot(mx, mz) < speed * dt * 3 + 0.5) lateral = (mx * dz - mz * dx) / dt;
+    // 進む向き: 道の向き、または最近 0.25 秒の移動の向き（車線を移る時の斜めの動きも入る）
+    this.clock += dt;
+    const last = this.trail[this.trail.length - 1];
+    // 原点の置き直しなどの飛びがあれば履歴を捨てる
+    if (last && Math.hypot(x - last.x, z - last.z) > Math.max(1, speed * (this.clock - last.t) * 3 + 0.5)) this.trail = [];
+    this.trail.push({ t: this.clock, x, z });
+    while (this.trail.length > 2 && this.trail[1].t < this.clock - HEADING_WINDOW) this.trail.shift();
+    let target = Math.atan2(dx, dz);
+    const first = this.trail[0];
+    const mx = x - first.x;
+    const mz = z - first.z;
+    if (speed > 1.5 && Math.hypot(mx, mz) > speed * HEADING_WINDOW * 0.5) {
+      const travel = Math.atan2(mx, mz);
+      // 道の向きから大きく外れる時（U ターン直後など）は道の向き
+      if (Math.abs(wrap(travel - target)) < 0.5) target = travel;
     }
-    this.lastPos = { x, z };
-    const targetDrift = speed > 1 ? Math.max(-0.4, Math.min(0.4, Math.atan2(lateral, speed))) : 0;
-    this.drift += (targetDrift - this.drift) * Math.min(1, dt * 8);
-    const yaw = Math.atan2(dx, dz) + this.drift;
-    let yawRate = 0;
-    if (!Number.isNaN(this.lastYaw) && dt > 0) {
-      let d = yaw - this.lastYaw;
-      while (d > Math.PI) d -= Math.PI * 2;
-      while (d < -Math.PI) d += Math.PI * 2;
-      // U ターンなどで向きが一度に変わった時は曲がったと見なさない
-      yawRate = Math.abs(d) > 1 ? 0 : d / dt;
+    // ばねで滑らかに追う（行き過ぎない減衰）。変わる速さはばねの速度をそのまま使う
+    if (Number.isNaN(this.yaw)) this.yaw = target;
+    if (dt > 0) {
+      const h = Math.min(dt, 0.05);
+      const err = wrap(target - this.yaw);
+      this.yawRate += (HEADING_OMEGA * HEADING_OMEGA * err - 2 * HEADING_OMEGA * this.yawRate) * h;
+      this.yaw = wrap(this.yaw + this.yawRate * h);
     }
-    this.lastYaw = yaw;
+    const yaw = this.yaw;
+    const yawRate = this.yawRate;
     // 倒し込みは曲がる速さから（横加速度 = 速度 × 向きの変わる速さ）。左に曲がる時は左（+X）へ倒す
     const targetLean = Math.max(-0.5, Math.min(0.5, Math.atan((speed * yawRate) / 9.8)));
-    this.lean += (targetLean - this.lean) * Math.min(1, dt * 4);
+    this.lean += (targetLean - this.lean) * Math.min(1, dt * 3);
     // ハンドルの切れ角は曲がる速さと速度から（ホイールベース約 1m）。走行中の小さな角度も見えるよう 2.5 倍
     const targetSteer = Math.max(-0.7, Math.min(0.7, -Math.atan((1.0 * yawRate) / Math.max(2, speed)) * 2.5));
-    this.steer += (targetSteer - this.steer) * Math.min(1, dt * 6);
+    this.steer += (targetSteer - this.steer) * Math.min(1, dt * 4);
     // 漕ぐ度の小さな釣り合いの動き（遅いほど、力むほど大きい）と、もがく時の車体の振り
-    const effort = Math.max(0, Math.min(1, (watts - 300) / 300));
+    const effort = this.effort(watts);
     const wobble = Math.sin(this.phase) * (watts > 0 ? 0.008 + effort * 0.04 + 0.04 / Math.max(1, speed) : 0);
     const rock = Math.sin(this.phase) * effort * 0.12;
     // 曲がる向きへ頭を向ける
@@ -147,6 +169,12 @@ export class CyclistModel {
     }
     this.lookTime += dt;
     this.pose(dt, { phase: this.phase, speed, watts, distance, steer: this.steer + wobble, lean: this.lean, firstPerson, headYaw: this.headYaw, look: this.lookAmount() });
+  }
+
+  /** 力み（0..1）。FTP に対する出力の割合から */
+  private effort(watts: number) {
+    const r = watts / Math.max(1, this.ftp);
+    return Math.max(0, Math.min(1, (r - EFFORT_FROM_FTP) / (EFFORT_FULL_FTP - EFFORT_FROM_FTP)));
   }
 
   /** 後方を見る（side: 1 で左の肩越し、-1 で右の肩越し）。見ている途中なら向きだけ変える */

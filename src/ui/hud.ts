@@ -153,7 +153,7 @@ export class Hud {
       hourOut.textContent = fmtHour(Number(hour.value));
       this.onSettings({ hour: Number(hour.value) });
     });
-    h("div", "menu-keys", "キー: Space 漕ぐ / Shift ブレーキ / ← ↑ → 分岐 / ↓ Uターン / A D 左右 / C 視点 / V 眺める / P 一時停止", this.menu);
+    h("div", "menu-keys", "キー: Space 漕ぐ / Shift ブレーキ / ← ↑ → 分岐 / ↓ Uターン / A D 左右 / Q R 後方を見る（左・右） / C 視点 / V 眺める / P 一時停止", this.menu);
     this.settingsEls = { power, powerOut, quality, hour, hourOut, camera };
 
     // 一時停止の表示
