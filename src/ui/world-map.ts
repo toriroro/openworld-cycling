@@ -12,7 +12,7 @@ import type { RegionPayload, WorldRequest, WorldResponse } from "../workers/worl
 
 export const GRADE_STEPS = [0.03, 0.05, 0.07, 0.09, 0.11];
 export const GRADE_COLORS = ["#2f6fd0", "#1f9a52", "#d9b416", "#ee7a1a", "#d42424", "#7a1fa2"];
-const CLASS_PX = [4.2, 3.2, 2.4, 1.8];
+const CLASS_PX = [4.2, 3.2, 2.4, 1.8, 1.6];
 const BLOCK = 8000;
 const ROADS_VISIBLE_MPP = 80;
 
@@ -500,10 +500,10 @@ export class WorldMap {
         ctx.lineWidth = 5.5 * zoomK * this.mpp;
         ctx.stroke(this.riddenPath!);
       } else {
-        // 縁取り
-        ctx.strokeStyle = "rgba(20,20,20,0.75)";
+        // 縁取り（自転車道は緑）
         for (const p of this.paths) {
-          ctx.lineWidth = (CLASS_PX[p.cls] * zoomK + 1.6) * this.mpp;
+          ctx.strokeStyle = p.cls === 4 ? "rgba(0,120,60,0.95)" : "rgba(20,20,20,0.75)";
+          ctx.lineWidth = (CLASS_PX[p.cls] * zoomK + (p.cls === 4 ? 2.4 : 1.6)) * this.mpp;
           ctx.stroke(p.path);
         }
         for (const p of this.paths) {

@@ -1,7 +1,7 @@
 // 大きな川の網（河川の草案 3〜4 章、段階 R1）の検査。
 import { describe, expect, it } from "vitest";
 import { ORIGIN, WORLD_SEED } from "../src/shared/world/constants.ts";
-import { riversHash } from "../src/shared/world/inspect.ts";
+import { checkGrades, checkRadius, riversHash, roadHash } from "../src/shared/world/inspect.ts";
 import { RIVER_BLOCK_SIZE, RIVER_GRID, RIVER_MIN_ACC, RIVER_SEG_MARGIN, type RiverSeg } from "../src/shared/world/rivers.ts";
 import { Terrain } from "../src/shared/world/terrain.ts";
 import { type Rect, World } from "../src/shared/world/world.ts";
@@ -151,5 +151,58 @@ describe("道路と川（12km 四方）", () => {
       expect(s.floodplain, n.id).toBe(false);
       expect(s.water, n.id).toBe(0);
     }
+  });
+});
+
+describe("河川敷の自転車道（大きな川の下流 16km 四方）", () => {
+  const RECT: Rect = { x0: -68000, z0: 42500, x1: -52000, z1: 58500 };
+  const w = new World(WORLD_SEED);
+  const reg = w.region(RECT);
+  const cy = reg.roads.filter((r) => r.kind === "cycleway");
+
+  it("自転車道ができ、等級（幅 3m・5%・R15）を守る", () => {
+    expect(cy.length).toBeGreaterThan(3);
+    for (const r of cy) {
+      expect(r.cls).toBe(4);
+      expect(r.width).toBe(3);
+    }
+    expect(checkGrades(cy).over).toBe(0);
+    expect(checkRadius(cy, 6, 0.8).under).toBe(0);
+  });
+
+  it("両端は橋のたもとで道路につながる（河口で終わる端だけ行き止まり）", () => {
+    const byId = new Map(reg.junctions.map((j) => [j.id, j]));
+    const inRegion = new Set(reg.roads.map((r) => r.id));
+    let checked = 0;
+    for (const r of cy) {
+      const att = w.attachments.get(r.id);
+      for (const [jid, at] of [
+        [r.start, att?.start],
+        [r.end, att?.end],
+      ] as const) {
+        if (jid.startsWith("e_")) {
+          expect(jid).toBe(r.end);
+          expect(r.id.endsWith("~mouth")).toBe(true);
+          continue;
+        }
+        // 取り付けが無いのは、道路の端（結節点・合流点）につながる場合
+        if (!at) continue;
+        // 取り付け先の道路が範囲の外なら、この範囲では確かめられない
+        if (!inRegion.has(at.road)) continue;
+        const j = byId.get(jid)!;
+        expect(j.arms.some((a) => a.road === at.road), `${r.id} ${jid}`).toBe(true);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(3);
+  });
+
+  it("別の順序・別の範囲から生成しても同じ自転車道になる", () => {
+    const w2 = new World(WORLD_SEED);
+    w2.roadsInRect({ x0: RECT.x0 + 8000, z0: RECT.z0 + 8000, x1: RECT.x1 + 4000, z1: RECT.z1 + 4000 });
+    w2.roadsInRect({ x0: RECT.x0, z0: RECT.z0, x1: RECT.x0 + 5000, z1: RECT.z0 + 5000 });
+    const r2 = new Map(w2.roadsInRect(RECT).map((r) => [r.id, r]));
+    expect(r2.size).toBe(reg.roads.length);
+    for (const r of reg.roads) expect(roadHash(r2.get(r.id)!), r.id).toBe(roadHash(r));
   });
 });

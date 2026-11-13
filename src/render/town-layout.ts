@@ -256,7 +256,7 @@ export function layoutTown(seed: number, node: WorldNode, roads: Road[], idx: Ro
         const u4 = unit(seed, rh, k, side * 11 + 4);
         const central = dist / radius;
         const w = 8 + u2 * 6 + (central < 0.35 && node.kind === "town" ? 4 : 0);
-        if (dist <= radius && r.cls !== 3) {
+        if (dist <= radius && r.cls < 3) {
           // 中心ほど密に、外ほどまばらに
           const p = 0.92 - central * central * 0.75;
           if (u1 < p) {

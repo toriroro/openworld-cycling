@@ -3,6 +3,11 @@
 
 import {
   BRIDGE_DECK_OVER_WATER,
+  ROAD_MIN_ELEVATION,
+  CYCLEWAY_MIN_ACC,
+  CYCLEWAY_MOUTH_REACH,
+  CYCLEWAY_SEARCH,
+  CYCLEWAY_TOWN_REACH,
   EDGE_CELL_REACH,
   PASS_PROMINENCE,
   NODE_CELL,
@@ -15,10 +20,11 @@ import { hashString } from "./hash.ts";
 import { edgesOf, type EdgeInfo, makeNode, nodeId } from "./nodes.ts";
 import { passName, viewpointName } from "./names.ts";
 import { pickPois } from "./pois.ts";
+import type { RiverSeg } from "./rivers.ts";
 import { DEFAULT_ROUTE_PARAMS, findRoute, type RouteGrid } from "./route.ts";
 import { computeProfile, detectBridges, polylineLength, shapeCenterline } from "./shape.ts";
 import { Terrain } from "./terrain.ts";
-import type { Junction, Poi, Road, WorldNode } from "./types.ts";
+import type { Junction, Poi, Road, RoadClass, WorldNode } from "./types.ts";
 
 export interface Rect {
   x0: number;
@@ -48,6 +54,8 @@ export interface RoadTiming {
 }
 
 const CHUNK = 64;
+/** 河口で終わる自転車道を止める地面の高さ (m) */
+const CYCLEWAY_SHORE = 2;
 /** 経路探索で川の河原とみなす、河原の縁からの距離 (m)。50m 格子が細い川を飛び越えないように */
 const RIVER_PLAIN_MARGIN = 30;
 const CHUNK_KEY_OFFSET = 1 << 20;
@@ -66,6 +74,14 @@ export class World {
   /** 経路が見つからなかった辺 */
   readonly failedEdges = new Set<string>();
   readonly timings: RoadTiming[] = [];
+  /** 川の線ごとの、道路が川の線を横切る所 */
+  private riverCrossings = new Map<string, RiverCrossing[]>();
+  /** 川の線ごとの、自転車道を作る区間か */
+  private cycleOk = new Map<string, boolean>();
+  /** 川の線ごとの、その川の線にかかる自転車道 */
+  private segCycleways = new Map<string, Road[]>();
+  /** 自転車道（識別子 → 道路。作れなければ null） */
+  private cycleways = new Map<string, Road | null>();
 
   constructor(readonly seed: number) {
     this.terrain = new Terrain(seed);
@@ -114,6 +130,20 @@ export class World {
         }
       }
     for (const id of this.failedEdges) if (edgeOut(id)) this.failedEdges.delete(id);
+    const segOut = (k: string) => {
+      const [i, j] = k.split("_").map(Number);
+      const [x, z] = this.terrain.rivers.cellPos(i, j);
+      return x < keep.x0 - 12000 || x > keep.x1 + 12000 || z < keep.z0 - 12000 || z > keep.z1 + 12000;
+    };
+    for (const m of [this.riverCrossings, this.cycleOk, this.segCycleways]) for (const k of m.keys()) if (segOut(k)) m.delete(k);
+    for (const [id, road] of this.cycleways) {
+      const b = road ? roadBounds(road) : null;
+      if (!b || b.x1 < keep.x0 || b.x0 > keep.x1 || b.z1 < keep.z0 || b.z0 > keep.z1) {
+        this.cycleways.delete(id);
+        this.poiCache.delete(id);
+        this.attachments.delete(id);
+      }
+    }
     for (const key of this.chunks.keys()) {
       const kx = Math.floor(key / 2097152) - CHUNK_KEY_OFFSET;
       const kz = (key % 2097152) - CHUNK_KEY_OFFSET;
@@ -244,7 +274,7 @@ export class World {
       this.failedEdges.add(e.id);
       m = { road: null, cells: null };
     } else {
-      const road = this.buildRoad(e.id, e, cellsToPolyline(res.cells), keepFromBridge(res.bridge), e.a.y, e.b.y, e.a.id, e.b.id, "main");
+      const road = this.buildRoad(e.id, e.cls, edgeName(e), cellsToPolyline(res.cells), keepFromBridge(res.bridge), e.a.y, e.b.y, e.a.id, e.b.id, "main");
       m = { road, cells: res.cells };
       this.timings.push({ id: e.id, ms: now() - t0, expanded: res.expanded });
     }
@@ -338,7 +368,7 @@ export class World {
     keep.push(0);
     const poly = Float64Array.from(pts);
     if (polylineLength(poly) < 30) return null;
-    const out = this.buildRoad(id, e, poly, Uint8Array.from(keep), startJ.y, endJ.y, startJ.id, endJ.id, kind);
+    const out = this.buildRoad(id, e.cls, edgeName(e), poly, Uint8Array.from(keep), startJ.y, endJ.y, startJ.id, endJ.id, kind);
     this.setAttachments(id, sa, sb);
     return out;
   }
@@ -467,7 +497,7 @@ export class World {
     const id = `${e.id}#${k}`;
     const poly = Float64Array.from(pts);
     if (polylineLength(poly) < 30) return null;
-    const road = this.buildRoad(id, e, poly, Uint8Array.from(keep), startJ.y, endJ.y, startJ.id, endJ.id, "branch");
+    const road = this.buildRoad(id, e.cls, edgeName(e), poly, Uint8Array.from(keep), startJ.y, endJ.y, startJ.id, endJ.id, "branch");
     // 整形した後も合流先の道路に重なって走る区間があれば、重なりの終わる所で合流させ直す（GENERATOR_VERSION 4）
     const oa = sa ? overlapLength(road, sa.road, false) : 0;
     const ob = sb ? overlapLength(road, sb.road, true) : 0;
@@ -487,16 +517,17 @@ export class World {
 
   private buildRoad(
     id: string,
-    e: EdgeInfo,
+    cls: RoadClass,
+    name: string,
     raw: Float64Array,
     keep: Uint8Array,
     startY: number,
     endY: number,
     startId: string,
     endId: string,
-    kind: "main" | "branch",
+    kind: Road["kind"],
   ): Road {
-    const spec = ROAD_CLASSES[e.cls];
+    const spec = ROAD_CLASSES[cls];
     const xz = shapeCenterline(raw, keep, spec.minRadius);
     const n = xz.length / 2;
     const routeGround = new Float64Array(n);
@@ -531,22 +562,27 @@ export class World {
     }
     return {
       id,
-      cls: e.cls,
+      cls,
       width: spec.width,
       surface: spec.surface,
       origin: [ox, oz],
       points,
       length,
       spans,
-      name: `${e.a.name}${e.b.name}線`,
+      name,
       kind,
       start: startId,
       end: endId,
     };
   }
 
-  /** rect にかかる道路（主要道と枝道の断片） */
+  /** rect にかかる道路（主要道・枝道の断片・河川敷の自転車道） */
   roadsInRect(r: Rect): Road[] {
+    return [...this.baseRoadsInRect(r), ...this.cyclewaysInRect(r)];
+  }
+
+  /** rect にかかる主要道と枝道の断片（自転車道を除く） */
+  baseRoadsInRect(r: Rect): Road[] {
     const out: Road[] = [];
     const edges = this.edgesNear(r);
     for (const e of edges) if (e.kind === "main") {
@@ -555,6 +591,257 @@ export class World {
     }
     for (const e of edges) if (e.kind === "branch") out.push(...this.branchRoads(e));
     return out.filter((road) => roadIntersectsRect(road, r));
+  }
+
+  // ---- 河川敷の自転車道（河川の草案 4.4）----
+  // 河原を含む幅 60m 以上の川の、河口から 20km 以内か町から 3km 以内の区間に、堤防の上（堤防が無ければ河原の端）を通す。
+  // 川を渡る道路と道路の間（隣り合う2つの横断）を1本とし、両端を橋のたもとで道路につなぐ。
+  // 道路が決まってから引く（依存の順序: 下地 → 川 → 主要道 → 枝道 → 自転車道）。
+
+  /** rect にかかる自転車道 */
+  cyclewaysInRect(r: Rect): Road[] {
+    const { segs } = this.terrain.rivers.inRect(r.x0, r.z0, r.x1, r.z1);
+    const out = new Map<string, Road>();
+    for (const s of segs) {
+      if (s.acc < CYCLEWAY_MIN_ACC || !this.cycleEligible(s)) continue;
+      for (const p of this.cyclewaysOfSeg(s)) out.set(p.id, p);
+    }
+    return [...out.values()].filter((road) => roadIntersectsRect(road, r)).sort((a, b) => (a.id < b.id ? -1 : 1));
+  }
+
+  /** 自転車道を作る川の線か */
+  private cycleEligible(s: RiverSeg): boolean {
+    if (s.acc < CYCLEWAY_MIN_ACC) return false;
+    const k = segKey(s);
+    let ok = this.cycleOk.get(k);
+    if (ok !== undefined) return ok;
+    ok = this.nearMouth(s) || this.nearTown(s);
+    this.cycleOk.set(k, ok);
+    return ok;
+  }
+
+  /** 川の線の終わりから河口までの道のりが CYCLEWAY_MOUTH_REACH 以内 */
+  private nearMouth(s: RiverSeg): boolean {
+    if (s.toSea) return true;
+    if (s.toLake) return false;
+    const rv = this.terrain.rivers;
+    let ci = s.di;
+    let cj = s.dj;
+    let px = s.x[s.n - 1];
+    let pz = s.z[s.n - 1];
+    let dist = 0;
+    for (let k = 0; k < 40; k++) {
+      const d = rv.down(ci, cj);
+      if (!d) return false;
+      const [nx, nz] = rv.cellPos(d[0], d[1]);
+      dist += Math.sqrt((nx - px) * (nx - px) + (nz - pz) * (nz - pz));
+      if (dist > CYCLEWAY_MOUTH_REACH) return false;
+      if (rv.terminal(d[0], d[1]) === "sea") return true;
+      [ci, cj] = d;
+      px = nx;
+      pz = nz;
+    }
+    return false;
+  }
+
+  /** 町（結節点の種類 town）から CYCLEWAY_TOWN_REACH 以内を通る（都市度ができるまでの代わり） */
+  private nearTown(s: RiverSeg): boolean {
+    const R = CYCLEWAY_TOWN_REACH;
+    const b = centerBounds(s);
+    for (const n of this.nodesInRect({ x0: b.x0 - R, z0: b.z0 - R, x1: b.x1 + R, z1: b.z1 + R })) {
+      if (n.kind !== "town") continue;
+      for (let p = 0; p < s.n; p++) {
+        const dx = s.x[p] - n.x;
+        const dz = s.z[p] - n.z;
+        if (dx * dx + dz * dz < R * R) return true;
+      }
+    }
+    return false;
+  }
+
+  /** 下流へ本流として続く、自転車道を作る川の線 */
+  private nextCycleSeg(s: RiverSeg): RiverSeg | null {
+    if (s.toSea || s.toLake || !s.main) return null;
+    const n = this.terrain.rivers.segAt(s.di, s.dj);
+    return n && this.cycleEligible(n) ? n : null;
+  }
+
+  /** 本流の上流の、自転車道を作る川の線 */
+  private prevCycleSeg(s: RiverSeg): RiverSeg | null {
+    const u = this.terrain.rivers.mainUpSeg(s.i, s.j);
+    return u && this.cycleEligible(u) ? u : null;
+  }
+
+  /** 道路（自転車道を除く）が川の線の中心を横切る所。川の上流から順 */
+  private crossingsOf(s: RiverSeg): RiverCrossing[] {
+    const k = segKey(s);
+    let out = this.riverCrossings.get(k);
+    if (out) return out;
+    out = [];
+    const b = centerBounds(s);
+    for (const road of this.baseRoadsInRect({ x0: b.x0 - 10, z0: b.z0 - 10, x1: b.x1 + 10, z1: b.z1 + 10 })) {
+      const P = road.points;
+      const n = P.length / 3;
+      const ds = road.length / (n - 1);
+      const ox = road.origin[0];
+      const oz = road.origin[1];
+      for (let i = 0; i < n - 1; i++) {
+        const ax = P[i * 3] + ox;
+        const az = P[i * 3 + 2] + oz;
+        const bx = P[i * 3 + 3] + ox;
+        const bz = P[i * 3 + 5] + oz;
+        if (Math.max(ax, bx) < b.x0 || Math.min(ax, bx) > b.x1 || Math.max(az, bz) < b.z0 || Math.min(az, bz) > b.z1) continue;
+        for (let p = 0; p < s.n - 1; p++) {
+          const hit = segIntersect(ax, az, bx, bz, s.x[p], s.z[p], s.x[p + 1], s.z[p + 1]);
+          if (hit) out.push({ seg: s, road, s: (i + hit.t) * ds, q: p + hit.u });
+        }
+      }
+    }
+    out.sort((a, c) => a.q - c.q || (a.road.id < c.road.id ? -1 : a.road.id > c.road.id ? 1 : a.s - c.s));
+    this.riverCrossings.set(k, out);
+    return out;
+  }
+
+  /** 川の線 s にかかる自転車道（隣り合う横断の間ごと） */
+  private cyclewaysOfSeg(s: RiverSeg): Road[] {
+    const k = segKey(s);
+    let out = this.segCycleways.get(k);
+    if (out) return out;
+    out = [];
+    const cs = this.crossingsOf(s);
+    // 上流側・下流側でいちばん近い横断
+    let prev: RiverCrossing | null = null;
+    for (let u = this.prevCycleSeg(s), c = 0; u && c < CYCLEWAY_SEARCH; u = this.prevCycleSeg(u), c++) {
+      const uc = this.crossingsOf(u);
+      if (uc.length) {
+        prev = uc[uc.length - 1];
+        break;
+      }
+    }
+    // 下流側でいちばん近い横断。横断の前に河口へ出るなら河口（"mouth"）
+    let next: RiverCrossing | "mouth" | null = s.toSea && !cs.length ? "mouth" : null;
+    if (!s.toSea) {
+      for (let d = this.nextCycleSeg(s), c = 0; d && c < CYCLEWAY_SEARCH; d = this.nextCycleSeg(d), c++) {
+        const dc = this.crossingsOf(d);
+        if (dc.length) {
+          next = dc[0];
+          break;
+        }
+        if (d.toSea) {
+          next = "mouth";
+          break;
+        }
+      }
+    }
+    const last = cs.length ? cs[cs.length - 1] : null;
+    const bounds: (RiverCrossing | "mouth" | null)[] = [prev, ...cs, s.toSea && last ? "mouth" : next];
+    for (let i = 0; i + 1 < bounds.length; i++) {
+      const a = bounds[i];
+      const b = bounds[i + 1];
+      if (!a || !b || a === "mouth") continue;
+      const road = this.cyclewayBetween(a, b);
+      if (road) out.push(road);
+    }
+    this.segCycleways.set(k, out);
+    return out;
+  }
+
+  /** 2つの横断の間（b が "mouth" なら横断から河口まで）の自転車道 */
+  private cyclewayBetween(a: RiverCrossing, b: RiverCrossing | "mouth"): Road | null {
+    const tail = b === "mouth" ? "mouth" : `${b.road.id}@${Math.round(b.s * 10)}`;
+    const id = `c_${a.road.id}@${Math.round(a.s * 10)}~${tail}`;
+    let road = this.cycleways.get(id);
+    if (road !== undefined) return road;
+    road = this.buildCycleway(id, a, b);
+    this.cycleways.set(id, road);
+    return road;
+  }
+
+  private buildCycleway(id: string, a: RiverCrossing, bc: RiverCrossing | "mouth"): Road | null {
+    const b = bc === "mouth" ? null : bc;
+    if (b && a.road.id === b.road.id) return null;
+    // a の川の線から b の川の線（河口なら海へ出る川の線）まで
+    const chain: RiverSeg[] = [a.seg];
+    const done = (s: RiverSeg) => (b ? s === b.seg : s.toSea);
+    while (!done(chain[chain.length - 1])) {
+      const n = this.nextCycleSeg(chain[chain.length - 1]);
+      // 横断の間が CYCLEWAY_SEARCH 本を超えると、間の川の線から両端が見つからないので作らない（どこから求めても同じにする）
+      if (!n || chain.length > CYCLEWAY_SEARCH) return null;
+      chain.push(n);
+    }
+    // 川の左右（流れの向きの左 = 1）は識別子のハッシュで決める
+    const side: 1 | -1 = hashString(id) & 1 ? 1 : -1;
+    const sa = bridgeEnd(a, side);
+    const sb = b ? bridgeEnd(b, side) : null;
+    if (!sa || (b && !sb)) return null;
+    const pts: number[] = [sa.x, sa.z];
+    let atSea = false;
+    for (let k = 0; k < chain.length && !atSea; k++) {
+      const s = chain[k];
+      for (let p = k === 0 ? 0 : 1; p < s.n; p++) {
+        if (s === a.seg && p <= a.q) continue;
+        if (b && s === b.seg && p >= b.q) continue;
+        const p0 = p > 0 ? p - 1 : p;
+        const p1 = p < s.n - 1 ? p + 1 : p;
+        let tx = s.x[p1] - s.x[p0];
+        let tz = s.z[p1] - s.z[p0];
+        const tl = Math.sqrt(tx * tx + tz * tz) || 1;
+        tx /= tl;
+        tz /= tl;
+        // 堤防の天端の中央（堤防が無ければ河原の端の 3m 外）
+        const off = s.wf[p] + (s.lv[p] > 0.5 ? 2 * s.lv[p] + 3 : 3);
+        const x = s.x[p] - tz * side * off;
+        const z = s.z[p] + tx * side * off;
+        // 橋のたもとより後ろ（a の側）・前（b の側）の点は使わない
+        if ((x - sa.x) * tx + (z - sa.z) * tz < 30) continue;
+        if (sb && (sb.x - x) * tx + (sb.z - z) * tz < 30) continue;
+        // 河口: 海岸の手前で終える
+        if (!b && this.terrain.routeHeight(x, z) < CYCLEWAY_SHORE) {
+          atSea = true;
+          break;
+        }
+        pts.push(x, z);
+      }
+    }
+    if (sb) pts.push(sb.x, sb.z);
+    const poly = Float64Array.from(pts);
+    if (pts.length < 6 || polylineLength(poly) < 150) return null;
+    const startJ = attachJunction(sa);
+    // 河口で終わる自転車道の端は行き止まり
+    const n = pts.length / 2;
+    const endJ = sb ? attachJunction(sb) : { id: `e_${id}`, y: Math.max(ROAD_MIN_ELEVATION, this.terrain.routeHeight(pts[n * 2 - 2], pts[n * 2 - 1])) };
+    if (startJ.id === endJ.id) return null;
+    const name = `${this.riverName(a.seg)}自転車道`;
+    const road = this.buildRoad(id, 4, name, poly, new Uint8Array(pts.length / 2), startJ.y, endJ.y, startJ.id, endJ.id, "cycleway");
+    this.setAttachments(id, sa, sb);
+    return road;
+  }
+
+  /**
+   * 川の名前: 下流へ本流を 20 本までたどった所（河口か湖、またはそこまで）から 6km 以内で最も近い結節点の地名 + 川。
+   * 同じ川の自転車道が同じ名前になるように、下流の端で決める。
+   */
+  private riverName(s: RiverSeg): string {
+    let end = s;
+    for (let k = 0; k < 20 && !end.toSea && !end.toLake && end.main; k++) {
+      const n = this.terrain.rivers.segAt(end.di, end.dj);
+      if (!n) break;
+      end = n;
+    }
+    const R = 6000;
+    const x = end.x[end.n - 1];
+    const z = end.z[end.n - 1];
+    let best: WorldNode | null = null;
+    let bd = R * R;
+    for (const n of this.nodesInRect({ x0: x - R, z0: z - R, x1: x + R, z1: z + R })) {
+      const d = (n.x - x) * (n.x - x) + (n.z - z) * (n.z - z);
+      if (d < bd || (d === bd && best !== null && n.id < best.id)) {
+        bd = d;
+        best = n;
+      }
+    }
+    if (!best) return "川";
+    return best.name.endsWith("川") ? best.name : `${best.name}川`;
   }
 
   poisOf(road: Road): Poi[] {
@@ -758,6 +1045,61 @@ function keepFromBridge(bridge: Uint8Array): Uint8Array {
   return keep;
 }
 
+/** 道路が川の線の中心を横切る所 */
+interface RiverCrossing {
+  seg: RiverSeg;
+  road: Road;
+  /** 道路の道のり */
+  s: number;
+  /** 川の線の点の番号（小数） */
+  q: number;
+}
+
+function segKey(s: RiverSeg): string {
+  return `${s.i}_${s.j}`;
+}
+
+/** 川の線の中心の外接矩形 */
+function centerBounds(s: RiverSeg): Rect {
+  let x0 = Infinity;
+  let z0 = Infinity;
+  let x1 = -Infinity;
+  let z1 = -Infinity;
+  for (let p = 0; p < s.n; p++) {
+    if (s.x[p] < x0) x0 = s.x[p];
+    if (s.x[p] > x1) x1 = s.x[p];
+    if (s.z[p] < z0) z0 = s.z[p];
+    if (s.z[p] > z1) z1 = s.z[p];
+  }
+  return { x0, z0, x1, z1 };
+}
+
+/**
+ * 横断する道路の、川の side の側（流れの向きの左 = 1）の橋のたもと。
+ * 横断を含む橋の区間の端から 4m 先（橋が無ければ横断から 30m 先）。
+ */
+function bridgeEnd(c: RiverCrossing, side: 1 | -1): SnapPoint | null {
+  const r = c.road;
+  const span = r.spans.find((sp) => c.s >= sp.from - 1 && c.s <= sp.to + 1);
+  const s0 = Math.max(0, span ? span.from - 4 : c.s - 30);
+  const s1 = Math.min(r.length, span ? span.to + 4 : c.s + 30);
+  const s = c.seg;
+  const p = Math.min(s.n - 2, Math.floor(c.q));
+  const tx = s.x[p + 1] - s.x[p];
+  const tz = s.z[p + 1] - s.z[p];
+  const cx = s.x[p] + tx * (c.q - p);
+  const cz = s.z[p] + tz * (c.q - p);
+  const sideOf = (sv: number) => {
+    const q = pointAt(r, sv);
+    return ((q.x - cx) * -tz + (q.z - cz) * tx) * side;
+  };
+  const sv = sideOf(s0) > 0 ? s0 : sideOf(s1) > 0 ? s1 : -1;
+  if (sv < 0) return null;
+  const at = pointAt(r, sv);
+  const atEnd = sv <= 0.5 || sv >= r.length - 0.5;
+  return { road: r, s: atEnd ? (sv <= 0.5 ? 0 : r.length) : sv, x: at.x, y: at.y, z: at.z, d2: 0, atEnd };
+}
+
 export interface CrossingInfo {
   id: string;
   a: string;
@@ -909,6 +1251,10 @@ function segIntersect(
   const u = (qx * rz - qz * rx) / den;
   if (t < 0 || t >= 1 || u < 0 || u >= 1) return null;
   return { t, u };
+}
+
+function edgeName(e: EdgeInfo): string {
+  return `${e.a.name}${e.b.name}線`;
 }
 
 /** 道路の識別子から作る種 */

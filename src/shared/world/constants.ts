@@ -39,7 +39,18 @@ export const ROAD_CLASSES: readonly RoadClassSpec[] = [
   { name: "一般道", width: 6, maxGrade: 0.1, minRadius: 30, surface: "paved" },
   { name: "山道", width: 4.5, maxGrade: 0.12, minRadius: 12, surface: "paved" },
   { name: "林道", width: 3.5, maxGrade: 0.15, minRadius: 10, surface: "gravel" },
+  // 河川敷の自転車道（河川の草案 4.4）。車は通らない
+  { name: "自転車道", width: 3, maxGrade: 0.05, minRadius: 15, surface: "paved" },
 ];
+
+/** 河川敷の自転車道を作る川の流域（格子点の数。50 = 200km²、河原を含む幅 60m 以上。河川の草案 4.4） */
+export const CYCLEWAY_MIN_ACC = 50;
+/** 河口からこの道のり以内の区間に自転車道を作る (m) */
+export const CYCLEWAY_MOUTH_REACH = 20000;
+/** 町からこの距離以内の区間に自転車道を作る (m)。都市度（U1）ができるまでの代わり */
+export const CYCLEWAY_TOWN_REACH = 3000;
+/** 自転車道の端を探して川をたどる最大の川の線の数（片側） */
+export const CYCLEWAY_SEARCH = 8;
 
 /** 縦断の平滑化（ガウスの σ, m） */
 export const PROFILE_SIGMA = 30;

@@ -163,6 +163,8 @@ interface RiverBlock {
   index: (number[] | null)[];
   /** 河口（海へ出る川の線の、海岸を越える点） */
   mouths: { x: number; z: number; acc: number }[];
+  /** 元の格子 → 川の線 */
+  byCell: Map<number, RiverSeg>;
 }
 
 /** 点の周りの川の情報（query の結果。使い回す） */
@@ -330,6 +332,33 @@ export class RiverNet {
     return best >= 0 ? best : DIR_LAKE;
   }
 
+  /** 終点の種類（海・湖）。終点でなければ null */
+  terminal(i: number, j: number): "sea" | "lake" | null {
+    const d = this.dir(i, j);
+    return d === DIR_SEA ? "sea" : d === DIR_LAKE ? "lake" : null;
+  }
+
+  /** 格子 (i, j) から出る川の線（大きな川でなければ null） */
+  segAt(i: number, j: number): RiverSeg | null {
+    const [x, z] = this.cellPos(i, j);
+    const b = this.block(Math.floor(x / BLOCK_SIZE), Math.floor(z / BLOCK_SIZE));
+    return b.byCell.get(key(i, j)) ?? null;
+  }
+
+  /** 格子 (i, j) へ本流として流れ込む川の線 */
+  mainUpSeg(i: number, j: number): RiverSeg | null {
+    const R = this.pitRadius;
+    for (let dz = -R; dz <= R; dz++)
+      for (let dx = -R; dx <= R; dx++) {
+        if (dx === 0 && dz === 0) continue;
+        const d = this.down(i + dx, j + dz);
+        if (!d || d[0] !== i || d[1] !== j) continue;
+        const s = this.segAt(i + dx, j + dz);
+        if (s && s.main) return s;
+      }
+    return null;
+  }
+
   /** 下流の格子（終点なら null） */
   down(i: number, j: number): [number, number] | null {
     const d = this.dir(i, j);
@@ -436,6 +465,7 @@ export class RiverNet {
       return acc[(j - aj0) * aw + (i - ai0)];
     };
     const segs: RiverSeg[] = [];
+    const byCell = new Map<number, RiverSeg>();
     const lakes: Lake[] = [];
     const mouths: { x: number; z: number; acc: number }[] = [];
     for (let j = cj0 - SEG_MARGIN; j < cj0 + BLOCK + SEG_MARGIN; j++)
@@ -449,6 +479,7 @@ export class RiverNet {
         }
         if (s) {
           segs.push(s);
+          byCell.set(k, s);
           if (s.toSea) {
             // 河口: 水面が 0 になった最初の点
             let m = s.n - 1;
@@ -479,7 +510,7 @@ export class RiverNet {
           else index[c] = [si];
         }
     });
-    return { segs, lakes, index, mouths };
+    return { segs, lakes, index, mouths, byCell };
   }
 
   /** 流れ込む格子のうち流域が最大のもの（本流の上流）。同じなら格子番号の小さい方 */

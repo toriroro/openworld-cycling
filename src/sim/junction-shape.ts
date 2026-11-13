@@ -7,7 +7,7 @@ import type { Junction, JunctionArm, Road } from "../shared/world/types.ts";
 import { roadSpacing } from "./road-network.ts";
 
 /** 隅切りの半径 (m)【初期値】。等級が高いほど大きい */
-const CORNER_RADIUS = [9, 7, 5, 5];
+const CORNER_RADIUS = [9, 7, 5, 5, 4];
 /** 口までの距離の上限 (m) */
 const MAX_MOUTH = 30;
 

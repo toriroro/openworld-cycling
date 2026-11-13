@@ -1,6 +1,7 @@
 // 世界のデータの形（モック仕様 4.8）。将来サーバーで地域単位に保存する時もこの型を入れ物にする。
 
-export type RoadClass = 0 | 1 | 2 | 3;
+/** 幹線・一般道・山道・林道・自転車道（4 は河川敷の自転車道。河川の草案 4.4） */
+export type RoadClass = 0 | 1 | 2 | 3 | 4;
 
 export interface Span {
   from: number;
@@ -11,7 +12,7 @@ export interface Span {
 export interface Road {
   /** 両端の結節点の識別子から作る */
   id: string;
-  /** 幹線・一般道・山道・林道 */
+  /** 幹線・一般道・山道・林道・自転車道 */
   cls: RoadClass;
   width: number;
   surface: "paved" | "gravel";
@@ -22,8 +23,8 @@ export interface Road {
   length: number;
   spans: Span[];
   name: string;
-  /** 主要道か枝道か */
-  kind: "main" | "branch";
+  /** 主要道か枝道か、河川敷の自転車道か */
+  kind: "main" | "branch" | "cycleway";
   /** 両端の接続点 */
   start: string;
   end: string;
