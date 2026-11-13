@@ -1,7 +1,7 @@
 // map.html の入口。地図、凡例、道路の縦断図と数値。
 
 import "./ui/map.css";
-import { ROAD_CLASSES, WORLD_SEED } from "./shared/world/constants.ts";
+import { ORIGIN, ROAD_CLASSES, WORLD_SEED } from "./shared/world/constants.ts";
 import type { Road } from "./shared/world/types.ts";
 import { GRADE_COLORS, GRADE_STEPS, POI_COLORS, roadPoint, WorldMap } from "./ui/world-map.ts";
 
@@ -34,8 +34,8 @@ legend.innerHTML = [
 
 const map = new WorldMap(canvas, {
   seed,
-  x: num("x", 0),
-  z: num("z", 0),
+  x: num("x", ORIGIN.x),
+  z: num("z", ORIGIN.z),
   mpp: num("mpp", 20),
   mark: mark ? { x: mark[0], z: mark[1], r: mark[2] ?? 15000 } : undefined,
   onSelect: showRoad,
