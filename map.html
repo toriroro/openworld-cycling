@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>世界地図（開発用）</title>
+  </head>
+  <body>
+    <canvas id="map"></canvas>
+    <div id="status" class="hud"></div>
+    <button id="toggle-legend" class="hud-btn" type="button">凡例</button>
+    <div id="legend" class="hud"></div>
+    <section id="road" class="hud hidden">
+      <header><h2 id="road-name"></h2><button id="close-road" type="button" class="hud-btn">閉じる</button></header>
+      <canvas id="profile"></canvas>
+      <dl id="road-facts"></dl>
+    </section>
+    <script type="module" src="/src/map-main.ts"></script>
+  </body>
+</html>
