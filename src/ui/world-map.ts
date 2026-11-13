@@ -1,9 +1,12 @@
 // 2D 地図（モック仕様 4.10）。移動と拡大縮小、標高の陰影・景観の色・海・結節点・道路（等級で太さ、勾配で色）・
-// 橋・立ち寄り地点。道路を選ぶと縦断図と数値を出す。後でゲーム内の世界地図の土台にする。
+// 橋・立ち寄り地点。道路を選ぶと縦断図と数値を出す。
+// ゲーム内の世界地図（モック仕様 7.4）にも使う: game を渡すと、走った道を太く・未走行の道を細く描き、現在地・行き先・立ち寄った店を出し、
+// 地図を押すと行き先の指定になる。
 
 import { ROAD_CLASSES } from "../shared/world/constants.ts";
 import type { Junction, Poi, Road, WorldNode } from "../shared/world/types.ts";
 import type { CrossingInfo, Rect } from "../shared/world/world.ts";
+import type { RiddenLog } from "../sim/ridden.ts";
 import { TILE_PX } from "../workers/map-tile.ts";
 import type { RegionPayload, WorldRequest, WorldResponse } from "../workers/world-protocol.ts";
 
@@ -33,6 +36,18 @@ export interface MapOptions {
   mark?: { x: number; z: number; r: number };
   onSelect?: (road: Road | null) => void;
   onStatus?: (s: MapStatus) => void;
+  game?: GameMapLayer;
+}
+
+/** ゲーム内の世界地図に重ねるもの */
+export interface GameMapLayer {
+  ridden: RiddenLog;
+  player: () => { x: number; z: number; dx: number; dz: number } | null;
+  goal: () => { x: number; z: number } | null;
+  /** 立ち寄った店（立ち寄り地点の識別子） */
+  stamped: () => Set<string>;
+  /** 地図を押した所（世界座標） */
+  onTap: (x: number, z: number) => void;
 }
 
 export interface MapStatus {
@@ -79,6 +94,8 @@ export class WorldMap {
   private opts: MapOptions;
   showRoads = true;
   showPois = true;
+  private riddenPath: Path2D | null = null;
+  private riddenVersion = -1;
 
   constructor(canvas: HTMLCanvasElement, opts: MapOptions) {
     this.canvas = canvas;
@@ -96,9 +113,15 @@ export class WorldMap {
     this.bindInput();
     new ResizeObserver(() => this.resize()).observe(canvas);
     this.resize();
-    const loop = () => {
+    let last = 0;
+    const loop = (t: number) => {
       this.frame = requestAnimationFrame(loop);
-      if (this.dirty) this.draw();
+      // ゲーム内では現在地が動くので 4 回／秒は描き直す
+      if (opts.game && t - last > 250) this.dirty = true;
+      if (this.dirty) {
+        last = t;
+        this.draw();
+      }
     };
     this.frame = requestAnimationFrame(loop);
   }
@@ -232,8 +255,13 @@ export class WorldMap {
 
   /** 画面の点に最も近い道路を選ぶ（10px 以内） */
   private pick(px: number, py: number) {
-    if (this.mpp > ROADS_VISIBLE_MPP) return;
     const p = this.toWorld(px, py);
+    if (this.opts.game) {
+      this.opts.game.onTap(p.x, p.z);
+      this.dirty = true;
+      return;
+    }
+    if (this.mpp > ROADS_VISIBLE_MPP) return;
     const tol = 10 * this.mpp;
     let best: Road | null = null;
     let bestD = tol * tol;
@@ -324,6 +352,7 @@ export class WorldMap {
   }
 
   private rebuildPaths() {
+    this.riddenPath = null;
     const groups = new Map<number, Path2D>();
     const bridge = new Path2D();
     const ax = this.anchorX;
@@ -450,16 +479,38 @@ export class WorldMap {
         ctx.lineWidth = (CLASS_PX[r.cls] * zoomK + 8) * this.mpp;
         ctx.stroke(path);
       }
-      // 縁取り
-      ctx.strokeStyle = "rgba(20,20,20,0.75)";
-      for (const p of this.paths) {
-        ctx.lineWidth = (CLASS_PX[p.cls] * zoomK + 1.6) * this.mpp;
-        ctx.stroke(p.path);
-      }
-      for (const p of this.paths) {
-        ctx.lineWidth = CLASS_PX[p.cls] * zoomK * this.mpp;
-        ctx.strokeStyle = GRADE_COLORS[p.bucket];
-        ctx.stroke(p.path);
+      const game = this.opts.game;
+      if (game) {
+        // 未走行の道は細く、走った道は太く
+        ctx.strokeStyle = "rgba(20,20,20,0.6)";
+        for (const p of this.paths) {
+          ctx.lineWidth = (CLASS_PX[p.cls] * zoomK * 0.55 + 1.2) * this.mpp;
+          ctx.stroke(p.path);
+        }
+        ctx.strokeStyle = "rgba(250,250,245,0.95)";
+        for (const p of this.paths) {
+          ctx.lineWidth = CLASS_PX[p.cls] * zoomK * 0.55 * this.mpp;
+          ctx.stroke(p.path);
+        }
+        if (this.riddenVersion !== game.ridden.version || !this.riddenPath) this.rebuildRidden(game.ridden);
+        ctx.strokeStyle = "rgba(30,14,0,0.8)";
+        ctx.lineWidth = (5.5 * zoomK + 2) * this.mpp;
+        ctx.stroke(this.riddenPath!);
+        ctx.strokeStyle = "#ff8a1f";
+        ctx.lineWidth = 5.5 * zoomK * this.mpp;
+        ctx.stroke(this.riddenPath!);
+      } else {
+        // 縁取り
+        ctx.strokeStyle = "rgba(20,20,20,0.75)";
+        for (const p of this.paths) {
+          ctx.lineWidth = (CLASS_PX[p.cls] * zoomK + 1.6) * this.mpp;
+          ctx.stroke(p.path);
+        }
+        for (const p of this.paths) {
+          ctx.lineWidth = CLASS_PX[p.cls] * zoomK * this.mpp;
+          ctx.strokeStyle = GRADE_COLORS[p.bucket];
+          ctx.stroke(p.path);
+        }
       }
       // 橋は白い縁の二重線
       ctx.strokeStyle = "#ffffff";
@@ -499,6 +550,14 @@ export class WorldMap {
         if (pos.x < v.x0 || pos.x > v.x1 || pos.z < v.z0 || pos.z > v.z1) continue;
         const [sx, sy] = toScreen(pos.x, pos.z);
         drawPoi(ctx, p.kind, sx, sy);
+        if (this.opts.game?.stamped().has(p.id)) {
+          // 立ち寄った店は印を足す
+          ctx.beginPath();
+          ctx.arc(sx, sy, 9, 0, Math.PI * 2);
+          ctx.strokeStyle = "#ff8a1f";
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+        }
         if (this.mpp <= 8) label(ctx, p.name, sx + 8, sy + 4, 11, "#1b1b1b");
       }
     }
@@ -538,7 +597,71 @@ export class WorldMap {
       ctx.stroke();
     }
 
+    // 行き先と現在地
+    const game = this.opts.game;
+    if (game) {
+      const g = game.goal();
+      if (g) {
+        const [sx, sy] = toScreen(g.x, g.z);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx, sy - 22);
+        ctx.strokeStyle = "#08202a";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - 22);
+        ctx.lineTo(sx + 14, sy - 17);
+        ctx.lineTo(sx, sy - 12);
+        ctx.closePath();
+        ctx.fillStyle = "#2fd0ff";
+        ctx.fill();
+        ctx.stroke();
+      }
+      const me = game.player();
+      if (me) {
+        const [sx, sy] = toScreen(me.x, me.z);
+        const fx = me.dx, fz = me.dz;
+        const px = -fz, pz = fx;
+        ctx.beginPath();
+        ctx.moveTo(sx + fx * 12, sy + fz * 12);
+        ctx.lineTo(sx - fx * 7 + px * 8, sy - fz * 7 + pz * 8);
+        ctx.lineTo(sx - fx * 3, sy - fz * 3);
+        ctx.lineTo(sx - fx * 7 - px * 8, sy - fz * 7 - pz * 8);
+        ctx.closePath();
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+        ctx.strokeStyle = "#111";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
     this.opts.onStatus?.(this.status());
+  }
+
+  /** 走った区間の線（世界座標から anchor を引いた座標） */
+  private rebuildRidden(ridden: RiddenLog) {
+    this.riddenVersion = ridden.version;
+    const path = new Path2D();
+    for (const id of ridden.roads()) {
+      const r = this.roads.get(id)?.road;
+      if (!r) continue;
+      const P = r.points;
+      const n = P.length / 3;
+      const ds = r.length / (n - 1);
+      for (const [s0, s1] of ridden.runs(id)) {
+        const i0 = Math.max(0, Math.floor(s0 / ds));
+        const i1 = Math.min(n - 1, Math.ceil(s1 / ds));
+        for (let i = i0; i <= i1; i += 2) {
+          const x = P[i * 3] + r.origin[0] - this.anchorX;
+          const z = P[i * 3 + 2] + r.origin[1] - this.anchorZ;
+          if (i === i0) path.moveTo(x, z);
+          else path.lineTo(x, z);
+        }
+      }
+    }
+    this.riddenPath = path;
   }
 }
 

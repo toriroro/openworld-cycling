@@ -29,7 +29,7 @@ for (const [w, h] of [[1440, 900], [844, 390], [390, 844], [1024, 768]]) {
   await pedal(page, true);
   await page.waitForTimeout(4000);
   const rects = await page.evaluate(() => {
-    const sel = [".ride-info", ".menu-btn", ".road-name", ".branch:not(.hidden)", ".uturn:not(.hidden)", ".touch-left", ".touch-right"];
+    const sel = [".ride-info", ".menu-btn", ".road-name", ".branch:not(.hidden)", ".uturn:not(.hidden)", ".touch-left", ".touch-right", ".minimap"];
     const out = [];
     for (const s of sel) {
       const e = document.querySelector(s);

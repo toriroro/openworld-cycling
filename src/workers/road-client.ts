@@ -33,7 +33,7 @@ export class RoadClient {
   workerError: string | null = null;
   radius: number;
 
-  constructor(private seed: number, radius = 10000) {
+  constructor(readonly seed: number, radius = 10000) {
     this.radius = radius;
     try {
       this.worker = new Worker(new URL("./world.worker.ts", import.meta.url), { type: "module" });

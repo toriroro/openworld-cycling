@@ -21,6 +21,8 @@ import { OrbitDrag, orbitView } from "./ui/orbit-drag.ts";
 import type { WorldView } from "./render/world-view.ts";
 import { Hud, type Settings } from "./ui/hud.ts";
 import { Input } from "./ui/input.ts";
+import { MapOverlay } from "./ui/map-overlay.ts";
+import { Minimap } from "./ui/minimap.ts";
 import type { RoadClient } from "./workers/road-client.ts";
 
 export class Game {
@@ -68,6 +70,11 @@ export class Game {
   /** 最後に描いた時刻（フレームレートの上限用） */
   private lastDraw = 0;
   private routeSel: HTMLSelectElement;
+  readonly minimap: Minimap;
+  readonly mapOverlay: MapOverlay;
+  /** 立ち寄った店の識別子 */
+  stampSet = new Set<string>();
+  private minimapT = 0;
   private fpsSel: HTMLSelectElement;
 
   constructor(
@@ -80,6 +87,14 @@ export class Game {
     const settings: Settings = { power: this.manual.setting, quality: view.quality, hour: view.env.hour, camera: this.camera };
     this.hud = new Hud(this.input, settings);
     this.hud.onSettings = (s) => this.applySettings(s, true);
+    // 小地図と世界地図（モック仕様 7.4）
+    this.minimap = new Minimap(this.hud.root, () => this.toggleMap());
+    this.mapOverlay = new MapOverlay(roads.seed);
+    this.mapOverlay.onClearGoal = () => this.ride?.setGoal(null);
+    this.hud.addButton("地図", () => {
+      this.hud.toggleMenu(false);
+      this.toggleMap();
+    });
     // 眺める乗り方の設定（モック仕様 7.2）
     this.routeSel = this.hud.addSelect(
       "眺める進路",
@@ -174,6 +189,7 @@ export class Game {
     this.player.setOutfit(d.outfit);
     this.ridden = RiddenLog.fromJSON(d.ridden);
     this.stamps = d.stamps;
+    this.stampSet = new Set(d.stamps.map((st) => st.poi));
     this.setWatching(d.watching);
     this.routeSel.value = d.settings.watchRoute;
     this.fpsSel.value = d.settings.fps30 ? "30" : "free";
@@ -293,6 +309,22 @@ export class Game {
     }
   }
 
+  /** 世界地図を開く・閉じる。地図を押すと行き先になる */
+  toggleMap() {
+    if (this.mapOverlay.isOpen) {
+      this.mapOverlay.close();
+      return;
+    }
+    const p = this.ride?.road ? this.ride.pose() : null;
+    this.mapOverlay.open(p?.x ?? this.anchor.x, p?.z ?? this.anchor.z, {
+      ridden: this.ridden,
+      player: () => (this.ride?.road ? this.ride.pose() : null),
+      goal: () => this.ride?.goal ?? null,
+      stamped: () => this.stampSet,
+      onTap: (x, z) => this.ride?.setGoal(x, z),
+    });
+  }
+
   teleport(x: number, z: number) {
     // 記録は引き継ぐ
     const r = this.ride;
@@ -353,7 +385,7 @@ export class Game {
           }
           break;
         case "map":
-          // 世界地図は M4
+          this.toggleMap();
           break;
       }
     }
@@ -463,6 +495,19 @@ export class Game {
       return;
     }
     const road = ride.road;
+    const pose = road ? ride.pose() : null;
+    const goal = ride.goal;
+    const goalDistance = goal && pose ? Math.hypot(goal.x - pose.x, goal.z - pose.z) : null;
+    // 小地図（10 回／秒）と世界地図の表示
+    if (pose && t - this.minimapT > 100) {
+      this.minimapT = t;
+      this.minimap.draw({ roads: this.roads.roadEntries(), pois: this.roads.pois.values(), ridden: this.ridden, stamped: this.stampSet, x: pose.x, z: pose.z, dx: pose.dx, dz: pose.dz, goal });
+    }
+    if (this.mapOverlay.isOpen)
+      this.mapOverlay.setInfo(
+        goalDistance !== null ? `行き先まで 直線 ${(goalDistance / 1000).toFixed(1)} km${ride.plan ? "" : "（経路を探索中）"}` : ride.goalReached ? "行き先に着いた" : "地図を押すと行き先を指定",
+        !!goal,
+      );
     this.hud.update({
       speed: ride.speed,
       watts: ride.watts,
@@ -477,6 +522,7 @@ export class Game {
       canUTurn: ride.speed < 0.5,
       watching: this.watching,
       paused: this.paused,
+      goalDistance,
     });
   }
 }

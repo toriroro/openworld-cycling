@@ -20,6 +20,8 @@ export interface HudState {
   canUTurn: boolean;
   watching: boolean;
   paused: boolean;
+  /** 行き先までの直線距離 (m)。行き先がなければ null */
+  goalDistance?: number | null;
 }
 
 export interface Settings {
@@ -236,7 +238,7 @@ export class Hud {
     this.stats.dist.textContent = (st.odometer / 1000).toFixed(2);
     this.stats.climb.textContent = String(Math.round(st.climb));
     this.stats.time.textContent = fmtTime(st.time);
-    this.roadEl.textContent = `${st.roadName}  標高 ${Math.round(st.elevation)} m${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}`;
+    this.roadEl.textContent = `${st.roadName}  標高 ${Math.round(st.elevation)} m${st.goalDistance != null ? `  行き先まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}`;
     this.pauseEl.classList.toggle("hidden", !st.paused);
     this.uturnBtn.classList.toggle("hidden", !st.canUTurn);
     this.updateBranch(st.upcoming);

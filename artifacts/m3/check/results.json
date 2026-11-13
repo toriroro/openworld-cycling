@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-13T10:38:16.893Z",
+  "date": "2026-11-13T10:54:50.442Z",
   "sizes": [
     {
       "size": "1440x900",
@@ -7,7 +7,8 @@
       "elements": [
         ".ride-info",
         ".menu-btn",
-        ".road-name"
+        ".road-name",
+        ".minimap"
       ],
       "overlaps": [],
       "outside": [],
@@ -23,7 +24,8 @@
         ".menu-btn",
         ".road-name",
         ".touch-left",
-        ".touch-right"
+        ".touch-right",
+        ".minimap"
       ],
       "overlaps": [],
       "outside": [],
@@ -39,7 +41,8 @@
         ".menu-btn",
         ".road-name",
         ".touch-left",
-        ".touch-right"
+        ".touch-right",
+        ".minimap"
       ],
       "overlaps": [],
       "outside": [],
@@ -53,7 +56,8 @@
       "elements": [
         ".ride-info",
         ".menu-btn",
-        ".road-name"
+        ".road-name",
+        ".minimap"
       ],
       "overlaps": [],
       "outside": [],
@@ -66,11 +70,15 @@
     {
       "quality": "standard",
       "size": "1440x900",
-      "maxTriangles": 997289,
+      "maxTriangles": 997373,
       "maxCalls": 118,
       "samples": [
         {
-          "triangles": 997289,
+          "triangles": 997373,
+          "calls": 118
+        },
+        {
+          "triangles": 997373,
           "calls": 118
         },
         {
@@ -78,23 +86,19 @@
           "calls": 118
         },
         {
-          "triangles": 997247,
+          "triangles": 997163,
           "calls": 118
         },
         {
-          "triangles": 997121,
-          "calls": 118
-        },
-        {
-          "triangles": 994646,
+          "triangles": 994604,
           "calls": 115
         },
         {
-          "triangles": 995028,
+          "triangles": 994986,
           "calls": 115
         },
         {
-          "triangles": 995368,
+          "triangles": 995410,
           "calls": 115
         },
         {
@@ -102,11 +106,11 @@
           "calls": 115
         },
         {
-          "triangles": 996882,
+          "triangles": 996840,
           "calls": 115
         },
         {
-          "triangles": 996042,
+          "triangles": 996000,
           "calls": 115
         }
       ]
@@ -122,7 +126,7 @@
           "calls": 81
         },
         {
-          "triangles": 334136,
+          "triangles": 334094,
           "calls": 81
         },
         {
@@ -134,15 +138,15 @@
           "calls": 76
         },
         {
-          "triangles": 323961,
+          "triangles": 323877,
           "calls": 74
         },
         {
-          "triangles": 323835,
+          "triangles": 323709,
           "calls": 74
         },
         {
-          "triangles": 323751,
+          "triangles": 323709,
           "calls": 74
         },
         {
@@ -150,18 +154,18 @@
           "calls": 73
         },
         {
-          "triangles": 318047,
+          "triangles": 318089,
           "calls": 72
         },
         {
-          "triangles": 317711,
+          "triangles": 317753,
           "calls": 72
         }
       ]
     }
   ],
   "branch": {
-    "distance": 114.10009876671347,
+    "distance": 115.7296944681616,
     "choices": [
       {
         "dest": "朝谷",
