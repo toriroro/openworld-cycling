@@ -4,6 +4,7 @@
 // - 路面の下にかかる三角形は頂点を路面より下げる（突き抜け防止。downhill-3D の terrain-clearance と同じ考え方）
 // - 縁を下へ伸ばした面（スカート）で段の継ぎ目を隠す
 
+import { gradNoise } from "../shared/world/noise.ts";
 import type { Terrain } from "../shared/world/terrain.ts";
 
 /** 道路の点列（タイルの左上からの相対）。1点 5 要素: x, z, y, 半幅, 印（1 = 橋） */
@@ -51,6 +52,8 @@ const ROCK = [0.5, 0.48, 0.44];
 const SAND = [0.8, 0.74, 0.58];
 const SHOULDER = [0.52, 0.49, 0.42];
 const SEABED = [0.52, 0.5, 0.4];
+const DRY = [0.62, 0.6, 0.38];
+const COAST_GRASS = [0.58, 0.6, 0.38];
 
 interface Nearest {
   e: number;
@@ -169,6 +172,9 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
   const uOff = (((x0 % inp.uvRepeat) + inp.uvRepeat) % inp.uvRepeat) / inp.uvRepeat;
   const vOff = (((z0 % inp.uvRepeat) + inp.uvRepeat) % inp.uvRepeat) / inp.uvRepeat;
   const w4 = [0, 0, 0, 0];
+  const seedA = terrain.seed * 31 + 901;
+  const seedB = terrain.seed * 31 + 902;
+  const seedC = terrain.seed * 31 + 903;
 
   for (let j = 0; j < N; j++)
     for (let i = 0; i < N; i++) {
@@ -202,10 +208,17 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
       }
       const slope = Math.sqrt(nx * nx + nz * nz);
       const rock = smooth(0.45, 0.9, slope) + smooth(1250, 1600, h) * 0.6;
-      const sand = h < 2.5 ? 1 - smooth(0.5, 2.5, h) : 0;
+      const sand = h < 0.8 ? 1 - smooth(0.3, 0.8, h) : 0;
+      // 大きな模様（明るさと、枯れ草寄りの色）で一様な緑を崩す
+      const wx = x0 + i * step, wz = z0 + j * step;
+      const n1 = gradNoise(seedA, wx / 340, wz / 340);
+      const n2 = gradNoise(seedB, wx / 70, wz / 70);
+      const dry = smooth(0.15, 0.7, gradNoise(seedC, wx / 900, wz / 900)) * (1 - w4[2]);
+      const bright = 1 + 0.13 * n1 + 0.07 * n2;
       // 林床: 山岳と里山の木の多い所（M3 で植生を置く前の色）
       for (let k = 0; k < 3; k++) {
-        let c = GRASS[k] * w4[1] + SATOYAMA[k] * w4[3] + FOREST[k] * w4[2] + (h < 12 ? SAND[k] : GRASS[k]) * w4[0];
+        let c = GRASS[k] * w4[1] + SATOYAMA[k] * w4[3] + FOREST[k] * w4[2] + COAST_GRASS[k] * w4[0];
+        c = (c * (1 - dry * 0.6) + DRY[k] * dry * 0.6) * bright;
         c = c * (1 - Math.min(1, rock)) + ROCK[k] * Math.min(1, rock);
         if (h < 0) c = SEABED[k];
         else c = c * (1 - sand) + SAND[k] * sand;

@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { Terrain } from "../shared/world/terrain.ts";
 import type { RoadClient } from "../workers/road-client.ts";
 import { Environment, loadTexture, terrainMaterial } from "./environment.ts";
+import { createGravelTexture } from "./gravel-texture.ts";
 import { RoadMeshes } from "./road-meshes.ts";
 import { RANGES_LIGHT, RANGES_STANDARD, TerrainStreamer } from "./terrain-streamer.ts";
 
@@ -60,10 +61,10 @@ export class WorldView {
       polygonOffsetUnits: -2,
     });
     const gravel = new THREE.MeshStandardMaterial({
-      map: loadTexture(loader, "forest_floor_Diffuse", true, aniso),
+      map: createGravelTexture(512, aniso),
       roughness: 1,
       vertexColors: true,
-      color: "#c9b48e",
+      color: "#ffffff",
       polygonOffset: true,
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -2,

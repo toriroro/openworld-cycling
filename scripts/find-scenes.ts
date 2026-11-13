@@ -9,7 +9,7 @@ const R = Number(process.argv[2] ?? 14000);
 const w = new World(WORLD_SEED);
 const roads = w.roadsInRect({ x0: ORIGIN.x - R, z0: ORIGIN.z - R, x1: ORIGIN.x + R, z1: ORIGIN.z + R });
 type Cand = { kind: string; road: string; s: number; x: number; z: number; y: number; score: number };
-const best: Record<string, Cand | null> = { coast: null, plain: null, mountain: null };
+const best: Record<string, Cand | null> = { coast: null, plain: null, mountain: null, gravel: null };
 for (const r of roads) {
   const n = r.points.length / 3;
   const ds = r.length / (n - 1);
@@ -24,7 +24,7 @@ for (const r of roads) {
       plain: l.plain > 0.95 ? 1 + Math.min(1, Math.hypot(x - ORIGIN.x, z - ORIGIN.z) / 1e9) - w.terrain.slope(x, z, 300) * 10 : 0,
       mountain: l.mountain > 0.9 ? y / 1000 : 0,
     };
-    for (const kind of Object.keys(best)) {
+    for (const kind of ["coast", "plain", "mountain"]) {
       const sc = scores[kind];
       if (sc > 0 && (!best[kind] || sc > best[kind]!.score)) best[kind] = { kind, road: r.id, s: i * ds, x, z, y, score: sc };
     }
@@ -52,6 +52,18 @@ for (const r of roads) {
   }
 }
 best.coast = coast;
+// 林道: 起点にいちばん近い林道の中ほど
+let gravel: Cand | null = null;
+for (const r of roads) {
+  if (r.surface !== "gravel" || r.length < 800) continue;
+  const n = r.points.length / 3;
+  const i = Math.floor(n / 2);
+  const x = r.points[i * 3] + r.origin[0];
+  const z = r.points[i * 3 + 2] + r.origin[1];
+  const d = Math.hypot(x - ORIGIN.x, z - ORIGIN.z);
+  if (!gravel || -d > gravel.score) gravel = { kind: "gravel", road: r.id, s: (i * r.length) / (n - 1), x, z, y: r.points[i * 3 + 1], score: -d };
+}
+best.gravel = gravel;
 mkdirSync("artifacts/m2", { recursive: true });
 writeFileSync("artifacts/m2/scenes.json", JSON.stringify(best, null, 2));
 console.log(JSON.stringify(best, null, 2));

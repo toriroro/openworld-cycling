@@ -192,6 +192,7 @@ const dev = {
     smoothEye = null;
   },
   teleport(x: number, z: number) {
+    camOverride = null;
     anchor = { x, z };
     follower = null;
     smoothEye = null;

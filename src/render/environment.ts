@@ -58,7 +58,7 @@ export class Environment {
     wg.rotateX(-Math.PI / 2);
     this.water = new THREE.Mesh(
       wg,
-      new THREE.MeshStandardMaterial({ color: "#2b5d7c", roughness: 0.12, metalness: 0.05, envMapIntensity: 0.6 }),
+      new THREE.MeshStandardMaterial({ color: "#3f7f9f", roughness: 0.22, metalness: 0.1 }),
     );
     this.water.name = "water";
     this.water.receiveShadow = false;

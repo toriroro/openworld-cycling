@@ -14,7 +14,7 @@ for (const [quality, w, h] of [["standard", 1440, 900], ["light", 844, 390]]) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   await page.goto(`${base}/?quality=${quality}&hud=0`);
   await page.waitForFunction(() => window.__dev.state().ready, null, { timeout: 120000 });
-  for (const kind of ["coast", "plain", "mountain"]) {
+  for (const kind of (process.env.KINDS || "coast,plain,mountain,gravel").split(",")) {
     const sc = scenes[kind];
     if (!sc) continue;
     await page.evaluate((s) => {

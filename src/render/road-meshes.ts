@@ -4,7 +4,9 @@
 import * as THREE from "three";
 import type { Terrain } from "../shared/world/terrain.ts";
 import type { Junction, Road } from "../shared/world/types.ts";
+import { hashString } from "../shared/world/hash.ts";
 import { rectDist, type RoadClient } from "../workers/road-client.ts";
+import { buildGravelSurface } from "./gravel-profile.ts";
 
 export const CHUNK_LENGTH = 250;
 
@@ -29,6 +31,8 @@ const C_POST = [0.6, 0.62, 0.62];
 const C_CONCRETE = [0.62, 0.61, 0.58];
 const C_SHOULDER = [0.72, 0.7, 0.66];
 const C_SURFACE = [1, 1, 1];
+/** 未舗装路の路肩（sRGB 0.42, 0.5, 0.28 を線形に） */
+const C_GRAVEL_VERGE = [0.148, 0.218, 0.061];
 
 class GeoBuilder {
   pos: number[] = [];
@@ -46,13 +50,18 @@ class GeoBuilder {
     if (both) this.idx.push(base, base + 2, base + 1, base, base + 3, base + 2);
   }
   /** 断面の2点を道なりにつないだ帯。left/right は各断面の点 */
-  strip(left: number[][], right: number[][], color: number[] | number[][], uv?: (i: number, side: 0 | 1) => [number, number]) {
+  strip(
+    left: number[][],
+    right: number[][],
+    color: number[] | ((i: number, side: 0 | 1) => number[]),
+    uv?: (i: number, side: 0 | 1) => [number, number],
+  ) {
     const base = this.pos.length / 3;
     const n = left.length;
     for (let i = 0; i < n; i++) {
       for (const [side, p] of [[0, left[i]], [1, right[i]]] as const) {
         this.pos.push(p[0], p[1], p[2]);
-        const c = Array.isArray(color[0]) ? (color as number[][])[i] : (color as number[]);
+        const c = typeof color === "function" ? color(i, side) : color;
         this.col.push(c[0], c[1], c[2]);
         const u = uv ? uv(i, side) : [0, 0];
         this.uv.push(u[0], u[1]);
@@ -206,24 +215,28 @@ export class RoadMeshes {
       L.push(at(j, -hw - ext, 0));
       R.push(at(j, hw + ext, 0));
     }
-    surf.strip(L, R, C_SURFACE, (j, side) => [side ? road.width / 4 : 0, sOf(j) / 4]);
+    const gravel = road.surface === "gravel";
+    if (gravel) buildGravelSurface(surf, at, cnt, sOf, hw, hashString(road.id));
+    else surf.strip(L, R, C_SURFACE, (j, side) => [side ? road.width / 4 : 0, sOf(j) / 4]);
 
     // 路肩（土の部分）: 端から 0.7m は少し下げて平ら、そこから 0.7m で地面の下へ
     for (const sign of [-1, 1]) {
       const a: number[][] = [], b: number[][] = [], c: number[][] = [];
       for (let j = 0; j < cnt; j++) {
         const br = isBridge(j);
-        a.push(at(j, sign * hw, 0));
-        b.push(at(j, sign * (hw + 0.7), br ? 0 : -0.04));
+        a.push(at(j, sign * hw, gravel ? -0.03 : 0));
+        b.push(at(j, sign * (hw + 0.7), br ? 0 : gravel ? -0.08 : -0.04));
         c.push(at(j, sign * (hw + 1.4), br ? 0 : -0.45));
       }
       const uvf = (j: number, side: 0 | 1) => [side * 0.2, sOf(j) / 4] as [number, number];
+      // 未舗装路の路肩は草に溶ける色
+      const sh = gravel ? C_GRAVEL_VERGE : C_SHOULDER;
       if (sign < 0) {
-        surf.strip(b, a, C_SHOULDER, uvf);
-        surf.strip(c, b, C_SHOULDER, uvf);
+        surf.strip(b, a, sh, uvf);
+        surf.strip(c, b, sh, uvf);
       } else {
-        surf.strip(a, b, C_SHOULDER, uvf);
-        surf.strip(b, c, C_SHOULDER, uvf);
+        surf.strip(a, b, sh, uvf);
+        surf.strip(b, c, sh, uvf);
       }
     }
 

@@ -14,7 +14,10 @@ const S_HILL = 501;
 const S_DETAIL_A = 601;
 const S_DETAIL_B = 602;
 
-/** 低い所を平らに寄せる高さ (m)。これより下は 2t²−t³ で縮める */
+/**
+ * 低い所を平らに寄せる高さ (m)。これより下は 0.5t + t² − 0.5t³ で縮める。
+ * 海面で傾きを 0 にすると海岸の 1〜2km が標高 1m 未満の平地になるため、0.5 の傾きを残す（GENERATOR_VERSION 3）
+ */
 const FLATTEN_HEIGHT = 140;
 
 export interface TerrainSample {
@@ -77,7 +80,7 @@ export class Terrain {
     if (e > 0) {
       if (e < FLATTEN_HEIGHT) {
         const t = e / FLATTEN_HEIGHT;
-        e = FLATTEN_HEIGHT * t * t * (2 - t);
+        e = FLATTEN_HEIGHT * t * (0.5 + t * (1 - 0.5 * t));
       }
       routeH = e;
     } else {
