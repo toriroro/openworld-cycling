@@ -24,6 +24,7 @@ import { Hud, type Settings } from "./ui/hud.ts";
 import { Input } from "./ui/input.ts";
 import { MapOverlay } from "./ui/map-overlay.ts";
 import { StampBook, StopPanel } from "./ui/cafe-panel.ts";
+import { ControlsHelp, TitleScreen } from "./ui/title.ts";
 import type { Cafe } from "./render/town-layout.ts";
 import { Minimap } from "./ui/minimap.ts";
 import type { RoadClient } from "./workers/road-client.ts";
@@ -86,6 +87,10 @@ export class Game {
   /** 音（モック仕様 7.5） */
   readonly sound = new SoundSystem();
   private volumeSel: HTMLSelectElement;
+  /** 保存データを読み終えた時（保存がなければ null） */
+  readonly ready: Promise<SaveData | null>;
+  readonly title = new TitleScreen();
+  readonly help = new ControlsHelp();
   private muteSel: HTMLSelectElement;
   private stampBook = new StampBook();
   private fpsSel: HTMLSelectElement;
@@ -94,7 +99,7 @@ export class Game {
     private view: WorldView,
     private roads: RoadClient,
     start: { x: number; z: number } = { x: ORIGIN.x, z: ORIGIN.z },
-    opts: { resume?: boolean } = {},
+    opts: { resume?: boolean; title?: boolean } = {},
   ) {
     this.anchor = { ...start };
     const settings: Settings = { power: this.manual.setting, quality: view.quality, hour: view.env.hour, camera: this.camera };
@@ -159,7 +164,7 @@ export class Game {
       },
     );
     this.fpsSel = this.hud.addSelect(
-      "眺める時のフレームレート",
+      "眺める時の fps",
       [
         ["30", "30 fps"],
         ["free", "上限なし"],
@@ -195,13 +200,30 @@ export class Game {
       }
     });
     addEventListener("pagehide", () => void this.save());
-    if (opts.resume === false) this.loaded = true;
-    else
-      void platform.storage.load(SAVE_KEY).then((text) => {
-        const data = parseSave(text);
-        if (data) this.applySave(data);
-        this.loaded = true;
-      });
+    this.ready =
+      opts.resume === false
+        ? Promise.resolve(null)
+        : platform.storage.load(SAVE_KEY).then((text) => {
+            const data = parseSave(text);
+            if (data) this.applySave(data);
+            return data;
+          });
+    void this.ready.then(() => {
+      this.loaded = true;
+    });
+    // 起動画面（止めた状態で後ろに世界を出しておく）
+    this.title.onChoose = (c) => this.leaveTitle(c);
+    this.title.onHelp = () => this.help.open();
+    this.hud.addButton("操作", () => {
+      this.hud.toggleMenu(false);
+      this.help.open();
+    });
+    this.hud.addButton("タイトルへ", () => this.showTitle());
+    if (opts.title) {
+      this.paused = true;
+      this.hud.root.classList.add("hidden");
+      void this.ready.then((d) => this.title.show(d));
+    }
     requestAnimationFrame((t) => this.tick(t));
   }
 
@@ -384,6 +406,38 @@ export class Game {
       stamped: () => this.stampSet,
       onTap: (x, z) => this.ride?.setGoal(x, z),
     });
+  }
+
+  /** 起動画面を出す（止めて保存する） */
+  showTitle() {
+    this.hud.toggleMenu(false);
+    this.depart();
+    this.paused = true;
+    if (this.mapOverlay.isOpen) this.mapOverlay.close();
+    this.hud.root.classList.add("hidden");
+    void this.save().then(() => this.title.show(this.snapshot()));
+  }
+
+  private leaveTitle(c: "continue" | "new" | "watch") {
+    if (c === "new") this.startNew();
+    if (c === "watch") this.setWatching(true);
+    else this.setWatching(false);
+    this.hud.root.classList.remove("hidden");
+    this.paused = false;
+    this.smoothEye = null;
+  }
+
+  /** はじめから: 記録（位置・総距離・走った区間・スタンプ）を消して起点から。設定と装いは残す */
+  startNew() {
+    this.ridden = new RiddenLog();
+    this.stamps = [];
+    this.stampSet = new Set();
+    this.lastCafe = null;
+    this.resume = { pos: null, odometer: 0, climb: 0, time: 0, generator: GENERATOR_VERSION };
+    this.anchor = { x: ORIGIN.x, z: ORIGIN.z };
+    this.ride = null;
+    this.smoothEye = null;
+    void this.save();
   }
 
   /** 止まった所の 30m 以内に喫茶店の前があれば、立ち寄りにする */

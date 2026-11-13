@@ -113,6 +113,7 @@ export class Hud {
     mk("視点", "camera");
     mk("眺める", "watch");
     mk("自転車と装い", "outfit");
+    h("div", "menu-head", "設定", this.menu);
     const rp = row("出力");
     const power = h("input", "", "", rp);
     power.type = "range";
@@ -156,7 +157,8 @@ export class Hud {
       hourOut.textContent = fmtHour(Number(hour.value));
       this.onSettings({ hour: Number(hour.value) });
     });
-    this.keysEl = h("div", "menu-keys", "キー: Space 漕ぐ / Shift ブレーキ / ← ↑ → 分岐 / ↓ Uターン / A D 左右 / Q R 後方を見る（左・右） / C 視点 / V 眺める / P 一時停止", this.menu);
+    // 足した設定の行はこの印の前に入る（キーの一覧は「操作」の画面へ移した）
+    this.keysEl = h("div", "menu-end", "", this.menu);
     this.settingsEls = { power, powerOut, quality, hour, hourOut, camera };
 
     // 一時停止の表示

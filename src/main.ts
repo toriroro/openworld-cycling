@@ -1,4 +1,6 @@
-// 入口。既定は走るゲーム（M3）。?mode=m2 で M2 の確認用（道路に沿って自動で進むカメラ）。
+// 入口。起動画面から走るゲームを始める。
+// 開発・検証用: ?mode=m2（M2 の道路に沿って進むカメラ）、?notitle=1（起動画面を出さない）、?fresh=1（保存を使わない）、?x=&z=（場所を指定）。
+// 計測・検証用の窓口 window.__dev は、開発サーバー・?dev=1・自動操作のブラウザ（navigator.webdriver）の時だけ置く。
 
 import "./ui/game.css";
 import { startM2 } from "./dev/m2-camera.ts";
@@ -28,13 +30,17 @@ function resize() {
 new ResizeObserver(resize).observe(canvas);
 resize();
 
-if (q.get("mode") === "m2") {
+const devTools = import.meta.env.DEV || q.get("dev") === "1" || navigator.webdriver;
+
+if (q.get("mode") === "m2" && devTools) {
   startM2(view, roads, q, startX, startZ);
 } else {
   document.getElementById("hud")!.hidden = true;
   // 保存データがあれば続きから（?x= ?z= で場所を指定した時と ?fresh=1 の時は使わない。検証用）
   const resume = !q.has("x") && !q.has("z") && q.get("fresh") !== "1";
-  const game = new Game(view, roads, { x: startX, z: startZ }, { resume });
+  // 自動操作のブラウザ（検証スクリプト）と場所を指定した時は起動画面を出さない
+  const title = !navigator.webdriver && q.get("notitle") !== "1" && resume;
+  const game = new Game(view, roads, { x: startX, z: startZ }, { resume, title });
   // 計測・検証用の窓口（scripts/m3-*.mjs から使う）
   const dev = {
     view,
@@ -110,5 +116,5 @@ if (q.get("mode") === "m2") {
       return out;
     },
   };
-  (window as unknown as { __dev: typeof dev }).__dev = dev;
+  if (devTools) (window as unknown as { __dev: typeof dev }).__dev = dev;
 }
