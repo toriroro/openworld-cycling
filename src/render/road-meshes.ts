@@ -6,6 +6,7 @@ import type { Terrain } from "../shared/world/terrain.ts";
 import type { Junction, Road } from "../shared/world/types.ts";
 import { hashString } from "../shared/world/hash.ts";
 import { rectDist, type RoadClient } from "../workers/road-client.ts";
+import { buildAsphaltSurface } from "./asphalt-profile.ts";
 import { buildGravelSurface } from "./gravel-profile.ts";
 
 export const CHUNK_LENGTH = 250;
@@ -14,6 +15,8 @@ export interface RoadMaterials {
   paved: THREE.Material;
   gravel: THREE.Material;
   structure: THREE.Material;
+  /** 補修跡（舗装の上に重ねる） */
+  patch: THREE.Material;
 }
 
 interface Chunk {
@@ -30,7 +33,6 @@ const C_RAIL = [0.78, 0.8, 0.8];
 const C_POST = [0.6, 0.62, 0.62];
 const C_CONCRETE = [0.62, 0.61, 0.58];
 const C_SHOULDER = [0.72, 0.7, 0.66];
-const C_SURFACE = [1, 1, 1];
 /** 未舗装路の路肩（sRGB 0.42, 0.5, 0.28 を線形に） */
 const C_GRAVEL_VERGE = [0.148, 0.218, 0.061];
 
@@ -187,6 +189,7 @@ export class RoadMeshes {
     const hw = road.width / 2;
     const surf = new GeoBuilder();
     const str = new GeoBuilder();
+    const pat = new GeoBuilder();
 
     // 断面の基準: 各点の位置と右向きのベクトル
     const cnt = i1 - i0 + 1;
@@ -217,7 +220,7 @@ export class RoadMeshes {
     }
     const gravel = road.surface === "gravel";
     if (gravel) buildGravelSurface(surf, at, cnt, sOf, hw, hashString(road.id));
-    else surf.strip(L, R, C_SURFACE, (j, side) => [side ? road.width / 4 : 0, sOf(j) / 4]);
+    else buildAsphaltSurface(surf, pat, at, cnt, sOf, hw, road.cls <= 1, hashString(road.id), (j) => (isBridge(j) ? 0.3 : 0));
 
     // 路肩（土の部分）: 端から 0.7m は少し下げて平ら、そこから 0.7m で地面の下へ
     for (const sign of [-1, 1]) {
@@ -311,20 +314,22 @@ export class RoadMeshes {
 
     const g = new THREE.BufferGeometry();
     const all = new GeoBuilder();
-    all.pos = [...surf.pos, ...str.pos];
-    all.col = [...surf.col, ...str.col];
-    all.uv = [...surf.uv, ...str.uv];
+    all.pos = [...surf.pos, ...str.pos, ...pat.pos];
+    all.col = [...surf.col, ...str.col, ...pat.col];
+    all.uv = [...surf.uv, ...str.uv, ...pat.uv];
     const off = surf.pos.length / 3;
-    all.idx = [...surf.idx, ...str.idx.map((v) => v + off)];
+    const off2 = off + str.pos.length / 3;
+    all.idx = [...surf.idx, ...str.idx.map((v) => v + off), ...pat.idx.map((v) => v + off2)];
     g.setAttribute("position", new THREE.Float32BufferAttribute(all.pos, 3));
     g.setAttribute("color", new THREE.Float32BufferAttribute(all.col, 3));
     g.setAttribute("uv", new THREE.Float32BufferAttribute(all.uv, 2));
     g.setIndex(all.pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(all.idx, 1) : new THREE.Uint16BufferAttribute(all.idx, 1));
     g.addGroup(0, surf.idx.length, 0);
     g.addGroup(surf.idx.length, str.idx.length, 1);
+    if (pat.idx.length) g.addGroup(surf.idx.length + str.idx.length, pat.idx.length, 2);
     g.computeVertexNormals();
     g.computeBoundingSphere();
-    const mesh = new THREE.Mesh(g, [road.surface === "paved" ? this.mats.paved : this.mats.gravel, this.mats.structure]);
+    const mesh = new THREE.Mesh(g, [road.surface === "paved" ? this.mats.paved : this.mats.gravel, this.mats.structure, this.mats.patch]);
     mesh.name = "road";
     mesh.userData.road = road.id;
     mesh.receiveShadow = true;

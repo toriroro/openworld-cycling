@@ -55,7 +55,7 @@ export class WorldView {
       normalScale: new THREE.Vector2(0.5, 0.5),
       roughness: 1,
       vertexColors: true,
-      color: "#9a9a96",
+      color: "#a8a8a4",
       polygonOffset: true,
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -2,
@@ -73,14 +73,18 @@ export class WorldView {
       vertexColors: true,
       roughness: 0.7,
       side: THREE.DoubleSide,
+      // 区画線は補修跡の上に引き直されるので、補修跡より手前に描く
       polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -4,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -8,
     });
-    this.materials.push(terrainMat, paved, gravel, structure);
+    const patch = paved.clone();
+    patch.polygonOffsetFactor = -2;
+    patch.polygonOffsetUnits = -4;
+    this.materials.push(terrainMat, paved, gravel, structure, patch);
 
     this.terrain = new TerrainStreamer(seed, terrainMat, roads);
-    this.roadMeshes = new RoadMeshes(roads, this.heights, { paved, gravel, structure });
+    this.roadMeshes = new RoadMeshes(roads, this.heights, { paved, gravel, structure, patch });
     this.scene.add(this.terrain.group, this.roadMeshes.group);
     this.setQuality(matchMedia("(pointer: coarse)").matches ? "light" : "standard");
   }
