@@ -30,6 +30,9 @@ legend.innerHTML = [
   `<div class="lg-row"><span class="sw dia" style="background:${POI_COLORS.viewpoint}"></span>展望地</div>`,
   `<div class="lg-row"><span class="sw dot" style="background:#c0262d"></span>町 <span class="sw dot" style="background:#f2f2f2"></span>集落</div>`,
   `<div class="lg-row"><span class="sw br"></span>橋</div>`,
+  `<div class="lg-title">水</div>`,
+  `<div class="lg-row"><span class="sw" style="background:rgb(70,128,196)"></span>川 <span class="sw" style="background:rgb(96,150,204)"></span>湖</div>`,
+  `<div class="lg-row"><span class="sw" style="background:rgb(196,198,160)"></span>河原</div>`,
 ].join("");
 
 const map = new WorldMap(canvas, {

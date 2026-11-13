@@ -29,7 +29,11 @@ for (const [name, launch] of targets) {
   await browser.close();
 }
 const ref = results[0].hash;
-for (const r of results) console.log(`${r.engine.padEnd(26)} ${r.error ? "起動できない: " + r.error : `${r.hash} ${r.hash === ref ? "一致" : "不一致"} 道路 ${r.roads} ${r.ms}ms`}`);
+const refRivers = results[0].rivers;
+for (const r of results)
+  console.log(
+    `${r.engine.padEnd(26)} ${r.error ? "起動できない: " + r.error : `${r.hash} ${r.hash === ref ? "一致" : "不一致"} 道路 ${r.roads}  川 ${r.rivers} ${r.rivers === refRivers ? "一致" : "不一致"}  ${r.ms}ms`}`,
+  );
 mkdirSync("artifacts/cross-engine", { recursive: true });
 const file = `artifacts/cross-engine/${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
 writeFileSync(file, JSON.stringify({ query, results }, null, 2));

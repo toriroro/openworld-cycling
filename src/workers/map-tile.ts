@@ -13,14 +13,28 @@ const C_MOUNTAIN: RGB = [150, 140, 118];
 const C_HIGH: RGB = [196, 190, 182];
 const C_SEA_SHALLOW: RGB = [150, 196, 222];
 const C_SEA_DEEP: RGB = [62, 108, 160];
+const C_RIVER: RGB = [70, 128, 196];
+const C_LAKE: RGB = [96, 150, 204];
+const C_FLOODPLAIN: RGB = [206, 210, 176];
 
 /** タイル（左上 x0, z0、1画素 mpp m）の RGBA */
 export function renderTile(terrain: Terrain, x0: number, z0: number, mpp: number): Uint8ClampedArray {
   const N = TILE_PX;
   const G = N + 2;
   const hs = new Float64Array(G * G);
+  // 水の種類: 0 陸、1 川（細い川は 1 画素以上の線にする）、2 湖、3 河原
+  const wk = new Uint8Array(N * N);
   for (let j = 0; j < G; j++)
-    for (let i = 0; i < G; i++) hs[j * G + i] = terrain.height(x0 + (i - 1 + 0.5) * mpp, z0 + (j - 1 + 0.5) * mpp);
+    for (let i = 0; i < G; i++) {
+      const s = terrain.sample(x0 + (i - 1 + 0.5) * mpp, z0 + (j - 1 + 0.5) * mpp, true);
+      hs[j * G + i] = s.height;
+      if (i < 1 || j < 1 || i > N || j > N) continue;
+      const k = (j - 1) * N + (i - 1);
+      if (s.water === 1) continue;
+      if (s.water === 3 || s.riverNear < Math.max(s.riverHalf, 0.6 * mpp)) wk[k] = 1;
+      else if (s.water === 2) wk[k] = 2;
+      else if (s.floodplain) wk[k] = 3;
+    }
 
   // 景観の重みは粗い格子で求めて補間する
   const L = 17;
@@ -47,6 +61,7 @@ export function renderTile(terrain: Terrain, x0: number, z0: number, mpp: number
       const h = hs[(j + 1) * G + i + 1];
       const o = (j * N + i) * 4;
       let c: RGB;
+      const water = wk[j * N + i];
       if (h < 0) {
         const t = Math.min(1, -h / 120);
         c = mix(C_SEA_SHALLOW, C_SEA_DEEP, t);
@@ -70,12 +85,21 @@ export function renderTile(terrain: Terrain, x0: number, z0: number, mpp: number
         const d = lw[((jj + 1) * L + ii + 1) * 4 + k];
         wv[k] = (a * (1 - u) + b * u) * (1 - v) + (cc * (1 - u) + d * u) * v;
       }
+      if (water === 1 || water === 2) {
+        c = water === 1 ? C_RIVER : C_LAKE;
+        out[o] = c[0];
+        out[o + 1] = c[1];
+        out[o + 2] = c[2];
+        out[o + 3] = 255;
+        continue;
+      }
       const mtn = h > 900 ? mix(C_MOUNTAIN, C_HIGH, Math.min(1, (h - 900) / 600)) : C_MOUNTAIN;
       c = [
         C_COAST[0] * wv[0] + C_PLAIN[0] * wv[1] + mtn[0] * wv[2] + C_OTHER[0] * wv[3],
         C_COAST[1] * wv[0] + C_PLAIN[1] * wv[1] + mtn[1] * wv[2] + C_OTHER[1] * wv[3],
         C_COAST[2] * wv[0] + C_PLAIN[2] * wv[1] + mtn[2] * wv[2] + C_OTHER[2] * wv[3],
       ];
+      if (water === 3) c = mix(c, C_FLOODPLAIN, 0.7);
       // 陰影
       const dx = (hs[(j + 1) * G + i + 2] - hs[(j + 1) * G + i]) / (2 * mpp) * exag;
       const dz = (hs[(j + 2) * G + i + 1] - hs[j * G + i + 1]) / (2 * mpp) * exag;

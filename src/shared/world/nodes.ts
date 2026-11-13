@@ -10,8 +10,12 @@ import {
 import { hash, hashUnit } from "./hash.ts";
 import { placeName } from "./names.ts";
 import { smoothstep } from "./noise.ts";
+import { RIVER_MIN_ACC } from "./rivers.ts";
 import type { Terrain } from "./terrain.ts";
 import type { NodeKind, RoadClass, WorldNode } from "./types.ts";
+
+/** 結節点を置かない、川の河原の縁からの距離 (m) */
+const NODE_RIVER_GAP = 80;
 
 const SALT_NODE = 11;
 const SALT_IMPORTANCE = 12;
@@ -30,13 +34,20 @@ export function makeNode(seed: number, terrain: Terrain, cx: number, cz: number)
     const uz = 0.08 + 0.84 * hashUnit(seed, cx, cz, SALT_NODE * 64 + k * 2 + 1);
     const x = Math.floor((cx + ux) * NODE_CELL / ROUTE_GRID) * ROUTE_GRID;
     const z = Math.floor((cz + uz) * NODE_CELL / ROUTE_GRID) * ROUTE_GRID;
-    const y = terrain.routeHeight(x, z);
+    const ts = terrain.sample(x, z, false);
+    const y = ts.routeHeight;
     if (y < 0.02) continue;
+    // 川の河原の中と縁から 80m、湖の中には置かない（河川の草案 4.2）
+    if (ts.water !== 0 || ts.plainGap < NODE_RIVER_GAP) continue;
     const slope = terrain.slope(x, z, 150);
     // 低い所（谷・海沿い）を好む。山地では尾根の上ではなく谷に置き、道が峠を越えるようにする。
     // 海から 600m 以内を強く好み、海沿いの町と海岸を通る道ができるようにする（GENERATOR_VERSION 2）
     const coastal = y < 40 ? 0.35 + 1.6 * terrain.seaNearness(x, z) : 0;
-    const score = -slope * 12 - y / 250 + coastal;
+    // 大きな川の近く（1.5km 以内）と河口の近く（4km 以内）を好む。川沿いの町・河口の町（GENERATOR_VERSION 5）
+    const nr = terrain.rivers.nearRiver(x, z, 1500, RIVER_MIN_ACC);
+    const riverside = nr.river < 1500 ? 0.45 * (1 - smoothstep(150, 1500, nr.river)) : 0;
+    const estuary = 0.6 * (1 - smoothstep(800, 4000, nr.mouth));
+    const score = -slope * 12 - y / 250 + coastal + riverside + estuary;
     if (!best || score > best.score) best = { x, z, y, score, slope };
   }
   if (!best) return null;
@@ -91,8 +102,9 @@ export function longestSeaRun(terrain: Terrain, a: WorldNode, b: WorldNode): num
   const step = len / n;
   for (let i = 0; i <= n; i++) {
     const t = i / n;
-    const h = terrain.routeHeight(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t);
-    if (h < 0) {
+    const s = terrain.sample(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t, false);
+    // 海と湖（川は橋で渡る）
+    if (s.water === 1 || s.water === 2) {
       run += step;
       if (run > best) best = run;
     } else run = 0;

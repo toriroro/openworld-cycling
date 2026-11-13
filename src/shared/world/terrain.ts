@@ -1,7 +1,9 @@
 // 高さ関数と景観タイプ（モック仕様 4.3、4.4）。
 // 分岐に使う値なので加減乗除・sqrt・floor・abs・min・max だけで計算する。
 
+import { now } from "./clock.ts";
 import { fbm, gradNoise, ridged, smoothstep } from "./noise.ts";
+import { emptyHit, RiverNet, type RiverHit } from "./rivers.ts";
 
 const S_WARP_X = 101;
 const S_WARP_Z = 102;
@@ -27,6 +29,24 @@ export interface TerrainSample {
   routeHeight: number;
   /** 山地の分布 0〜1 */
   mountain: number;
+  /** 水: 0 = 陸、1 = 海（高さ 0 未満）、2 = 湖、3 = 川の水面 */
+  water: 0 | 1 | 2 | 3;
+  /** 水面の高さ（water が 0 でない時。川の河原の内側ではその川の水面の高さ） */
+  waterLevel: number;
+  /** 川の河原（河川敷）の内側。水面を含む */
+  floodplain: boolean;
+  /** 川の河原の縁までの距離（影響の範囲外なら Infinity） */
+  plainGap: number;
+  /** 最も近い川の線までの距離（影響の範囲外なら Infinity）と、その川の水面の半幅 */
+  riverNear: number;
+  riverHalf: number;
+}
+
+interface BaseSample {
+  base: number;
+  mountain: number;
+  wx: number;
+  wz: number;
 }
 
 export interface LandscapeWeights {
@@ -37,7 +57,13 @@ export interface LandscapeWeights {
 }
 
 export class Terrain {
-  constructor(readonly seed: number) {}
+  /** 大きな川の網（河川の草案 3章）。下地の高さだけから決まる */
+  readonly rivers: RiverNet;
+  private readonly hit: RiverHit = emptyHit();
+
+  constructor(readonly seed: number) {
+    this.rivers = new RiverNet(seed, (x, z) => this.baseSample(x, z).base, undefined, now);
+  }
 
   private s(k: number): number {
     return (this.seed * 7919 + k) | 0;
@@ -53,7 +79,15 @@ export class Terrain {
     return this.sample(x, z, true).height;
   }
 
-  sample(x: number, z: number, withDetail: boolean): TerrainSample {
+  /**
+   * 下地の高さ: 大陸・山地・山脈・丘を足し、低地を平らに寄せた値（河川の草案 3.1）。
+   * 川の網はこの値だけから決め、決めた川でこれを削ったものを routeHeight にする。
+   */
+  baseHeight(x: number, z: number): number {
+    return this.baseSample(x, z).base;
+  }
+
+  private baseSample(x: number, z: number): BaseSample {
     // ドメインワープで直線的な模様を消す
     const wx1 = x + 3000 * fbm(this.s(S_WARP_X), x, z, 24000, 2);
     const wz1 = z + 3000 * fbm(this.s(S_WARP_Z), x, z, 24000, 2);
@@ -76,29 +110,61 @@ export class Terrain {
 
     let e = land * 420 + mountain * ridge * 1500 + hill * hillAmp;
 
-    let routeH: number;
+    let base: number;
     if (e > 0) {
       if (e < FLATTEN_HEIGHT) {
         const t = e / FLATTEN_HEIGHT;
         e = FLATTEN_HEIGHT * t * (0.5 + t * (1 - 0.5 * t));
       }
-      routeH = e;
+      base = e;
     } else {
       // 海底: 海岸から沖へゆるく深くなり −200m 程度で止まる
       const d = -e / 160;
-      routeH = -200 * (d >= 1 ? 1 : d * (2 - d));
+      base = -200 * (d >= 1 ? 1 : d * (2 - d));
     }
+    return { base, mountain, wx, wz };
+  }
+
+  sample(x: number, z: number, withDetail: boolean): TerrainSample {
+    const b = this.baseSample(x, z);
+    const { mountain, wx, wz } = b;
+    // 大きな川で削る（河川の草案 3.6）。堤防は削った後に足す
+    const rv = this.rivers.query(x, z, b.base, this.hit);
+    const routeH = rv.carve + rv.levee;
 
     let h = routeH;
     if (withDetail) {
-      // 細部（500m と 60m）。海面付近では消して陸と海の境を細部で変えない
+      // 細部（500m と 60m）。海面付近と川の河原・水面では消す
       const rough = 0.25 + 0.75 * mountain;
-      const nearSea = smoothstep(2, 14, routeH < 0 ? -routeH : routeH);
+      const nearSea = smoothstep(2, 14, routeH < 0 ? -routeH : routeH) * (1 - rv.flat);
       const d1 = gradNoise(this.s(S_DETAIL_A), wx / 500, wz / 500) * 14 * rough;
       const d2 = gradNoise(this.s(S_DETAIL_B), x / 60, z / 60) * 1.3 * (0.4 + rough);
       h = routeH + (d1 + d2) * nearSea;
     }
-    return { height: h, routeHeight: routeH, mountain };
+    let water: TerrainSample["water"] = 0;
+    let waterLevel = rv.floodplain ? rv.plainLevel : 0;
+    if (routeH < 0) {
+      water = 1;
+      waterLevel = 0;
+    }
+    else if (rv.water) {
+      water = 3;
+      waterLevel = rv.waterLevel;
+    } else if (rv.lake) {
+      water = 2;
+      waterLevel = rv.lakeLevel;
+    }
+    return {
+      height: h,
+      routeHeight: routeH,
+      mountain,
+      water,
+      waterLevel,
+      floodplain: rv.floodplain,
+      plainGap: rv.plainGap,
+      riverNear: rv.near,
+      riverHalf: rv.nearHalf,
+    };
   }
 
   /** 周囲 (±r m) の傾斜（細部を除いた高さから） */

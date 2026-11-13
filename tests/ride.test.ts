@@ -158,8 +158,8 @@ describe("行き先までの経路（モック仕様 6.3）", () => {
     const ride = new Ride(net, { road: start.id, s: 5, dir: 1 }, new AutoPower(400));
     const visited: string[] = [];
     for (const [name, x, z] of [
-      ["海岸", -40856, 20297],
-      ["平野", -26695, 18331],
+      ["海岸", -35705, 17795],
+      ["平野", -27181, 17918],
       ["山岳", -37662, -432],
     ] as const) {
       expect(ride.setGoal(x, z), name).toBe(true);

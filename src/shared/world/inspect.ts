@@ -2,6 +2,7 @@
 
 import { ROAD_CLASSES } from "./constants.ts";
 import { circumradius } from "./shape.ts";
+import type { Lake, RiverSeg } from "./rivers.ts";
 import type { Road } from "./types.ts";
 import { buildJunctions, type Rect, type World } from "./world.ts";
 
@@ -28,6 +29,33 @@ export function roadsHash(roads: Road[]): string {
   for (const r of sorted) {
     h ^= roadHash(r);
     h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+
+/** 川の線と湖のハッシュ（倍精度のビット列に FNV-1a を掛ける。端末間の一致の検査。河川の草案 9 の 6） */
+export function riversHash(segs: RiverSeg[], lakes: Lake[]): string {
+  let h = 0x811c9dc5;
+  const f = new Float64Array(1);
+  const u = new Uint32Array(f.buffer);
+  const mix = (v: number) => {
+    f[0] = v;
+    h = Math.imul(h ^ u[0], 0x01000193);
+    h = Math.imul(h ^ u[1], 0x01000193);
+  };
+  for (const s of segs) {
+    mix(s.i);
+    mix(s.j);
+    mix(s.di);
+    mix(s.dj);
+    mix(s.acc);
+    for (const arr of [s.x, s.z, s.w, s.ww, s.wf, s.v, s.lv]) for (let p = 0; p < arr.length; p++) mix(arr[p]);
+  }
+  for (const l of lakes) {
+    mix(l.x);
+    mix(l.z);
+    mix(l.bottom);
+    mix(l.level);
   }
   return (h >>> 0).toString(16).padStart(8, "0");
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ORIGIN } from "../src/shared/world/constants.ts";
 import { roadHash } from "../src/shared/world/inspect.ts";
 import { Terrain } from "../src/shared/world/terrain.ts";
 import { type Rect, World } from "../src/shared/world/world.ts";
@@ -51,7 +52,11 @@ describe("地形タイル", () => {
     const w = new World(6);
     const t = new Terrain(6);
     const size = 256;
-    const tile = { x0: -32768, z0: 11008 };
+    // 起点から出る道路の 300m 先を含むタイル
+    const near = w.roadsInRect({ x0: ORIGIN.x - 500, z0: ORIGIN.z - 500, x1: ORIGIN.x + 500, z1: ORIGIN.z + 500 });
+    const first = near.filter((r) => r.start === ORIGIN.node).sort((a, b) => (a.id < b.id ? -1 : 1))[0];
+    const p0 = sampleRoad(first, 300);
+    const tile = { x0: Math.floor(p0.x / size) * size, z0: Math.floor(p0.z / size) * size };
     const roads = w.roadsInRect({ x0: tile.x0 - 100, z0: tile.z0 - 100, x1: tile.x0 + size + 100, z1: tile.z0 + size + 100 });
     expect(roads.length).toBeGreaterThan(0);
     const pts: number[] = [];

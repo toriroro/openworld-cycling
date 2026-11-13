@@ -248,8 +248,10 @@ export interface ProfileInput {
   xz: Polyline;
   /** 各点の細部を除いた地面の高さ */
   routeGround: Float64Array;
-  /** 各点が水の上か */
+  /** 各点が水の上か（0 = 陸、1 = 海・湖、2 = 川の水面） */
   water: Uint8Array;
+  /** 橋の路面の目標の高さ（NaN 以外の点は地面の代わりにこの高さへ寄せる。川の水面と河原、湖の上） */
+  deck?: Float64Array;
   maxGrade: number;
   startY: number;
   endY: number;
@@ -264,7 +266,9 @@ export function computeProfile(inp: ProfileInput): Float64Array {
   const ds = n > 1 ? polylineLength(inp.xz) / (n - 1) : ROAD_STEP;
   const target = new Float64Array(n);
   for (let i = 0; i < n; i++) {
-    target[i] = inp.water[i] ? BRIDGE_DECK_OVER_WATER : Math.max(inp.routeGround[i], ROAD_MIN_ELEVATION);
+    const dk = inp.deck ? inp.deck[i] : NaN;
+    if (dk === dk) target[i] = Math.max(dk, inp.routeGround[i], ROAD_MIN_ELEVATION);
+    else target[i] = inp.water[i] ? BRIDGE_DECK_OVER_WATER : Math.max(inp.routeGround[i], ROAD_MIN_ELEVATION);
   }
   // ガウスの平滑化
   const sig = PROFILE_SIGMA / ds;
@@ -323,7 +327,7 @@ export function computeProfile(inp: ProfileInput): Float64Array {
   return y;
 }
 
-/** 橋の区間。路面が地面より 6m 以上高い所が 40m 以上続く所と、水面上の区間 */
+/** 橋の区間。路面が地面より 6m 以上高い所が 40m 以上続く所と、水面上の区間（川の水面は短くても橋にする） */
 export function detectBridges(y: Float64Array, ground: Float64Array, water: Uint8Array, ds: number): Span[] {
   const n = y.length;
   const isB = new Uint8Array(n);
@@ -339,12 +343,17 @@ export function detectBridges(y: Float64Array, ground: Float64Array, water: Uint
   }
   // 水面上
   runStart = -1;
+  let river = false;
   const pad = Math.ceil(6 / ds);
   for (let i = 0; i <= n; i++) {
-    const w = i < n && water[i] === 1;
-    if (w && runStart < 0) runStart = i;
+    const w = i < n && water[i] >= 1;
+    if (w && runStart < 0) {
+      runStart = i;
+      river = false;
+    }
+    if (w && water[i] === 2) river = true;
     if (!w && runStart >= 0) {
-      if ((i - runStart) * ds >= WATER_BRIDGE_MIN_LENGTH)
+      if (river || (i - runStart) * ds >= WATER_BRIDGE_MIN_LENGTH)
         for (let k = Math.max(0, runStart - pad); k < Math.min(n, i + pad); k++) isB[k] = 1;
       runStart = -1;
     }

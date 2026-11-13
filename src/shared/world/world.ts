@@ -2,6 +2,7 @@
 // どの結果も「種と位置」だけで決まり、計算の順序や起点によらない（モック仕様 4.6、4.7、4.10）。
 
 import {
+  BRIDGE_DECK_OVER_WATER,
   EDGE_CELL_REACH,
   PASS_PROMINENCE,
   NODE_CELL,
@@ -47,6 +48,8 @@ export interface RoadTiming {
 }
 
 const CHUNK = 64;
+/** 経路探索で川の河原とみなす、河原の縁からの距離 (m)。50m 格子が細い川を飛び越えないように */
+const RIVER_PLAIN_MARGIN = 30;
 const CHUNK_KEY_OFFSET = 1 << 20;
 
 export class World {
@@ -56,7 +59,7 @@ export class World {
   private raws = new Map<string, MainData>();
   private mains = new Map<string, MainData>();
   private branches = new Map<string, Road[]>();
-  private chunks = new Map<number, Float64Array>();
+  private chunks = new Map<number, { h: Float64Array; f: Uint8Array }>();
   private poiCache = new Map<string, Poi[]>();
   /** 枝道の端が主要道の途中にくっつく位置（道路の識別子 → 始点・終点） */
   readonly attachments = new Map<string, { start?: Attachment; end?: Attachment }>();
@@ -178,20 +181,30 @@ export class World {
     return [...seen.values()].sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
   }
 
-  /** 格子点の routeHeight（3.2km 角のかたまりで覚える） */
-  gridHeight(ix: number, iz: number): number {
+  /** 格子点の routeHeight と印（3.2km 角のかたまりで覚える） */
+  private gridChunk(ix: number, iz: number): { c: { h: Float64Array; f: Uint8Array }; o: number } {
     const kx = Math.floor(ix / CHUNK);
     const kz = Math.floor(iz / CHUNK);
     const key = (kx + CHUNK_KEY_OFFSET) * 2097152 + (kz + CHUNK_KEY_OFFSET);
     let c = this.chunks.get(key);
     if (!c) {
-      c = new Float64Array(CHUNK * CHUNK);
+      c = { h: new Float64Array(CHUNK * CHUNK), f: new Uint8Array(CHUNK * CHUNK) };
       for (let j = 0; j < CHUNK; j++)
-        for (let i = 0; i < CHUNK; i++)
-          c[j * CHUNK + i] = this.terrain.routeHeight((kx * CHUNK + i) * ROUTE_GRID, (kz * CHUNK + j) * ROUTE_GRID);
+        for (let i = 0; i < CHUNK; i++) {
+          const s = this.terrain.sample((kx * CHUNK + i) * ROUTE_GRID, (kz * CHUNK + j) * ROUTE_GRID, false);
+          c.h[j * CHUNK + i] = s.routeHeight;
+          // bit0: 水（海・湖）、bit1: 川の河原と縁から 30m（河川の草案 4.1）
+          c.f[j * CHUNK + i] = (s.water === 1 || s.water === 2 ? 1 : 0) | (s.plainGap < RIVER_PLAIN_MARGIN ? 2 : 0);
+        }
       this.chunks.set(key, c);
     }
-    return c[(iz - kz * CHUNK) * CHUNK + (ix - kx * CHUNK)];
+    return { c, o: (iz - kz * CHUNK) * CHUNK + (ix - kx * CHUNK) };
+  }
+
+  /** 格子点の routeHeight */
+  gridHeight(ix: number, iz: number): number {
+    const { c, o } = this.gridChunk(ix, iz);
+    return c.h[o];
   }
 
   private routeGrid(r: Rect): RouteGrid {
@@ -202,8 +215,14 @@ export class World {
     const w = ix1 - ix0 + 1;
     const h = iz1 - iz0 + 1;
     const heights = new Float64Array(w * h);
-    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) heights[j * w + i] = this.gridHeight(ix0 + i, iz0 + j);
-    return { ix0, iz0, w, h, heights };
+    const flags = new Uint8Array(w * h);
+    for (let j = 0; j < h; j++)
+      for (let i = 0; i < w; i++) {
+        const { c, o } = this.gridChunk(ix0 + i, iz0 + j);
+        heights[j * w + i] = c.h[o];
+        flags[j * w + i] = c.f[o];
+      }
+    return { ix0, iz0, w, h, heights, flags };
   }
 
   /** 主要道の探索と整形の結果。両端の結節点だけで決まる */
@@ -483,13 +502,22 @@ export class World {
     const routeGround = new Float64Array(n);
     const ground = new Float64Array(n);
     const water = new Uint8Array(n);
+    // 川の水面・河原と湖の上は、水面から BRIDGE_DECK_OVER_WATER 上を路面の目標にする（河川の草案 4.1）
+    const deck = new Float64Array(n).fill(NaN);
     for (let i = 0; i < n; i++) {
       const s = this.terrain.sample(xz[i * 2], xz[i * 2 + 1], true);
       routeGround[i] = s.routeHeight;
       ground[i] = s.height;
-      water[i] = s.height < 0 ? 1 : 0;
+      if (s.height < 0) water[i] = 1;
+      else if (s.water === 2) {
+        water[i] = 1;
+        deck[i] = s.waterLevel + BRIDGE_DECK_OVER_WATER;
+      } else if (s.water === 3) {
+        water[i] = 2;
+        deck[i] = s.waterLevel + BRIDGE_DECK_OVER_WATER;
+      } else if (s.floodplain) deck[i] = s.waterLevel + BRIDGE_DECK_OVER_WATER;
     }
-    const y = computeProfile({ xz, routeGround, water, maxGrade: spec.maxGrade, startY, endY });
+    const y = computeProfile({ xz, routeGround, water, deck, maxGrade: spec.maxGrade, startY, endY });
     const length = polylineLength(xz);
     const ds = n > 1 ? length / (n - 1) : 0;
     const spans = detectBridges(y, ground, water, ds);

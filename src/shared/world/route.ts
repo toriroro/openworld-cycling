@@ -22,6 +22,8 @@ export interface RouteParams {
   mainDiscount: number;
   /** ヒューリスティックの重み（1 で最適） */
   heuristicWeight: number;
+  /** 川の河原（と縁から 30m）を通る移動の費用（水平距離に掛ける追加分。河川の草案 4.1） */
+  riverCost: number;
 }
 
 export const DEFAULT_ROUTE_PARAMS: Omit<RouteParams, "maxGrade"> = {
@@ -30,6 +32,7 @@ export const DEFAULT_ROUTE_PARAMS: Omit<RouteParams, "maxGrade"> = {
   bridgeCost: 3,
   mainDiscount: 0.3,
   heuristicWeight: 1.15,
+  riverCost: 6,
 };
 
 export interface RouteGrid {
@@ -42,6 +45,8 @@ export interface RouteGrid {
   heights: Float64Array;
   /** 主要道が通っている格子（枝道の探索だけ） */
   mainMask?: Uint8Array;
+  /** 格子点の印: bit0 = 水（海・湖）、bit1 = 川の河原と縁から 30m。無ければ高さ 0 未満を水とする */
+  flags?: Uint8Array;
 }
 
 export interface RouteResult {
@@ -144,7 +149,10 @@ export function findRoute(
     const dz = cz - lgz;
     return Math.sqrt(dx * dx + dz * dz) * hw;
   };
-  const isWater = (cell: number) => heights[cell] < 0;
+  const flagsArr = grid.flags;
+  const isWater = flagsArr ? (cell: number) => (flagsArr[cell] & 1) !== 0 : (cell: number) => heights[cell] < 0;
+  const riv = (cell: number) => (flagsArr ? (flagsArr[cell] >> 1) & 1 : 0);
+  const rc = params.riverCost;
 
   // 出発点: 向きなし。16 方向すべての状態を 0 で入れ、曲がりの費用を掛けない
   const startCell = lsz * w + lsx;
@@ -226,14 +234,15 @@ export function findRoute(
           const g1 = Math.abs(hm - h0) / half;
           const g2 = Math.abs(heights[ncell] - hm) / half;
           gradeTerm = (gradeCost(g1, gm, params) + gradeCost(g2, gm, params)) * 0.5;
+          gradeTerm += rc * (riv(cell) + riv(ca) + riv(cb) + riv(ncell)) * 0.25;
         } else if (dx !== 0 && dz !== 0) {
           // 斜めの移動は角の2格子がどちらも水なら通れない
           if (isWater(cz * w + cx + dx) && isWater((cz + dz) * w + cx)) continue;
           const g = Math.abs(heights[ncell] - h0) / dist;
-          gradeTerm = gradeCost(g, gm, params);
+          gradeTerm = gradeCost(g, gm, params) + rc * (riv(cell) + riv(ncell)) * 0.5;
         } else {
           const g = Math.abs(heights[ncell] - h0) / dist;
-          gradeTerm = gradeCost(g, gm, params);
+          gradeTerm = gradeCost(g, gm, params) + rc * (riv(cell) + riv(ncell)) * 0.5;
         }
       }
       let cost = dist * (1 + gradeTerm + turn);
