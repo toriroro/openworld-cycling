@@ -9,6 +9,8 @@ import { createGravelTexture } from "./gravel-texture.ts";
 import { RoadMeshes } from "./road-meshes.ts";
 import { RANGES_LIGHT, RANGES_STANDARD, TerrainStreamer } from "./terrain-streamer.ts";
 import { Vegetation } from "./vegetation.ts";
+import { BuildingMeshes } from "./buildings.ts";
+import { Towns } from "./towns.ts";
 
 export type Quality = "standard" | "light";
 
@@ -25,6 +27,10 @@ export class WorldView {
   readonly roadMeshes: RoadMeshes;
   readonly vegetation: Vegetation;
   readonly heights: Terrain;
+  /** 町・集落の建物と喫茶店の配置 */
+  readonly towns: Towns;
+  readonly buildings: BuildingMeshes;
+  private pruneT = 0;
   quality: Quality = "standard";
   /** 描画の原点（世界座標、REBASE_UNIT の倍数） */
   originX = 0;
@@ -88,7 +94,10 @@ export class WorldView {
     this.terrain = new TerrainStreamer(seed, terrainMat, roads);
     this.roadMeshes = new RoadMeshes(roads, this.heights, { paved, gravel, structure, patch });
     this.vegetation = new Vegetation(this.terrain);
-    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group);
+    this.towns = new Towns(seed, roads, this.heights);
+    this.terrain.towns = this.towns;
+    this.buildings = new BuildingMeshes(this.towns);
+    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group);
     this.setQuality(matchMedia("(pointer: coarse)").matches ? "light" : "standard");
   }
 
@@ -102,6 +111,7 @@ export class WorldView {
     this.terrain.ranges = light ? RANGES_LIGHT : RANGES_STANDARD;
     this.terrain.vegDensity = light ? 0.5 : 1;
     this.vegetation?.setQuality(light);
+    this.buildings?.setQuality(light);
     this.roadMeshes.range = light ? 900 : 1600;
     const far = this.terrain.ranges.far;
     this.env.setFar(far);
@@ -128,6 +138,7 @@ export class WorldView {
       this.terrain.setOrigin(this.originX, this.originZ);
       this.roadMeshes.setOrigin(this.originX, this.originZ);
       this.vegetation.setOrigin(this.originX, this.originZ);
+      this.buildings.setOrigin(this.originX, this.originZ);
       this.rebases++;
     }
     this.camera.position.set(eye.x - this.originX, eye.y, eye.z - this.originZ);
@@ -140,6 +151,13 @@ export class WorldView {
     this.terrain.update(eye.x, eye.z);
     this.roadMeshes.update(eye.x, eye.z);
     this.vegetation.update(eye.x, eye.z);
+    this.buildings.update(eye.x, eye.z);
+    // 遠くの町の配置を忘れる（道路の保持範囲 10km より少し広く）
+    const now = performance.now();
+    if (now - this.pruneT > 5000) {
+      this.pruneT = now;
+      this.towns.prune(eye.x, eye.z, 12000);
+    }
     this.vegetation.setDaylight(0.35 + 0.65 * this.env.daylight);
     this.env.follow(this.camera.position);
     beforeRender?.();
@@ -192,6 +210,7 @@ export class WorldView {
       heapMB: mem ? mem.usedJSHeapSize / 1048576 : null,
       terrain: this.terrain.stats(),
       vegetation: { ...this.vegetation.stats },
+      buildings: { ...this.buildings.stats },
       roads: this.roadMeshes.stats(),
       roadsLoaded: this.roads.net.roads.size,
       roadBlocksPending: this.roads.pending,

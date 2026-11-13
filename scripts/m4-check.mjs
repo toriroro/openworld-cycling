@@ -76,5 +76,62 @@ if (want("watch")) {
   await ctx.close();
 }
 
+// 喫茶店に寄ってスタンプが残る（7.1）: 行き先を店にして走り、店の前で止まる。出発して、読み込み直してもスタンプがある
+if (want("cafe")) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto(`${base}/`);
+  await ready(page);
+  await page.waitForFunction(() => window.__dev.cafes().length > 0, null, { timeout: 120000, polling: 500 });
+  const cafe = await page.evaluate(() => {
+    const list = window.__dev.cafes().sort((a, b) => a.d - b.d);
+    const c = list[0];
+    window.__dev.setGoal(c.x, c.z);
+    window.__dev.setTimeScale(6);
+    return c;
+  });
+  await pedal(page, true);
+  const t0 = Date.now();
+  // 店の 150m 手前から等倍、22m 手前でブレーキ
+  const near = (d) =>
+    page.waitForFunction(
+      ([c, dd]) => {
+        const p = window.__dev.rideInfo();
+        return p && Math.hypot(p.x - c.x, p.z - c.z) < dd;
+      },
+      [cafe, d],
+      { timeout: 300000, polling: 50 },
+    );
+  await near(150);
+  await page.evaluate(() => window.__dev.setTimeScale(1));
+  await near(22);
+  await pedal(page, false);
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { code: "ShiftLeft" })));
+  await page.waitForFunction(() => window.__dev.stopInfo().stop !== null, null, { timeout: 60000, polling: 100 });
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keyup", { code: "ShiftLeft" })));
+  const rideSec = (Date.now() - t0) / 1000;
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: `${out}/cafe-stop.png` });
+  const atStop = await page.evaluate(() => ({ info: window.__dev.stopInfo(), panel: document.querySelector(".stop-panel")?.textContent }));
+  await page.click(".stop-depart");
+  await page.waitForTimeout(1500);
+  const departed = await page.evaluate(() => window.__dev.stopInfo().stop === null);
+  await page.evaluate(() => window.__dev.save());
+  await page.reload();
+  await ready(page);
+  const afterReload = await page.evaluate(() => window.__dev.stopInfo().stamps);
+  await page.evaluate(() => {
+    const b = [...document.querySelectorAll(".menu-buttons .btn")].find((e) => e.textContent === "スタンプ帳");
+    b.click();
+  });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${out}/stamp-book.png` });
+  results.cafe = { cafe, rideSec, stopAt: atStop.info.stop, panel: atStop.panel, departed, stampsAfterReload: afterReload, errors };
+  console.log("喫茶店", JSON.stringify(results.cafe));
+  await ctx.close();
+}
+
 writeFileSync(`${out}/results-${Object.keys(results).filter((k) => k !== "date").join("-") || "none"}.json`, JSON.stringify(results, null, 2));
 await browser.close();

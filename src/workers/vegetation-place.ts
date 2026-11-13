@@ -28,6 +28,8 @@ export interface VegContext {
   landscape(lx: number, lz: number): number[];
   /** 道路端からの距離（道路がなければ大きな値） */
   roadEdge(lx: number, lz: number): number;
+  /** 建物・喫茶店の敷地の中か */
+  inLot?(lx: number, lz: number): boolean;
 }
 
 function u(seed: number, a: number, b: number, c: number) {
@@ -64,6 +66,7 @@ export function placeVegetation(c: VegContext): Float32Array {
       if (h < 1 || h > 1500) continue;
       if (c.slope(lx, lz) > 0.9) continue;
       if (c.roadEdge(lx, lz) < 5) continue;
+      if (c.inLot?.(lx, lz)) continue;
       const big = w[2] > 0.5 ? 1.9 : 1.4;
       const scale = big * (0.75 + 0.6 * u(seed, gx, gz, 4)) * (c.detail === 1 ? 1.25 : 1);
       push(lx, lz, scale, u(seed, gx, gz, 5) * Math.PI * 2, VEG_TREE, 0.2);
@@ -79,6 +82,7 @@ export function placeVegetation(c: VegContext): Float32Array {
       const lz = (j + u(seed, gx, gz, 12)) * 12;
       const e = c.roadEdge(lx, lz);
       if (e < 2.5) continue;
+      if (c.inLot?.(lx, lz)) continue;
       const h = c.ground(lx, lz);
       if (h < 0.5) continue;
       const w = c.landscape(lx, lz);
@@ -99,6 +103,7 @@ export function placeVegetation(c: VegContext): Float32Array {
       const lz = (j + u(seed, gx, gz, 22)) * 3;
       const e = c.roadEdge(lx, lz);
       if (e < 1.5 || e > 30) continue;
+      if (c.inLot?.(lx, lz)) continue;
       if (u(seed, gx, gz, 23) > 0.55 * c.density) continue;
       const h = c.ground(lx, lz);
       if (h < 0.6) continue;

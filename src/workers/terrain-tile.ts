@@ -27,6 +27,8 @@ export interface TileInput {
   /** 植生の細かさ（0 なし、1 木だけ、2 すべて）と密度の倍率 */
   vegDetail?: 0 | 1 | 2;
   vegDensity?: number;
+  /** 植生を置かない敷地（建物・喫茶店）。タイルの左上からの相対で [x, z, r, ...] */
+  lots?: Float32Array | null;
 }
 
 export interface TileOutput {
@@ -316,6 +318,15 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
       return r;
     },
     roadEdge: (lx, lz) => q?.nearest(lx, lz)?.e ?? 1e9,
+    inLot: (lx, lz) => {
+      const L = inp.lots;
+      if (!L) return false;
+      for (let k = 0; k < L.length; k += 3) {
+        const dx = lx - L[k], dz = lz - L[k + 1];
+        if (dx * dx + dz * dz < L[k + 2] * L[k + 2]) return true;
+      }
+      return false;
+    },
   });
   return { position, normal, color, uv, index, minY, maxY: maxY, lowered, veg };
 }

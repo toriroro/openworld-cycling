@@ -2,6 +2,7 @@
 // 4 分木のように、近いタイルを 4×4 の子に分ける。子がそろうまでは親を表示して穴を作らない。
 // 頂点計算は Worker。1フレームに取り付ける数・破棄する数に上限を置き、古い依頼の結果は捨てる。
 
+import type { Towns } from "./towns.ts";
 import * as THREE from "three";
 import { Terrain } from "../shared/world/terrain.ts";
 import { rectDist, type RoadClient } from "../workers/road-client.ts";
@@ -61,6 +62,8 @@ export class TerrainStreamer {
   ranges: TerrainRanges = RANGES_STANDARD;
   /** 植生の密度の倍率（軽量で半分） */
   vegDensity = 1;
+  /** 町・喫茶店の敷地（あれば植生を避ける） */
+  towns: Towns | null = null;
   /** 1フレームに取り付ける数・破棄する数 */
   attachPerFrame = 4;
   releasePerFrame = 6;
@@ -238,6 +241,8 @@ export class TerrainStreamer {
       }
       const spec = LEVELS[t.level];
       if (spec.conform && !this.roads.ready(this.tileRect(t, ROAD_FLAT + ROAD_BLEND + spec.size / spec.cells + 8))) continue;
+      // 建物の敷地が決まるまで待つ（植生を敷地に置かないため）
+      if (t.level < 2 && this.towns && !this.towns.ready(this.tileRect(t))) continue;
       this.queue.splice(i, 1);
       return t;
     }
@@ -260,6 +265,7 @@ export class TerrainStreamer {
       skirt: spec.skirt,
       roads: spec.conform ? this.roads.pack(this.tileRect(t), ROAD_FLAT + ROAD_BLEND + step + 8, t.level === 0 ? 1 : 2) : null,
       uvRepeat: 16,
+      lots: t.level < 2 && this.towns ? this.towns.lotsIn(this.tileRect(t)) : null,
       vegDetail: t.level === 0 ? 2 : t.level === 1 ? 1 : 0,
       vegDensity: this.vegDensity,
     };

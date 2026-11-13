@@ -22,6 +22,8 @@ import type { WorldView } from "./render/world-view.ts";
 import { Hud, type Settings } from "./ui/hud.ts";
 import { Input } from "./ui/input.ts";
 import { MapOverlay } from "./ui/map-overlay.ts";
+import { StampBook, StopPanel } from "./ui/cafe-panel.ts";
+import type { Cafe } from "./render/town-layout.ts";
 import { Minimap } from "./ui/minimap.ts";
 import type { RoadClient } from "./workers/road-client.ts";
 
@@ -75,6 +77,12 @@ export class Game {
   /** 立ち寄った店の識別子 */
   stampSet = new Set<string>();
   private minimapT = 0;
+  /** 喫茶店に立ち寄っている間の店（モック仕様 7.1） */
+  stop: { cafe: Cafe; t0: number } | null = null;
+  /** 出発した店（60m 離れるまで、また止まっても立ち寄りにしない） */
+  private lastCafe: { id: string; x: number; z: number } | null = null;
+  private stopPanel = new StopPanel();
+  private stampBook = new StampBook();
   private fpsSel: HTMLSelectElement;
 
   constructor(
@@ -91,6 +99,12 @@ export class Game {
     this.minimap = new Minimap(this.hud.root, () => this.toggleMap());
     this.mapOverlay = new MapOverlay(roads.seed);
     this.mapOverlay.onClearGoal = () => this.ride?.setGoal(null);
+    this.stopPanel.onDepart = () => this.depart();
+    this.stampBook.onPick = (st) => this.startFrom(st);
+    this.hud.addButton("スタンプ帳", () => {
+      this.hud.toggleMenu(false);
+      this.stampBook.open(this.stamps);
+    });
     this.hud.addButton("地図", () => {
       this.hud.toggleMenu(false);
       this.toggleMap();
@@ -264,6 +278,9 @@ export class Game {
     ride.ridden = this.ridden;
     const res = this.resume;
     if (res) {
+      // 続きから始めた所では、60m 動くまで立ち寄りにしない（店の前で終えた時にもう一度数えないため）
+      const p0 = ride.road ? ride.pose() : null;
+      if (p0) this.lastCafe = { id: "*", x: p0.x, z: p0.z };
       ride.odometer = res.odometer;
       ride.climb = res.climb;
       ride.time = res.time;
@@ -323,6 +340,74 @@ export class Game {
       stamped: () => this.stampSet,
       onTap: (x, z) => this.ride?.setGoal(x, z),
     });
+  }
+
+  /** 止まった所の 30m 以内に喫茶店の前があれば、立ち寄りにする */
+  private checkCafe(t: number) {
+    const ride = this.ride;
+    if (!ride?.road || this.stop) return;
+    const p = ride.pose();
+    const lc = this.lastCafe;
+    if (lc && Math.hypot(lc.x - p.x, lc.z - p.z) > 60) this.lastCafe = null;
+    if (ride.speed > 0.3) return;
+    for (const c of this.view.towns.cafesNear(p.x, p.z, 80)) {
+      if (this.lastCafe && (this.lastCafe.id === "*" || this.lastCafe.id === c.poi.id)) continue;
+      if (Math.hypot(c.roadX - p.x, c.roadZ - p.z) > 30) continue;
+      this.arrive(c, t);
+      return;
+    }
+  }
+
+  private arrive(c: Cafe, t: number) {
+    let st = this.stamps.find((x) => x.poi === c.poi.id);
+    if (st) st.visits++;
+    else {
+      st = {
+        poi: c.poi.id,
+        name: c.poi.name,
+        date: new Date().toLocaleDateString("sv-SE"),
+        visits: 1,
+        x: c.roadX,
+        z: c.roadZ,
+        elevation: c.roadY,
+        road: c.poi.road,
+        s: c.poi.s,
+      };
+      this.stamps.push(st);
+      this.stampSet.add(c.poi.id);
+    }
+    this.stop = { cafe: c, t0: t };
+    this.lastCafe = { id: c.poi.id, x: c.roadX, z: c.roadZ };
+    this.hud.toggleMenu(false);
+    this.hud.root.classList.add("hidden");
+    this.stopPanel.show(st, this.stamps.length);
+    void this.save();
+  }
+
+  /** 「出発」: 走行に戻る */
+  depart() {
+    if (!this.stop) return;
+    this.stop = null;
+    this.stopPanel.hide();
+    this.hud.root.classList.remove("hidden");
+    this.smoothEye = null;
+  }
+
+  /** スタンプ帳の店から走る（記録は引き継ぐ） */
+  startFrom(st: Stamp) {
+    this.depart();
+    const r = this.ride;
+    this.resume = {
+      pos: { road: st.road, s: st.s, dir: 1, x: st.x, z: st.z },
+      odometer: r?.odometer ?? 0,
+      climb: r?.climb ?? 0,
+      time: r?.time ?? 0,
+      generator: GENERATOR_VERSION,
+    };
+    this.lastCafe = { id: st.poi, x: st.x, z: st.z };
+    this.anchor = { x: st.x, z: st.z };
+    this.ride = null;
+    this.smoothEye = null;
   }
 
   teleport(x: number, z: number) {
@@ -408,10 +493,11 @@ export class Game {
     this.handleActions();
     if (!this.ride) this.place();
     this.updateWatching(t);
+    this.checkCafe(t);
     const ride = this.ride;
     this.manual.pedal = this.input.pedal;
     this.manual.brake = this.input.brake ? 1 : 0;
-    if (ride && !this.paused) {
+    if (ride && !this.paused && !this.stop) {
       this.acc += dt * this.timeScale;
       let n = 0;
       const maxSteps = 24 * this.timeScale;
@@ -456,6 +542,20 @@ export class Game {
         target = { x: s.target.x + this.view.originX, y: s.target.y, z: s.target.z + this.view.originZ };
         fov = s.fov;
       }
+    }
+    // 立ち寄り中は店の外観を回る視点
+    const st = this.stop;
+    if (st) {
+      const c = st.cafe;
+      // 店の正面（道路側）を中心に左右へゆっくり回る
+      const a = Math.atan2(c.fz, c.fx) + Math.sin((t - st.t0) / 9000) * 1.1;
+      const R = 22;
+      const ex = c.x + Math.cos(a) * R;
+      const ez = c.z + Math.sin(a) * R;
+      eye = { x: ex, y: Math.max(c.top + 6, this.view.surfaceHeight(ex, ez) + 3), z: ez };
+      target = { x: c.x, y: c.top + 2.2, z: c.z };
+      fov = 50;
+      this.smoothEye = null;
     }
     this.view.frame(eye, target, fov, () => {
       this.player.group.visible = !!pose;

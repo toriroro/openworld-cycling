@@ -81,6 +81,16 @@ if (q.get("mode") === "m2") {
         awake: platform.awake,
       };
     },
+    stopInfo() {
+      return { stop: game.stop ? game.stop.cafe.poi.id : null, stamps: game.stamps.map((st) => ({ ...st })) };
+    },
+    depart() {
+      game.depart();
+    },
+    cafes(range = 20000) {
+      const p = game.ride?.road ? game.ride.pose() : { x: 0, z: 0 };
+      return view.towns.cafesNear(p.x, p.z, range).map((c) => ({ id: c.poi.id, name: c.poi.name, x: c.roadX, z: c.roadZ, road: c.poi.road, s: c.poi.s, d: Math.hypot(c.roadX - p.x, c.roadZ - p.z) }));
+    },
     snapshot() {
       return game.snapshot();
     },
