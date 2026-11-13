@@ -138,11 +138,14 @@ export class Game {
           break;
         case "lane-left":
           ride?.shiftLane(-0.5);
+          this.player.lookBack(1); // 寄せる側の後ろを見る
           break;
         case "lane-right":
           ride?.shiftLane(0.5);
+          this.player.lookBack(-1);
           break;
         case "u-turn":
+          this.player.lookBack(-1); // 対向車線の側を見てから回る
           ride?.uTurn();
           break;
         case "outfit":

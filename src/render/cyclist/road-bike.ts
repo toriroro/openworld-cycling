@@ -29,6 +29,14 @@ export const FIT = {
   saddle: v3(0, 0.978, -0.215),
 };
 
+/**
+ * ペダリング中の足首の角度（つま先の下がり、ラジアン）。a はクランクの角度（前で 0、下へ回ると増える）。
+ * 上死点の手前でかかとが下がり、下死点の後ろでつま先が下がる。
+ */
+export function ankling(a: number) {
+  return 0.16 + 0.15 * Math.cos(a - 2.1);
+}
+
 interface Shape {
   key: string;
   disc: boolean;
@@ -183,6 +191,11 @@ export class RoadBike {
     return v3(side * FIT.pedalX, FIT.bb.y - Math.sin(a) * FIT.crank, FIT.bb.z + Math.cos(a) * FIT.crank);
   }
 
+  /** 左（side=1）右（side=-1）のペダル（と足）のつま先の下がり具合（ラジアン） */
+  pedalPitch(side: number, phase = this.phase) {
+    return ankling(phase + (side < 0 ? Math.PI : 0));
+  }
+
   /** 左（side=1）右（side=-1）の手を置く所（車体の座標、操舵込み） */
   hoodPoint(side: number) {
     const local = this.toSteering(v3(side * FIT.hood.x, FIT.hood.y, FIT.hood.z));
@@ -194,7 +207,7 @@ export class RoadBike {
     const m = new THREE.Matrix4();
     for (const side of [1, -1]) {
       const p = this.pedalPoint(side);
-      m.makeRotationY(side > 0 ? 0 : Math.PI);
+      m.makeRotationX(this.pedalPitch(side)).multiply(new THREE.Matrix4().makeRotationY(side > 0 ? 0 : Math.PI));
       m.setPosition(p);
       this.pedals.setMatrixAt(side > 0 ? 0 : 1, m);
     }

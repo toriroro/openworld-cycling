@@ -29,6 +29,12 @@ export interface RiderTargets {
   phase: number;
   tuck: boolean;
   firstPerson: boolean;
+  /** 左右の足のつま先の下がり（ラジアン）。[左, 右] */
+  ankles: [number, number];
+  /** 曲がる向きへ頭を向ける角度（左が正、ラジアン） */
+  headYaw: number;
+  /** 後方を見る量（-1..1。左の肩越しが正） */
+  look: number;
 }
 
 /** 古い GLB（材質ごとに分かれた物）の材質名 → 色の表の番号 */
@@ -60,6 +66,7 @@ export class Rider {
   private parts: Part[] = [];
   private error: string | null = null;
   private reachExcess = 0;
+  private armBend = 0;
   private lod: Lod = "high";
   private helmet: HelmetShape = "road";
   private last: RiderTargets | null = null;
@@ -163,7 +170,7 @@ export class Rider {
         const g = p.mesh.geometry;
         triangles += (g.index ? g.index.count : g.getAttribute("position").count) / 3;
       }
-    return { ready: !!this.model, error: this.error, bones: this.bindings.size, reachExcess: this.reachExcess, draws, triangles };
+    return { ready: !!this.model, error: this.error, bones: this.bindings.size, reachExcess: this.reachExcess, armBend: this.armBend, draws, triangles };
   }
 
   private setBone(name: string, position: V3, rotation: THREE.Quaternion) {
@@ -210,44 +217,72 @@ export class Rider {
         b.bone.quaternion.copy(b.local);
       }
     const effort = t.effort;
-    const sway = Math.sin(t.phase) * effort * 0.037;
-    const hip = t.saddle.clone().add(v3(sway, -0.006 + effort * 0.05, -0.014 + effort * 0.1));
-    const tilt = new THREE.Quaternion().setFromAxisAngle(v3(1, 0, 0), t.tuck ? 1.13 : 0.9 - effort * 0.06);
+    const up = v3(0, 1, 0);
+    const X = v3(1, 0, 0);
+    // 腰: 立ち漕ぎに近いほど前へ。漕ぐ度に骨盤がわずかに左右へ揺れる
+    const sway = Math.sin(t.phase) * (0.006 + effort * 0.031);
+    const bob = Math.abs(Math.cos(t.phase)) * 0.004 * (1 - effort);
+    const hip = t.saddle.clone().add(v3(sway, -0.006 - bob + effort * 0.05, -0.014 + effort * 0.1));
+    const lean = t.tuck ? 1.13 : 1.0 - effort * 0.06;
+    const roll = Math.sin(t.phase) * (0.012 + effort * 0.05);
+    const tilt = new THREE.Quaternion().setFromAxisAngle(X, lean).premultiply(new THREE.Quaternion().setFromAxisAngle(v3(0, 0, 1), roll));
     const root = this.bindings.get("pelvis")!.head;
     const body = (p: V3) => p.clone().sub(root).applyQuaternion(tilt).add(hip);
-    for (const name of ["pelvis", "spine_01", "spine_02", "spine_03"]) {
+    // 胸から上のひねり（後方を見る時と、曲がる向きへ）。胸の付け根を中心に、体の軸のまわりで回す
+    const look = Math.max(-1, Math.min(1, t.look));
+    const axis = up.clone().applyQuaternion(tilt);
+    const twist = new THREE.Quaternion().setFromAxisAngle(axis, look * 0.4 + t.headYaw * 0.25 - roll * 0.6);
+    const chest = body(this.bindings.get("spine_03")!.head);
+    const upper = (p: V3) => body(p).sub(chest).applyQuaternion(twist).add(chest);
+    const upperQ = twist.clone().multiply(tilt);
+    for (const name of ["pelvis", "spine_01", "spine_02"]) {
       const b = this.bindings.get(name)!;
       this.setBone(name, body(b.head), tilt.clone().multiply(b.rotation));
     }
+    const s3 = this.bindings.get("spine_03")!;
+    this.setBone("spine_03", chest, upperQ.clone().multiply(s3.rotation));
+    // 首と頭: 前を見る。後方を見る時は首と頭で残りを回し、少し下へ傾ける
     const neck = this.bindings.get("neck_01")!;
-    const neckQ = new THREE.Quaternion().setFromAxisAngle(v3(1, 0, 0), 0.45);
-    const neckPos = body(neck.head);
+    const yawNeck = new THREE.Quaternion().setFromAxisAngle(up, look * 0.8 + t.headYaw * 0.4);
+    const neckQ = yawNeck.clone().multiply(new THREE.Quaternion().setFromAxisAngle(X, 0.45));
+    const neckPos = upper(neck.head);
     this.setBone("neck_01", neckPos, neckQ.clone().multiply(neck.rotation));
     const head = this.bindings.get("head")!;
     const headPos = head.head.clone().sub(neck.head).applyQuaternion(neckQ).add(neckPos);
-    this.setBone("head", headPos, new THREE.Quaternion().setFromAxisAngle(v3(1, 0, 0), 0.1).multiply(head.rotation));
+    const headQ = new THREE.Quaternion()
+      .setFromAxisAngle(up, look * 1.6 + t.headYaw * 0.85) // 首の分を含めた頭の向き
+      .multiply(new THREE.Quaternion().setFromAxisAngle(X, 0.1 + Math.abs(look) * 0.12))
+      .multiply(new THREE.Quaternion().setFromAxisAngle(v3(0, 0, 1), -look * 0.12));
+    this.setBone("head", headPos, headQ.multiply(head.rotation));
+    let bend = 0;
     for (const side of [1, -1]) {
       const suffix = side > 0 ? "l" : "r";
-      const pedal = t.pedals[side > 0 ? 0 : 1];
-      // 足首はペダルの軸の上・少し後ろ（拇指球が軸に乗る）
-      const ankle = pedal.clone().add(v3(side * 0.008, 0.066, -0.07));
+      const i = side > 0 ? 0 : 1;
+      const pedal = t.pedals[i];
+      // 拇指球がペダルの軸に乗る。足首の位置はつま先の下がりで変わる
+      const pitch = t.ankles[i];
+      const footQ = new THREE.Quaternion().setFromAxisAngle(X, pitch);
+      const ankle = pedal.clone().add(v3(side * 0.008, 0.066, -0.07).applyQuaternion(footQ));
       const thigh = this.bindings.get("thigh_" + suffix)!;
       const calf = this.bindings.get("calf_" + suffix)!;
-      const hipJoint = thigh.head.clone().sub(root).add(hip);
+      const hipJoint = body(thigh.head);
       this.reachExcess = Math.max(this.reachExcess, hipJoint.distanceTo(ankle) - thigh.length - calf.length);
-      const knee = Rider.joint(hipJoint, ankle, thigh.length, calf.length, v3(side * 0.06, 0, 1));
+      // 膝はまっすぐ前へ（わずかに外）
+      const knee = Rider.joint(hipJoint, ankle, thigh.length, calf.length, v3(side * 0.04, 0, 1));
       this.aim("thigh_" + suffix, hipJoint, knee);
       this.aim("calf_" + suffix, knee, ankle);
-      this.setBone("foot_" + suffix, ankle, this.bindings.get("foot_" + suffix)!.rotation);
+      this.setBone("foot_" + suffix, ankle, footQ.multiply(this.bindings.get("foot_" + suffix)!.rotation));
       const clavicle = this.bindings.get("clavicle_" + suffix)!;
-      this.setBone("clavicle_" + suffix, body(clavicle.head), tilt.clone().multiply(clavicle.rotation));
+      this.setBone("clavicle_" + suffix, upper(clavicle.head), upperQ.clone().multiply(clavicle.rotation));
       const arm = this.bindings.get("upperarm_" + suffix)!;
       const forearm = this.bindings.get("lowerarm_" + suffix)!;
-      const shoulder = body(arm.head);
-      const hand = t.hands[side > 0 ? 0 : 1];
+      const shoulder = upper(arm.head);
+      const hand = t.hands[i];
       const wrist = hand.clone().add(v3(0, 0.022, -0.06));
       this.reachExcess = Math.max(this.reachExcess, shoulder.distanceTo(wrist) - arm.length - forearm.length);
-      const elbow = Rider.joint(shoulder, wrist, arm.length, forearm.length, v3(side, -0.15, -0.55));
+      bend = Math.max(bend, 1 - shoulder.distanceTo(wrist) / (arm.length + forearm.length));
+      // 脇を締める: 肘は外へ張らず、体の横で下・後ろへ曲げる
+      const elbow = Rider.joint(shoulder, wrist, arm.length, forearm.length, v3(side * 0.12, -0.75, -0.4));
       this.aim("upperarm_" + suffix, shoulder, elbow);
       this.aim("lowerarm_" + suffix, elbow, wrist);
       this.aim("hand_" + suffix, wrist, hand.clone().add(v3(0, 0, 0.03)));
@@ -270,6 +305,7 @@ export class Rider {
         this.aim(`thumb_${segment}_${suffix}`, from, from.clone().add(v3(-side * (0.6 + k * 0.2), -0.5 - k * 0.15, 0.55 - k * 0.2)));
       }
     }
+    this.armBend = bend;
     this.model.updateMatrixWorld(true);
   }
 }

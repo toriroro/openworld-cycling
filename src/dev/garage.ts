@@ -49,7 +49,7 @@ panel.onChange = (o) => {
 if (q.has("panel")) panel.open(outfit);
 
 const view = { yaw: Number(q.get("yaw") ?? 90), pitch: Number(q.get("pitch") ?? 8), dist: Number(q.get("dist") ?? 3.2), ty: Number(q.get("ty") ?? 0.75), tz: Number(q.get("tz") ?? 0), fov: 30 };
-const pose = { phase: 0.6, speed: 8, watts: 180, steer: 0, firstPerson: false, spin: q.has("spin") };
+const pose = { phase: 0.6, speed: 8, watts: 180, steer: 0, look: 0, headYaw: 0, firstPerson: false, spin: q.has("spin") };
 let distance = 0;
 let last = performance.now();
 
@@ -70,7 +70,7 @@ function frame(t: number) {
     distance += pose.speed * dt;
     pose.phase = (pose.phase + dt * 9) % (Math.PI * 2);
   }
-  cyclist.pose(dt, { phase: pose.phase, speed: pose.speed, watts: pose.watts, distance, steer: pose.steer, lean: 0, firstPerson: pose.firstPerson });
+  cyclist.pose(dt, { phase: pose.phase, speed: pose.speed, watts: pose.watts, distance, steer: pose.steer, lean: 0, firstPerson: pose.firstPerson, look: pose.look, headYaw: pose.headYaw });
   if (panel.isOpen) {
     const r = panel.root.getBoundingClientRect();
     const portrait = innerWidth / innerHeight < 0.8;

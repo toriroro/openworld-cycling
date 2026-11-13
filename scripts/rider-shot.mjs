@@ -8,6 +8,7 @@ const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
 await page.goto(`${base}/garage.html?${extra}`);
 await page.waitForFunction(() => window.__garage?.cyclist.rider.stats().ready, null, { timeout: 60000 });
 await page.evaluate((v) => Object.assign(window.__garage.view, v), view);
+if (process.env.POSE) await page.evaluate((p) => Object.assign(window.__garage.pose, p), JSON.parse(process.env.POSE));
 await page.waitForTimeout(400);
 await page.screenshot({ path: out });
 await browser.close();
