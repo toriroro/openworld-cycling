@@ -60,3 +60,4 @@ rider/ と nature/ の 3D モデルは M3 以降で必要になった時に写�
   加工: 服・髪・眉・グラス・あごひも・靴・ヘルメット2形を Blender の手順で作成し、1つの材質（色の表）にまとめ、軽量画質用の簡略版を加えた。
   新しい外部素材は足していない。
 - 自転車（src/render/cyclist/road-bike.ts）はコードで作成。特定の実在の車種を写した物ではない。
+- M3 で写した rider/cyclist.glb・rig.json は cyclist-v2 に置き換えて消した。
