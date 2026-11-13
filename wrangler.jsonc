@@ -1,0 +1,10 @@
+// ウェブ版の公開設定。今は静的ファイルだけを配る（Worker のコードと /api はまだ無い）。
+// 公開: npm run deploy
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "openworld-cycling",
+  "compatibility_date": "2026-11-14",
+  "assets": {
+    "directory": "./dist"
+  }
+}

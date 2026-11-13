@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.world.json",
     "test": "vitest run",
     "preview": "vite preview",
+    "deploy": "npm run build && wrangler deploy",
     "world:report": "tsx scripts/world-report.ts",
     "world:origins": "tsx scripts/find-origins.ts"
   },
@@ -22,6 +23,7 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "wrangler": "^4.162.0"
   }
 }

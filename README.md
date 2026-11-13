@@ -30,6 +30,16 @@ npm run build
 npm run preview
 ```
 
+## 公開
+
+試作の公開先: https://openworld-cycling.kaerukun-dev.workers.dev/ （Cloudflare Workers の静的ファイル配信。設定は `wrangler.jsonc`）
+
+```bash
+npm run deploy
+```
+
+本番ビルドをしてから `wrangler deploy` を実行する。先に `npx wrangler login` で Cloudflare にログインしておく。試作の間は `public/_headers` で検索エンジンに載せない指定を付けている。
+
 ## 遊び方
 
 起動すると最初の画面が出る。
