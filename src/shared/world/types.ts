@@ -72,3 +72,58 @@ export interface WorldNode {
   name: string;
   reading: string;
 }
+
+// ---- 鉄道（鉄道の草案 9 章）。道路の後に引き、道路は変えない ----
+
+export type RailStationKind = "hub" | "passing" | "small" | "terminus";
+
+export interface RailStation {
+  id: string;
+  /** 線路の道のり */
+  s: number;
+  name: string;
+  /** 町・集落に当たる場合 */
+  node?: string;
+  kind: RailStationKind;
+  /** 駅舎の側（線路の道のりが増える向きに対して -1 = 左、1 = 右） */
+  side: 1 | -1;
+}
+
+export interface RailCrossing {
+  id: string;
+  line: string;
+  /** 線路の道のり */
+  s: number;
+  road: string;
+  /** 道路の道のり */
+  roadS: number;
+  /** 踏切 / 線路が上（跨道橋）/ 道路の橋の下 */
+  kind: "level" | "over" | "under";
+  /** 縦断で高さを合わせられなかった（検査で数える） */
+  unresolved?: boolean;
+}
+
+export interface RailSpan {
+  from: number;
+  to: number;
+  kind: "bridge" | "tunnel";
+}
+
+export interface RailLine {
+  /** 両端の拠点・終点の結節点から作る */
+  id: string;
+  kind: "trunk" | "branch";
+  /** 廃線は線路を描かず、路盤と自転車道だけ（鉄道の草案 3.4） */
+  status: "open" | "abandoned";
+  name: string;
+  origin: [number, number];
+  /** 基準位置からの x, y, z を RAIL_STEP ごとに */
+  points: Float32Array;
+  length: number;
+  spans: RailSpan[];
+  stations: RailStation[];
+  crossings: RailCrossing[];
+  /** 端の結節点 */
+  start: string;
+  end: string;
+}

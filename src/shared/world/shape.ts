@@ -207,16 +207,16 @@ export function enforceMinRadius(pts: Polyline, minRadius: number, spacing: numb
 }
 
 /** 中心線の整形。raw は格子点の列、keep は必ず残す点 */
-export function shapeCenterline(raw: Polyline, keep: Uint8Array, minRadius: number): Polyline {
+export function shapeCenterline(raw: Polyline, keep: Uint8Array, minRadius: number, step = ROAD_STEP): Polyline {
   const thin = simplify(raw, keep, 12);
   const smooth = catmullRom(thin, 4);
   const spacing = Math.max(4, Math.min(16, minRadius / 3));
   let relaxed = enforceMinRadius(smooth, minRadius, spacing);
-  let out = resample(catmullRom(relaxed, 1), ROAD_STEP);
+  let out = resample(catmullRom(relaxed, 1), step);
   // 曲線で補間した後に半径が足りない所が残れば、間隔を変えてやり直す
   for (let round = 0; round < 3 && minRadiusShortfall(out, minRadius); round++) {
     relaxed = enforceMinRadius(out, minRadius * (1.05 + 0.05 * round), Math.max(4, spacing * 0.6));
-    out = resample(catmullRom(relaxed, 1), ROAD_STEP);
+    out = resample(catmullRom(relaxed, 1), step);
   }
   return out;
 }

@@ -102,6 +102,7 @@ npm run deploy
 | 見本の街区（途中） | 町の中心を街区にする（区画道路・路地・歩道・敷地・電柱・街路樹）。建物は北海道・東北の町を手本に 8 つの型（一軒家・古い家・アパート・マンション・商店・古い商店・テナントビル・貸店舗）。見た目だけで、生成器は変えていない | [都市と交通の草案 12章](docs/history/specs/2026-11-13-urban-and-traffic-draft.md)、[画面写真](artifacts/district/) |
 | 農地 | 平野を田・畑・牧草地にする（区画と作物を地形の材質で描く、防風林、牧草ロール、道路沿いの作物の株）。見た目だけで、生成器は変えていない | [farm](artifacts/farm/summary.md) |
 | 車・バス | 今の道路網の上に車とバスを出す（端末ごと、同期しない）。追従と自転車の追い越し（1.5m 空ける）、従道路の一時停止、バス停（雪国の待合所）、夜と霧の灯火、車の音、交通量の設定。歩行者・信号・多車線は未着手 | [traffic](artifacts/traffic/summary.md) |
+| 鉄道 L1（線路の生成） | 拠点・幹線・支線・廃線、100m 格子の探索（トンネル・高架）、2.5% の縦断、駅、道路との交わり（踏切・跨道橋）。2D 地図だけ（ゲームにはまだ出ない）。道路は変えない | [rail](artifacts/rail/summary.md)、[鉄道の草案](docs/history/specs/2026-11-14-railway-draft.md) |
 | 空と天候 | 世界の時計（1 日 = 実時間 4 時間）、場所と時刻で決まる天候（晴れ・曇り・霧）、雲の層・星・月の光、霧と曇りの光と霞。設定で自分の画面だけ固定できる | [sky](artifacts/sky/summary.md) |
 
 ## 確かめていないこと
@@ -133,7 +134,7 @@ npm run typecheck
 npm test
 ```
 
-`scripts/` のブラウザでの確認（開発サーバーが動いている前提、Playwright と Chrome を使う）: `m3-check.mjs`（画面の重なりと描画量）、`m4-check.mjs`（続き・眺める・喫茶店・音）、`m4-hour.mjs`（1 時間の無操作走行）、`junction-shots.mjs`、`buildings-shots.mjs`、`r1-shots.mjs`、`district-shots.mjs`（街区）、`building-style-shots.mjs`（建物の型ごと）、`district-budget.mjs`（街区の描画量）、`farm-shots.mjs`（農地）、`sky-shots.mjs`（空と天候）、`traffic-shots.mjs`（車・バス・バス停）。世界の検査: `npm run world:report`、`scripts/junction-report.ts`、`scripts/river-report.ts`、`scripts/district-report.ts`、`scripts/farm-report.ts`、`scripts/weather-report.ts`（天候の割合と続く長さ）。
+`scripts/` のブラウザでの確認（開発サーバーが動いている前提、Playwright と Chrome を使う）: `m3-check.mjs`（画面の重なりと描画量）、`m4-check.mjs`（続き・眺める・喫茶店・音）、`m4-hour.mjs`（1 時間の無操作走行）、`junction-shots.mjs`、`buildings-shots.mjs`、`r1-shots.mjs`、`district-shots.mjs`（街区）、`building-style-shots.mjs`（建物の型ごと）、`district-budget.mjs`（街区の描画量）、`farm-shots.mjs`（農地）、`sky-shots.mjs`（空と天候）、`traffic-shots.mjs`（車・バス・バス停）、`rail-shots.mjs`（鉄道の 2D 地図）。世界の検査: `npm run world:report`、`scripts/junction-report.ts`、`scripts/river-report.ts`、`scripts/district-report.ts`、`scripts/farm-report.ts`、`scripts/weather-report.ts`（天候の割合と続く長さ）、`scripts/rail-report.ts`（鉄道）。端末間の一致は `scripts/cross-engine.mjs`（`QUERY` に `rail=1` で鉄道も）。
 
 ## ディレクトリ
 

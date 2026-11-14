@@ -30,6 +30,9 @@ legend.innerHTML = [
   `<div class="lg-row"><span class="sw dia" style="background:${POI_COLORS.viewpoint}"></span>展望地</div>`,
   `<div class="lg-row"><span class="sw dot" style="background:#c0262d"></span>町 <span class="sw dot" style="background:#f2f2f2"></span>集落</div>`,
   `<div class="lg-row"><span class="sw br"></span>橋</div>`,
+  `<div class="lg-title">鉄道</div>`,
+  `<div class="lg-row"><span class="sw" style="background:repeating-linear-gradient(90deg,#1a1a1a 0 6px,#fff 6px 12px);outline:1px solid #1a1a1a"></span>線路 <span class="sw" style="background:#fff;outline:1.5px solid #111"></span>駅 <span class="sw" style="background:#f2c230;outline:1.5px solid #111"></span>行き違い</div>`,
+  `<div class="lg-row"><span class="sw" style="background:repeating-linear-gradient(90deg,rgba(90,70,50,0.85) 0 3px,transparent 3px 6px)"></span>廃線跡</div>`,
   `<div class="lg-title">水</div>`,
   `<div class="lg-row"><span class="sw" style="background:rgb(70,128,196)"></span>川 <span class="sw" style="background:rgb(96,150,204)"></span>湖</div>`,
   `<div class="lg-row"><span class="sw" style="background:rgb(196,198,160)"></span>河原</div>`,
@@ -46,7 +49,7 @@ const map = new WorldMap(canvas, {
     const km = (s.mpp * 100) / 1000;
     statusEl.textContent =
       `種 ${seed}  x ${Math.round(s.x)}  z ${Math.round(s.z)}  100px = ${km < 1 ? Math.round(km * 1000) + "m" : km.toFixed(1) + "km"}` +
-      `  道路 ${s.roads}本` +
+      `  道路 ${s.roads}本  線路 ${s.rails ?? 0}本` +
       (s.pendingBlocks ? `  道路を生成中 残り${s.pendingBlocks}区画` : "") +
       (s.pendingTiles ? `  地形 残り${s.pendingTiles}` : "");
   },

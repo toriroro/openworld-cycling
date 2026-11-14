@@ -4,7 +4,7 @@
 // 地図を押すと行き先の指定になる。
 
 import { ROAD_CLASSES } from "../shared/world/constants.ts";
-import type { Junction, Poi, Road, WorldNode } from "../shared/world/types.ts";
+import type { Junction, Poi, RailLine, Road, WorldNode } from "../shared/world/types.ts";
 import type { CrossingInfo, Rect } from "../shared/world/world.ts";
 import type { RiddenLog } from "../sim/ridden.ts";
 import { TILE_PX } from "../workers/map-tile.ts";
@@ -15,6 +15,9 @@ export const GRADE_COLORS = ["#2f6fd0", "#1f9a52", "#d9b416", "#ee7a1a", "#d4242
 const CLASS_PX = [4.2, 3.2, 2.4, 1.8, 1.6];
 const BLOCK = 8000;
 const ROADS_VISIBLE_MPP = 80;
+/** 鉄道を描く縮尺の上限と、鉄道を頼む区画の一辺 (m) */
+const RAILS_VISIBLE_MPP = 300;
+const RAIL_BLOCK = 24000;
 
 interface RoadDraw {
   road: Road;
@@ -55,6 +58,10 @@ export interface MapStatus {
   z: number;
   mpp: number;
   roads: number;
+  /** 鉄道の線の数（地図だけ） */
+  rails?: number;
+  /** 鉄道を生成中の区画の数 */
+  railPending?: number;
   pendingTiles: number;
   pendingBlocks: number;
   roadMs: number[];
@@ -95,6 +102,14 @@ export class WorldMap {
   showRoads = true;
   showPois = true;
   private riddenPath: Path2D | null = null;
+  /** 鉄道（鉄道の草案 L1）。地図だけで、ゲームの中の地図には出さない */
+  readonly rails = new Map<string, RailLine>();
+  showRails = true;
+  private railWorker: Worker | null = null;
+  private railDone = new Set<string>();
+  private railQueue: string[] = [];
+  private railInFlight: string | null = null;
+  private railPaths: { open: Path2D; abandoned: Path2D; tunnel: Path2D; bridge: Path2D } | null = null;
   private riddenVersion = -1;
 
   constructor(canvas: HTMLCanvasElement, opts: MapOptions) {
@@ -137,6 +152,7 @@ export class WorldMap {
     cancelAnimationFrame(this.frame);
     for (const w of this.tileWorkers) w.terminate();
     this.roadWorker.terminate();
+    this.railWorker?.terminate();
   }
 
   status(): MapStatus {
@@ -147,6 +163,8 @@ export class WorldMap {
       z: this.cz,
       mpp: this.mpp,
       roads: this.roads.size,
+      rails: this.rails.size,
+      railPending: this.railQueue.length + (this.railInFlight ? 1 : 0),
       pendingTiles,
       pendingBlocks: this.blockQueue.length + (this.blockInFlight ? 1 : 0),
       roadMs: this.roadMs,
@@ -297,6 +315,13 @@ export class WorldMap {
         ent.pending = false;
         this.dirty = true;
       });
+    } else if (msg.type === "rail") {
+      for (const l of msg.lines) this.rails.set(l.id, l);
+      if (this.railInFlight) this.railDone.add(this.railInFlight);
+      this.railInFlight = null;
+      this.railPaths = null;
+      this.pumpRail();
+      this.dirty = true;
     } else if (msg.type === "region") {
       this.addRegion(msg.data);
       if (this.blockInFlight) this.blocksDone.add(this.blockInFlight);
@@ -324,6 +349,63 @@ export class WorldMap {
     for (const n of d.nodes) this.nodes.set(n.id, n);
     for (const c of d.crossings) this.crossings.set(c.id, c);
     for (const t of d.timings) this.roadMs.push(t.ms);
+  }
+
+  private wantRail() {
+    const v = this.viewRect();
+    const want: { key: string; d: number }[] = [];
+    for (let bz = Math.floor(v.z0 / RAIL_BLOCK); bz <= Math.floor(v.z1 / RAIL_BLOCK); bz++)
+      for (let bx = Math.floor(v.x0 / RAIL_BLOCK); bx <= Math.floor(v.x1 / RAIL_BLOCK); bx++) {
+        const key = `${bx},${bz}`;
+        if (this.railDone.has(key) || key === this.railInFlight || this.railQueue.includes(key)) continue;
+        want.push({ key, d: Math.hypot((bx + 0.5) * RAIL_BLOCK - this.cx, (bz + 0.5) * RAIL_BLOCK - this.cz) });
+      }
+    want.sort((a, b) => a.d - b.d);
+    for (const w of want) this.railQueue.push(w.key);
+    this.pumpRail();
+  }
+
+  private pumpRail() {
+    if (this.railInFlight || !this.railQueue.length) return;
+    if (!this.railWorker) this.railWorker = this.spawn();
+    const key = this.railQueue.shift()!;
+    const [bx, bz] = key.split(",").map(Number);
+    this.railInFlight = key;
+    const rect = { x0: bx * RAIL_BLOCK, z0: bz * RAIL_BLOCK, x1: (bx + 1) * RAIL_BLOCK, z1: (bz + 1) * RAIL_BLOCK };
+    this.railWorker.postMessage({ type: "rail", id: this.reqId++, rect } satisfies WorldRequest);
+  }
+
+  private rebuildRailPaths() {
+    const open = new Path2D();
+    const abandoned = new Path2D();
+    const tunnel = new Path2D();
+    const bridge = new Path2D();
+    for (const l of this.rails.values()) {
+      const P = l.points;
+      const n = P.length / 3;
+      const ds = l.length / (n - 1);
+      const target = l.status === "open" ? open : abandoned;
+      const ox = l.origin[0] - this.anchorX;
+      const oz = l.origin[1] - this.anchorZ;
+      for (let i = 0; i < n; i++) {
+        const x = P[i * 3] + ox;
+        const z = P[i * 3 + 2] + oz;
+        if (i === 0) target.moveTo(x, z);
+        else target.lineTo(x, z);
+      }
+      for (const sp of l.spans) {
+        const t = sp.kind === "tunnel" ? tunnel : bridge;
+        const i0 = Math.max(0, Math.floor(sp.from / ds));
+        const i1 = Math.min(n - 1, Math.ceil(sp.to / ds));
+        for (let i = i0; i <= i1; i++) {
+          const x = P[i * 3] + ox;
+          const z = P[i * 3 + 2] + oz;
+          if (i === i0) t.moveTo(x, z);
+          else t.lineTo(x, z);
+        }
+      }
+    }
+    this.railPaths = { open, abandoned, tunnel, bridge };
   }
 
   private pumpBlocks() {
@@ -523,6 +605,70 @@ export class WorldMap {
 
     const toScreen = (x: number, zz: number) => [(x - v.x0) / this.mpp, (zz - v.z0) / this.mpp] as const;
 
+    // 鉄道: 黒と白の破線（日本の地図の慣習に近い）、トンネルは細い破線、廃線は点線。駅は四角
+    if (this.showRails && !this.opts.game && this.mpp <= RAILS_VISIBLE_MPP) {
+      this.wantRail();
+      if (!this.railPaths) this.rebuildRailPaths();
+      const rp = this.railPaths!;
+      ctx.save();
+      ctx.translate(W / 2, H / 2);
+      ctx.scale(1 / this.mpp, 1 / this.mpp);
+      ctx.translate(this.anchorX - this.cx, this.anchorZ - this.cz);
+      const px = this.mpp;
+      ctx.lineCap = "butt";
+      ctx.strokeStyle = "rgba(90,70,50,0.85)";
+      ctx.lineWidth = 2 * px;
+      ctx.setLineDash([2 * px, 3 * px]);
+      ctx.stroke(rp.abandoned);
+      ctx.setLineDash([]);
+      ctx.strokeStyle = "#1a1a1a";
+      ctx.lineWidth = 5 * px;
+      ctx.stroke(rp.open);
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 3 * px;
+      ctx.setLineDash([10 * px, 10 * px]);
+      ctx.stroke(rp.open);
+      ctx.setLineDash([]);
+      // トンネルは地図の色を透かした破線にする
+      ctx.strokeStyle = "rgba(255,255,255,0.75)";
+      ctx.lineWidth = 6 * px;
+      ctx.stroke(rp.tunnel);
+      ctx.strokeStyle = "#1a1a1a";
+      ctx.lineWidth = 1.5 * px;
+      ctx.setLineDash([4 * px, 3 * px]);
+      ctx.stroke(rp.tunnel);
+      ctx.setLineDash([]);
+      ctx.restore();
+      // 駅
+      const seen = new Set<string>();
+      ctx.font = "11px sans-serif";
+      for (const l of this.rails.values()) {
+        if (l.status !== "open") continue;
+        for (const st of l.stations) {
+          const key = st.node ?? st.id;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const p = railPoint(l, st.s);
+          if (p.x < v.x0 || p.x > v.x1 || p.z < v.z0 || p.z > v.z1) continue;
+          const [sx, sy] = toScreen(p.x, p.z);
+          const big = st.kind === "hub" || st.kind === "terminus";
+          const r = big ? 5 : 3.5;
+          ctx.fillStyle = st.kind === "passing" ? "#f2c230" : "#ffffff";
+          ctx.strokeStyle = "#111";
+          ctx.lineWidth = 1.5;
+          ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+          ctx.strokeRect(sx - r, sy - r, r * 2, r * 2);
+          if (this.mpp <= (big ? 60 : 15)) {
+            ctx.fillStyle = "#111";
+            ctx.strokeStyle = "rgba(255,255,255,0.85)";
+            ctx.lineWidth = 3;
+            ctx.strokeText(`${st.name}駅`, sx + r + 3, sy + 4);
+            ctx.fillText(`${st.name}駅`, sx + r + 3, sy + 4);
+          }
+        }
+      }
+    }
+
     // 接続点（拡大時）
     if (this.showRoads && this.mpp <= 6) {
       ctx.fillStyle = "#ffffff";
@@ -663,6 +809,11 @@ export class WorldMap {
     }
     this.riddenPath = path;
   }
+}
+
+/** 線路の道のり s の位置（道路と同じ点列の形） */
+export function railPoint(l: RailLine, s: number): { x: number; y: number; z: number } {
+  return roadPoint(l as unknown as Road, s);
 }
 
 export function roadPoint(r: Road, s: number): { x: number; y: number; z: number } {

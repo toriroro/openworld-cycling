@@ -23,6 +23,7 @@ import { pickPois } from "./pois.ts";
 import type { RiverSeg } from "./rivers.ts";
 import { DEFAULT_ROUTE_PARAMS, findRoute, type RouteGrid } from "./route.ts";
 import { computeProfile, detectBridges, polylineLength, shapeCenterline } from "./shape.ts";
+import { Railways } from "./rail.ts";
 import { Terrain } from "./terrain.ts";
 import type { Junction, Poi, Road, RoadClass, WorldNode } from "./types.ts";
 
@@ -83,8 +84,12 @@ export class World {
   /** 自転車道（識別子 → 道路。作れなければ null） */
   private cycleways = new Map<string, Road | null>();
 
+  /** 鉄道（鉄道の草案、L1）。道路の後に引く。region() にはまだ含めない（L2 で足す） */
+  readonly rail: Railways;
+
   constructor(readonly seed: number) {
     this.terrain = new Terrain(seed);
+    this.rail = new Railways(this);
   }
 
   /**

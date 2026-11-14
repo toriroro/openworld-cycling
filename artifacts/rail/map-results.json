@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-14T07:09:10.452Z",
+  "shots": {
+    "wide": {
+      "rails": 22,
+      "waitS": 83.6
+    },
+    "origin": {
+      "rails": 22,
+      "waitS": 3
+    },
+    "station": {
+      "name": "鹿岬",
+      "km": 17.3
+    }
+  },
+  "errors": []
+}

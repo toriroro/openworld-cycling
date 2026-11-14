@@ -3,7 +3,7 @@
 import { ROAD_CLASSES } from "./constants.ts";
 import { circumradius } from "./shape.ts";
 import type { Lake, RiverSeg } from "./rivers.ts";
-import type { Road } from "./types.ts";
+import type { RailLine, Road } from "./types.ts";
 import { buildJunctions, type Rect, type World } from "./world.ts";
 
 /** 道路の点列のハッシュ（FNV-1a を Float32 のビット列に掛ける） */
@@ -20,6 +20,44 @@ export function roadHash(road: Road): number {
   for (let i = 0; i < u2.length; i++) mix(u2[i]);
   for (let i = 0; i < road.id.length; i++) mix(road.id.charCodeAt(i));
   return h >>> 0;
+}
+
+/** 線路の集まりのハッシュ（点列・駅・交わりの種類。鉄道の草案 13 の 5） */
+export function railHash(lines: RailLine[]): string {
+  const sorted = [...lines].sort((a, b) => (a.id < b.id ? -1 : 1));
+  let h = 0x811c9dc5;
+  const f = new Float64Array(1);
+  const u = new Uint32Array(f.buffer);
+  const mixN = (v: number) => {
+    f[0] = v;
+    h = Math.imul(h ^ u[0], 0x01000193);
+    h = Math.imul(h ^ u[1], 0x01000193);
+  };
+  const mixS = (s: string) => {
+    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
+  };
+  for (const l of sorted) {
+    const p = new Uint32Array(l.points.buffer, l.points.byteOffset, l.points.length);
+    for (let i = 0; i < p.length; i++) h = Math.imul(h ^ p[i], 0x01000193);
+    mixN(l.origin[0]);
+    mixN(l.origin[1]);
+    mixN(l.length);
+    mixS(l.id + l.status);
+    for (const st of l.stations) {
+      mixN(st.s);
+      mixS(st.kind);
+    }
+    for (const c of l.crossings) {
+      mixN(c.s);
+      mixS(c.kind + c.road + (c.unresolved ? "u" : ""));
+    }
+    for (const sp of l.spans) {
+      mixN(sp.from);
+      mixN(sp.to);
+      mixS(sp.kind);
+    }
+  }
+  return `${(h >>> 0).toString(16).padStart(8, "0")} ${sorted.length}`;
 }
 
 /** 道路の集まりのハッシュ（識別子の順に並べて） */

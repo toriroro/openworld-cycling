@@ -1,5 +1,5 @@
 // 同じ範囲を生成して、道路の点列のハッシュを出す（端末間の一致の検査。モック仕様 4.10）。
-import { riversHash, roadsHash } from "../src/shared/world/inspect.ts";
+import { railHash, riversHash, roadsHash } from "../src/shared/world/inspect.ts";
 import { World } from "../src/shared/world/world.ts";
 
 const q = new URLSearchParams(location.search);
@@ -18,6 +18,8 @@ const rivers = () => {
 const result = {
   hash: roadsHash(reg.roads),
   rivers: rivers(),
+  // 鉄道（rail=1 の時だけ。線路の生成は時間がかかる）
+  rail: q.get("rail") === "1" ? railHash(w.rail.inRect({ x0: x - size / 2, z0: z - size / 2, x1: x + size / 2, z1: z + size / 2 })) : "",
   roads: reg.roads.length,
   junctions: reg.junctions.length,
   pois: reg.pois.map((p) => p.id).sort().join(",").length,

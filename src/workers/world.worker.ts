@@ -28,6 +28,12 @@ self.onmessage = (ev: MessageEvent<WorldRequest>) => {
       post({ type: "tile", id: req.id, pixels, ms: now() - t0 }, [pixels.buffer]);
       return;
     }
+    if (req.type === "rail") {
+      const t0 = now();
+      const lines = world.rail.inRect(req.rect).map((l) => ({ ...l, points: l.points.slice() }));
+      post({ type: "rail", id: req.id, lines, ms: now() - t0 }, lines.map((l) => l.points.buffer));
+      return;
+    }
     if (req.type === "region") {
       const t0 = now();
       const before = world.timings.length;

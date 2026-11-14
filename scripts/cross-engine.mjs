@@ -30,9 +30,10 @@ for (const [name, launch] of targets) {
 }
 const ref = results[0].hash;
 const refRivers = results[0].rivers;
+const refRail = results[0].rail;
 for (const r of results)
   console.log(
-    `${r.engine.padEnd(26)} ${r.error ? "起動できない: " + r.error : `${r.hash} ${r.hash === ref ? "一致" : "不一致"} 道路 ${r.roads}  川 ${r.rivers} ${r.rivers === refRivers ? "一致" : "不一致"}  ${r.ms}ms`}`,
+    `${r.engine.padEnd(26)} ${r.error ? "起動できない: " + r.error : `${r.hash} ${r.hash === ref ? "一致" : "不一致"} 道路 ${r.roads}  川 ${r.rivers} ${r.rivers === refRivers ? "一致" : "不一致"}${r.rail ? `  鉄道 ${r.rail} ${r.rail === refRail ? "一致" : "不一致"}` : ""}  ${r.ms}ms`}`,
   );
 mkdirSync("artifacts/cross-engine", { recursive: true });
 const file = `artifacts/cross-engine/${new Date().toISOString().replace(/[:.]/g, "-")}.json`;

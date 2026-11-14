@@ -1,5 +1,5 @@
 // tools/world-hash.ts と同じ計算を Node で行い、結果を JSON で出す
-import { riversHash, roadsHash } from "../src/shared/world/inspect.ts";
+import { railHash, riversHash, roadsHash } from "../src/shared/world/inspect.ts";
 import { World } from "../src/shared/world/world.ts";
 
 const q = new URLSearchParams(process.argv[2] ?? "");
@@ -14,6 +14,8 @@ const rv = w.terrain.rivers.inRect(x - 32000, z - 32000, x + 32000, z + 32000);
 console.log(JSON.stringify({
   hash: roadsHash(reg.roads),
   rivers: `${riversHash(rv.segs, rv.lakes)} ${rv.segs.length}/${rv.lakes.length}`,
+  // 鉄道（rail=1 の時だけ。線路の生成は時間がかかる）
+  rail: q.get("rail") === "1" ? railHash(w.rail.inRect({ x0: x - size / 2, z0: z - size / 2, x1: x + size / 2, z1: z + size / 2 })) : "",
   roads: reg.roads.length,
   junctions: reg.junctions.length,
   pois: reg.pois.map((p) => p.id).sort().join(",").length,
