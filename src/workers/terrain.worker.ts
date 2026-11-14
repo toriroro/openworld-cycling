@@ -21,7 +21,7 @@ self.onmessage = (ev: MessageEvent<TerrainRequest>) => {
     const t0 = now();
     const out = buildTile(terrain!, req.input);
     const msg: TerrainResponse = { type: "tile", id: req.id, out, ms: now() - t0 };
-    (self as unknown as Worker).postMessage(msg, [out.position.buffer, out.normal.buffer, out.color.buffer, out.uv.buffer, out.index.buffer, out.veg.buffer]);
+    (self as unknown as Worker).postMessage(msg, [out.position.buffer, out.normal.buffer, out.color.buffer, out.uv.buffer, out.field.buffer, out.index.buffer, out.veg.buffer]);
   } catch (e) {
     (self as unknown as Worker).postMessage({ type: "error", id: req.id, message: String(e) } satisfies TerrainResponse);
   }

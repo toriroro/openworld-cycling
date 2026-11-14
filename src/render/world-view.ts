@@ -57,7 +57,7 @@ export class WorldView {
     const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     const loader = new THREE.TextureLoader();
     const ground = loadTexture(loader, "aerial_grass_rock_Diffuse", true, aniso);
-    const terrainMat = terrainMaterial(ground);
+    const terrainMat = terrainMaterial(ground, seed);
     const asphalt = (name: string, color: boolean) => loadTexture(loader, `asphalt_02_${name}`, color, aniso);
     const paved = new THREE.MeshStandardMaterial({
       map: asphalt("Diffuse", true),

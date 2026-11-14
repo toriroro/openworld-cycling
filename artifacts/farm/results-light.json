@@ -1,0 +1,241 @@
+{
+  "date": "2026-11-14T05:16:48.093Z",
+  "quality": "light",
+  "shots": {
+    "paddy-above-light": {
+      "triangles": 148327,
+      "calls": 40,
+      "vegetation": {
+        "farTrees": 4640,
+        "nearTrees": 749,
+        "shrubs": 40,
+        "rocks": 3,
+        "grass": 0,
+        "bales": 0,
+        "crops": 0
+      }
+    },
+    "paddy-oblique-light": {
+      "triangles": 224529,
+      "calls": 62,
+      "vegetation": {
+        "farTrees": 11517,
+        "nearTrees": 1177,
+        "shrubs": 34,
+        "rocks": 7,
+        "grass": 0,
+        "bales": 0,
+        "crops": 0
+      }
+    },
+    "paddy-ground-light": {
+      "triangles": 222336,
+      "calls": 60,
+      "vegetation": {
+        "farTrees": 11958,
+        "nearTrees": 736,
+        "shrubs": 37,
+        "rocks": 7,
+        "grass": 0,
+        "bales": 0,
+        "crops": 0
+      }
+    },
+    "paddy-road1-light": {
+      "triangles": 219450,
+      "calls": 68,
+      "vegetation": {
+        "farTrees": 14152,
+        "nearTrees": 196,
+        "shrubs": 9,
+        "rocks": 4,
+        "grass": 66,
+        "bales": 0,
+        "crops": 1945
+      }
+    },
+    "paddy-road2-light": {
+      "triangles": 294046,
+      "calls": 87,
+      "vegetation": {
+        "farTrees": 10238,
+        "nearTrees": 42,
+        "shrubs": 1,
+        "rocks": 0,
+        "grass": 22,
+        "bales": 0,
+        "crops": 2182
+      }
+    },
+    "paddy-road3-light": {
+      "triangles": 259705,
+      "calls": 81,
+      "vegetation": {
+        "farTrees": 6335,
+        "nearTrees": 51,
+        "shrubs": 0,
+        "rocks": 0,
+        "grass": 27,
+        "bales": 0,
+        "crops": 1500
+      }
+    },
+    "field-above-light": {
+      "triangles": 176923,
+      "calls": 56,
+      "vegetation": {
+        "farTrees": 13581,
+        "nearTrees": 122,
+        "shrubs": 0,
+        "rocks": 0,
+        "grass": 0,
+        "bales": 0,
+        "crops": 0
+      }
+    },
+    "field-oblique-light": {
+      "triangles": 217339,
+      "calls": 62,
+      "vegetation": {
+        "farTrees": 11201,
+        "nearTrees": 138,
+        "shrubs": 0,
+        "rocks": 0,
+        "grass": 0,
+        "bales": 0,
+        "crops": 0
+      }
+    },
+    "field-ground-light": {
+      "triangles": 242349,
+      "calls": 69,
+      "vegetation": {
+        "farTrees": 11261,
+        "nearTrees": 78,
+        "shrubs": 0,
+        "rocks": 0,
+        "grass": 0,
+        "bales": 0,
+        "crops": 0
+      }
+    },
+    "field-road1-light": {
+      "triangles": 221659,
+      "calls": 71,
+      "vegetation": {
+        "farTrees": 12584,
+        "nearTrees": 136,
+        "shrubs": 16,
+        "rocks": 2,
+        "grass": 77,
+        "bales": 0,
+        "crops": 0
+      }
+    },
+    "field-road2-light": {
+      "triangles": 219639,
+      "calls": 73,
+      "vegetation": {
+        "farTrees": 12556,
+        "nearTrees": 164,
+        "shrubs": 10,
+        "rocks": 0,
+        "grass": 41,
+        "bales": 0,
+        "crops": 0
+      }
+    },
+    "field-road3-light": {
+      "triangles": 198312,
+      "calls": 72,
+      "vegetation": {
+        "farTrees": 11522,
+        "nearTrees": 189,
+        "shrubs": 3,
+        "rocks": 1,
+        "grass": 33,
+        "bales": 0,
+        "crops": 0
+      }
+    },
+    "pasture-above-light": {
+      "triangles": 128467,
+      "calls": 46,
+      "vegetation": {
+        "farTrees": 6435,
+        "nearTrees": 109,
+        "shrubs": 0,
+        "rocks": 0,
+        "grass": 0,
+        "bales": 132,
+        "crops": 0
+      }
+    },
+    "pasture-oblique-light": {
+      "triangles": 183983,
+      "calls": 59,
+      "vegetation": {
+        "farTrees": 9990,
+        "nearTrees": 354,
+        "shrubs": 12,
+        "rocks": 1,
+        "grass": 0,
+        "bales": 132,
+        "crops": 0
+      }
+    },
+    "pasture-ground-light": {
+      "triangles": 220138,
+      "calls": 55,
+      "vegetation": {
+        "farTrees": 14928,
+        "nearTrees": 354,
+        "shrubs": 33,
+        "rocks": 6,
+        "grass": 0,
+        "bales": 132,
+        "crops": 0
+      }
+    },
+    "pasture-road1-light": {
+      "triangles": 219068,
+      "calls": 83,
+      "vegetation": {
+        "farTrees": 6232,
+        "nearTrees": 312,
+        "shrubs": 1,
+        "rocks": 0,
+        "grass": 23,
+        "bales": 132,
+        "crops": 2867
+      }
+    },
+    "pasture-road2-light": {
+      "triangles": 171138,
+      "calls": 69,
+      "vegetation": {
+        "farTrees": 5467,
+        "nearTrees": 167,
+        "shrubs": 1,
+        "rocks": 0,
+        "grass": 28,
+        "bales": 42,
+        "crops": 2012
+      }
+    },
+    "pasture-road3-light": {
+      "triangles": 191313,
+      "calls": 69,
+      "vegetation": {
+        "farTrees": 8175,
+        "nearTrees": 124,
+        "shrubs": 0,
+        "rocks": 0,
+        "grass": 12,
+        "bales": 90,
+        "crops": 2567
+      }
+    }
+  },
+  "errors": []
+}

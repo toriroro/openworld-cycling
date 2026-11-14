@@ -2,6 +2,7 @@
 
 import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
+import { fieldSeed, fieldShader } from "./farm/fields.ts";
 
 export interface SunState {
   dir: THREE.Vector3;
@@ -108,11 +109,18 @@ export class Environment {
   }
 }
 
-/** 地表の材質: 頂点色（sRGB）× 細かい模様の明るさ。模様は遠くで消す */
-export function terrainMaterial(detail: THREE.Texture): THREE.MeshStandardMaterial {
+/**
+ * 地表の材質: 頂点色（sRGB）× 細かい模様の明るさ。模様は遠くで消す。
+ * 農地（頂点の field の重みが大きい所）は、区画と作物の色を材質の中で描く（render/farm/fields.ts）。
+ */
+export function terrainMaterial(detail: THREE.Texture, seed: number): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, map: detail, roughness: 0.96, metalness: 0 });
   m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute vec4 field;\nvarying vec4 vField;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvField = field;");
     sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", `#include <common>\nvarying vec4 vField;\n${fieldShader(fieldSeed(seed))}`)
       .replace(
         "#include <map_fragment>",
         `#ifdef USE_MAP
@@ -122,9 +130,19 @@ export function terrainMaterial(detail: THREE.Texture): THREE.MeshStandardMateri
           diffuseColor.rgb *= mix( clamp( lum * 2.4, 0.55, 1.45 ), 1.0, fade );
         #endif`,
       )
-      .replace("#include <color_fragment>", "diffuseColor.rgb *= pow( vColor.rgb, vec3( 2.2 ) );");
+      .replace(
+        "#include <color_fragment>",
+        `vec3 groundColor = pow( vColor.rgb, vec3( 2.2 ) );
+        float farmW = smoothstep( 0.42, 0.58, vField.z );
+        if ( farmW > 0.0 ) {
+          // 農地の区画は作物の色、農地でない区画（平地の林）は林床の暗い緑
+          if ( blockOpen( vField.xy ) > 0.5 ) groundColor = mix( groundColor, farmColor( vField.xy, vField.w, length( vViewPosition ) ), farmW );
+          else groundColor = mix( groundColor, vec3( 0.045, 0.085, 0.03 ), farmW * 0.55 );
+        }
+        diffuseColor.rgb *= groundColor;`,
+      );
   };
-  m.customProgramCacheKey = () => "terrain-v1";
+  m.customProgramCacheKey = () => `terrain-v5-${seed}`;
   return m;
 }
 

@@ -299,6 +299,7 @@ export class TerrainStreamer {
       g.setAttribute("normal", new THREE.BufferAttribute(out.normal, 3));
       g.setAttribute("color", new THREE.BufferAttribute(out.color, 3));
       g.setAttribute("uv", new THREE.BufferAttribute(out.uv, 2));
+      g.setAttribute("field", new THREE.BufferAttribute(out.field, 4));
       g.setIndex(new THREE.BufferAttribute(out.index, 1));
       const s = LEVELS[tile.level].size;
       g.boundingBox = new THREE.Box3(new THREE.Vector3(0, out.minY - LEVELS[tile.level].skirt, 0), new THREE.Vector3(s, out.maxY, s));

@@ -7,6 +7,7 @@
 import { gradNoise } from "../shared/world/noise.ts";
 import type { Terrain } from "../shared/world/terrain.ts";
 import { DISTRICT_CLEAR, sampleSurface, type SurfaceGrid } from "../render/district/surface.ts";
+import { fieldCoord, fieldSeed, openAt } from "../render/farm/fields.ts";
 import { placeVegetation } from "./vegetation-place.ts";
 
 /** 道路の点列（タイルの左上からの相対）。1点 5 要素: x, z, y, 半幅, 印（1 = 橋） */
@@ -39,6 +40,8 @@ export interface TileOutput {
   normal: Float32Array;
   color: Float32Array;
   uv: Float32Array;
+  /** 農地: 区画の座標 2 つ、農地の重み 0〜1、田・畑・牧草地の寄り 0〜1（render/farm/fields.ts） */
+  field: Float32Array;
   index: Uint16Array | Uint32Array;
   minY: number;
   maxY: number;
@@ -142,11 +145,15 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
   const districts = inp.districts && inp.districts.length ? inp.districts : null;
   const urban = districts ? new Float32Array(G * G) : null;
   const ds = { h: 0, m: 0 };
+  // 水面と川の河原（農地にしない）
+  const wet = new Uint8Array(G * G);
   for (let j = 0; j < G; j++)
     for (let i = 0; i < G; i++) {
       const lx = (i - 1) * step;
       const lz = (j - 1) * step;
-      let h = terrain.height(x0 + lx, z0 + lz);
+      const smp = terrain.sample(x0 + lx, z0 + lz, true);
+      let h = smp.height;
+      if (smp.water || smp.floodplain) wet[j * G + i] = 1;
       if (q) {
         const n = q.nearest(lx, lz);
         if (n) {
@@ -176,20 +183,33 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
   const normal = new Float32Array(vCount * 3);
   const color = new Float32Array(vCount * 3);
   const uv = new Float32Array(vCount * 2);
+  const field = new Float32Array(vCount * 4);
   let minY = Infinity;
   let maxY = -Infinity;
 
   // 景観の重みは粗い格子で求めて補間する
   const L = 9;
   const lw = new Float64Array(L * L * 4);
+  // 農地の大きな分布（重みと、田・畑・牧草地の寄り）も同じ粗い格子で求める
+  const fm = new Float64Array(L * L * 2);
+  const seedK = terrain.seed * 31 + 911;
   for (let j = 0; j < L; j++)
     for (let i = 0; i < L; i++) {
-      const w = terrain.landscape(x0 + (i * size) / (L - 1), z0 + (j * size) / (L - 1));
+      const px = x0 + (i * size) / (L - 1), pz = z0 + (j * size) / (L - 1);
+      const w = terrain.landscape(px, pz);
       const k = (j * L + i) * 4;
       lw[k] = w.coast;
       lw[k + 1] = w.plain;
       lw[k + 2] = w.mountain;
       lw[k + 3] = w.other;
+      const sl = terrain.slope(px, pz);
+      const e = terrain.routeHeight(px, pz);
+      const land = Math.min(1, w.plain * 1.25 + w.other * 0.5);
+      fm[(j * L + i) * 2] = land * (1 - smooth(0.07, 0.13, sl)) * (1 - smooth(260, 380, e));
+      const paddy = (1 - smooth(0.012, 0.03, sl)) * (1 - smooth(70, 130, e));
+      const pasture = Math.max(smooth(0.045, 0.08, sl), w.other * 0.8);
+      const kind = 0.5 - 0.5 * paddy + 0.45 * pasture + 0.25 * gradNoise(seedK, px / 2600, pz / 2600);
+      fm[(j * L + i) * 2 + 1] = kind < 0 ? 0 : kind > 1 ? 1 : kind;
     }
   const uOff = (((x0 % inp.uvRepeat) + inp.uvRepeat) % inp.uvRepeat) / inp.uvRepeat;
   const vOff = (((z0 % inp.uvRepeat) + inp.uvRepeat) % inp.uvRepeat) / inp.uvRepeat;
@@ -197,6 +217,7 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
   const seedA = terrain.seed * 31 + 901;
   const seedB = terrain.seed * 31 + 902;
   const seedC = terrain.seed * 31 + 903;
+  const lots = inp.lots;
 
   for (let j = 0; j < N; j++)
     for (let i = 0; i < N; i++) {
@@ -229,6 +250,28 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
         w4[k] = (a * (1 - u) + b * u) * (1 - vv) + (c * (1 - u) + d * u) * vv;
       }
       const slope = Math.sqrt(nx * nx + nz * nz);
+      // 農地の重み: 大きな分布 × 林の切れ目 × 低すぎない × 道路・街・敷地・水から離れている
+      {
+        const a = fm[(jj * L + ii) * 2], b = fm[(jj * L + ii + 1) * 2], c = fm[((jj + 1) * L + ii) * 2], d = fm[((jj + 1) * L + ii + 1) * 2];
+        let f = (a * (1 - u) + b * u) * (1 - vv) + (c * (1 - u) + d * u) * vv;
+        if (f > 0.01) {
+          f *= smooth(1.5, 3.5, h) * (1 - smooth(0.2, 0.3, slope));
+          const e = nearRoad[g];
+          if (e < 6) f *= smooth(2, 6, e);
+          if (wet[g]) f = 0;
+          if (urban) f *= 1 - smooth(0, 0.3, urban[g]);
+          if (lots && f > 0)
+            for (let k = 0; k < lots.length; k += 3) {
+              const dx = i * step - lots[k], dz = j * step - lots[k + 1];
+              const dd = Math.sqrt(dx * dx + dz * dz) - lots[k + 2];
+              if (dd < 10) f *= smooth(2, 10, dd);
+            }
+        } else f = 0;
+        fieldCoord(x0, z0, i * step, j * step, field, v * 4);
+        field[v * 4 + 2] = f;
+        const a2 = fm[(jj * L + ii) * 2 + 1], b2 = fm[(jj * L + ii + 1) * 2 + 1], c2 = fm[((jj + 1) * L + ii) * 2 + 1], d2 = fm[((jj + 1) * L + ii + 1) * 2 + 1];
+        field[v * 4 + 3] = (a2 * (1 - u) + b2 * u) * (1 - vv) + (c2 * (1 - u) + d2 * u) * vv;
+      }
       const rock = smooth(0.45, 0.9, slope) + smooth(1250, 1600, h) * 0.6;
       const sand = h < 0.8 ? 1 - smooth(0.3, 0.8, h) : 0;
       // 大きな模様（明るさと、枯れ草寄りの色）で一様な緑を崩す
@@ -274,6 +317,7 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
       normal.copyWithin(sv * 3, v * 3, v * 3 + 3);
       color.copyWithin(sv * 3, v * 3, v * 3 + 3);
       uv.copyWithin(sv * 2, v * 2, v * 2 + 2);
+      field.copyWithin(sv * 4, v * 4, v * 4 + 4);
       sv++;
     }
   }
@@ -309,6 +353,7 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
       }
     }
   }
+  const fseed = fieldSeed(terrain.seed);
   const veg = placeVegetation({
     seed: terrain.seed,
     x0,
@@ -337,6 +382,14 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
       return r;
     },
     roadEdge: (lx, lz) => q?.nearest(lx, lz)?.e ?? 1e9,
+    fieldSeed: fseed,
+    farm: (lx, lz, out) => {
+      const i = Math.max(0, Math.min(N - 1, Math.round(lx / step))), j = Math.max(0, Math.min(N - 1, Math.round(lz / step)));
+      // 農地でない区画（林・草地）は、重みを負で返す（木を増やす目印）
+      const w = field[(j * N + i) * 4 + 2];
+      out.w = openAt(fseed, x0 + lx, z0 + lz) ? w : -w;
+      out.kind = field[(j * N + i) * 4 + 3];
+    },
     inLot: (lx, lz) => {
       if (urban) {
         const i = Math.max(0, Math.min(G - 1, Math.round(lx / step) + 1)), j = Math.max(0, Math.min(G - 1, Math.round(lz / step) + 1));
@@ -351,7 +404,7 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
       return false;
     },
   });
-  return { position, normal, color, uv, index, minY, maxY: maxY, lowered, veg };
+  return { position, normal, color, uv, field, index, minY, maxY: maxY, lowered, veg };
 }
 
 /**

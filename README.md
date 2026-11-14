@@ -100,6 +100,7 @@ npm run deploy
 | その後の直し | 交差点（重なる主要道の合流、隅切り、曲線で曲がる）、ライダーと自転車の作り直しとパーツの設定、木の見え方、建物の写真素材、起動画面 | [junctions](artifacts/junctions/summary.md) |
 | R1 河川の生成 | 大きな川を高さ関数に組み込む、橋、河川敷の自転車道、2D 地図の川（3D の水面は R2） | [r1-summary](artifacts/r1-summary.md) |
 | 見本の街区（途中） | 町の中心を街区にする（区画道路・路地・歩道・敷地・電柱・街路樹）。建物は北海道・東北の町を手本に 8 つの型（一軒家・古い家・アパート・マンション・商店・古い商店・テナントビル・貸店舗）。見た目だけで、生成器は変えていない | [都市と交通の草案 12章](docs/history/specs/2026-11-13-urban-and-traffic-draft.md)、[画面写真](artifacts/district/) |
+| 農地 | 平野を田・畑・牧草地にする（区画と作物を地形の材質で描く、防風林、牧草ロール、道路沿いの作物の株）。見た目だけで、生成器は変えていない | [farm](artifacts/farm/summary.md) |
 
 ## 確かめていないこと
 
@@ -129,7 +130,7 @@ npm run typecheck
 npm test
 ```
 
-`scripts/` のブラウザでの確認（開発サーバーが動いている前提、Playwright と Chrome を使う）: `m3-check.mjs`（画面の重なりと描画量）、`m4-check.mjs`（続き・眺める・喫茶店・音）、`m4-hour.mjs`（1 時間の無操作走行）、`junction-shots.mjs`、`buildings-shots.mjs`、`r1-shots.mjs`、`district-shots.mjs`（街区）、`building-style-shots.mjs`（建物の型ごと）、`district-budget.mjs`（街区の描画量）。世界の検査: `npm run world:report`、`scripts/junction-report.ts`、`scripts/river-report.ts`。
+`scripts/` のブラウザでの確認（開発サーバーが動いている前提、Playwright と Chrome を使う）: `m3-check.mjs`（画面の重なりと描画量）、`m4-check.mjs`（続き・眺める・喫茶店・音）、`m4-hour.mjs`（1 時間の無操作走行）、`junction-shots.mjs`、`buildings-shots.mjs`、`r1-shots.mjs`、`district-shots.mjs`（街区）、`building-style-shots.mjs`（建物の型ごと）、`district-budget.mjs`（街区の描画量）、`farm-shots.mjs`（農地）。世界の検査: `npm run world:report`、`scripts/junction-report.ts`、`scripts/river-report.ts`、`scripts/district-report.ts`、`scripts/farm-report.ts`。
 
 ## ディレクトリ
 

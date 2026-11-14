@@ -7,7 +7,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { VEG_GRASS, VEG_ROCK, VEG_SHRUB, VEG_STRIDE, VEG_TREE } from "../workers/vegetation-place.ts";
+import { VEG_BALE, VEG_CROP_CORN, VEG_CROP_LEAF, VEG_CROP_RICE, VEG_CROP_STALK, VEG_GRASS, VEG_ROCK, VEG_SHRUB, VEG_STRIDE, VEG_TREE } from "../workers/vegetation-place.ts";
+import { cropTexture, type CropTuft, TUFT_SIZE } from "./farm/crop-textures.ts";
 import type { TerrainStreamer } from "./terrain-streamer.ts";
 
 const BASE = `${import.meta.env.BASE_URL}assets/nature/`;
@@ -16,10 +17,14 @@ interface Limits {
   shrubs: number;
   rocks: number;
   grass: number;
+  bales: number;
+  /** 作物の株（種類ごと） */
+  crops: number;
   nearZone: number;
 }
-const LIMITS_STANDARD: Limits = { shrubs: 120, rocks: 100, grass: 5000, nearZone: 320 };
-const LIMITS_LIGHT: Limits = { shrubs: 40, rocks: 40, grass: 1500, nearZone: 220 };
+const LIMITS_STANDARD: Limits = { shrubs: 120, rocks: 100, grass: 5000, bales: 1200, crops: 6000, nearZone: 320 };
+const LIMITS_LIGHT: Limits = { shrubs: 40, rocks: 40, grass: 1500, bales: 400, crops: 1500, nearZone: 220 };
+const CROP_TUFTS: [number, CropTuft][] = [[VEG_CROP_LEAF, "leaf"], [VEG_CROP_STALK, "stalk"], [VEG_CROP_RICE, "rice"], [VEG_CROP_CORN, "corn"]];
 
 /** 容量を足りなくなったら作り直すインスタンス描画 */
 class Pool {
@@ -92,6 +97,11 @@ export class Vegetation {
   private shrubs: Pool[] = [];
   private rocks: Pool[] = [];
   private grass: Pool;
+  /** 牧草ロール（白いラップの円筒を横に寝かせた物） */
+  private bales: Pool;
+  private baleKey = "";
+  /** 作物の株（十字に組んだ板 2 枚、種類ごとの絵） */
+  private crops: { type: number; pool: Pool; material: THREE.MeshStandardMaterial }[] = [];
   private bbMaterial: THREE.MeshBasicMaterial;
   private limits = LIMITS_STANDARD;
   private lastSelect = 0;
@@ -99,7 +109,7 @@ export class Vegetation {
   private near3dKey = "";
   private originX = 0;
   private originZ = 0;
-  stats = { farTrees: 0, nearTrees: 0, shrubs: 0, rocks: 0, grass: 0 };
+  stats = { farTrees: 0, nearTrees: 0, shrubs: 0, rocks: 0, grass: 0, bales: 0, crops: 0 };
 
   constructor(private terrain: TerrainStreamer) {
     this.group.name = "vegetation";
@@ -127,6 +137,18 @@ export class Vegetation {
       blades.push(g);
     }
     this.grass = new Pool(this.group, mergeGeometries(blades)!, new THREE.MeshStandardMaterial({ color: "#4f6a36", roughness: 1 }), false);
+    const bale = new THREE.CylinderGeometry(0.62, 0.62, 1.2, 12).rotateX(Math.PI / 2).translate(0, 0.62, 0);
+    this.bales = new Pool(this.group, bale, new THREE.MeshStandardMaterial({ color: "#e4e6e0", roughness: 0.55 }), false);
+    for (const [type, kind] of CROP_TUFTS) {
+      const [tw, th] = TUFT_SIZE[kind];
+      const tuftA = new THREE.PlaneGeometry(tw, th).translate(0, th / 2, 0);
+      const tuft = mergeGeometries([tuftA, tuftA.clone().rotateY(Math.PI), tuftA.clone().rotateY(Math.PI / 2), tuftA.clone().rotateY(-Math.PI / 2)])!;
+      // 法線を上向きにして、地面と同じ明るさで照らす。裏から見ても暗くならないよう、板は表裏 2 枚ずつ（片面の材質）
+      const nrm = tuft.getAttribute("normal");
+      for (let i = 0; i < nrm.count; i++) nrm.setXYZ(i, 0, 1, 0);
+      const material = new THREE.MeshStandardMaterial({ map: cropTexture(kind, 4), alphaTest: 0.5, roughness: 1 });
+      this.crops.push({ type, material, pool: new Pool(this.group, tuft, material, false) });
+    }
     void this.loadModels();
   }
 
@@ -178,6 +200,7 @@ export class Vegetation {
 
     this.farKey = "";
     this.near3dKey = "";
+    this.baleKey = "";
   }
 
   setOrigin(x: number, z: number) {
@@ -185,6 +208,7 @@ export class Vegetation {
     this.originZ = z;
     this.farKey = "";
     this.near3dKey = "";
+    this.baleKey = "";
   }
 
   /** 昼夜で板の木の明るさを合わせる（光を受けない材質のため） */
@@ -224,11 +248,27 @@ export class Vegetation {
       });
       this.stats.farTrees = count;
     }
+    // 牧草ロール: いちばん細かいタイルの全部から、近い順に。タイルの組が変わった時だけ作り直す
+    const bk = tiles.filter((t) => t.level === 0).map((t) => t.key).join("|") + `@${this.originX},${this.originZ}`;
+    if (bk !== this.baleKey) {
+      this.baleKey = bk;
+      const bl: { d: number; t: TileVeg; i: number }[] = [];
+      for (const t of tiles) {
+        if (t.level !== 0) continue;
+        const v = t.veg;
+        for (let i = 0; i < v.length; i += VEG_STRIDE)
+          if (v[i + 5] === VEG_BALE) bl.push({ d: (t.ox + v[i] - cx) ** 2 + (t.oz + v[i + 2] - cz) ** 2, t, i });
+      }
+      const pick = bl.length > L.bales ? bl.sort((a, b) => a.d - b.d).slice(0, L.bales) : bl;
+      this.bales.write(pick.length, (arr) => pick.forEach((e, k) => this.put(arr, k, e.t, e.i)));
+      this.stats.bales = pick.length;
+    }
     // 近く: 板の木（3枚）、低木、岩、草
     const trees: { d: number; t: TileVeg; i: number }[] = [];
     const shrubs: { d: number; t: TileVeg; i: number }[] = [];
     const rocks: { d: number; t: TileVeg; i: number }[] = [];
     const grass: { d: number; t: TileVeg; i: number }[] = [];
+    const crops = this.crops.map(() => [] as { d: number; t: TileVeg; i: number }[]);
     for (const t of near) {
       const v = t.veg;
       for (let i = 0; i < v.length; i += VEG_STRIDE) {
@@ -240,6 +280,10 @@ export class Vegetation {
         else if (type === VEG_SHRUB && d < 180 * 180) shrubs.push({ d, t, i });
         else if (type === VEG_ROCK && d < 180 * 180) rocks.push({ d, t, i });
         else if (type === VEG_GRASS && d < 75 * 75) grass.push({ d, t, i });
+        else if (type >= VEG_CROP_LEAF && d < 110 * 110) {
+          const k = this.crops.findIndex((q) => q.type === type);
+          if (k >= 0) crops[k].push({ d, t, i });
+        }
       }
     }
     const nearest = (list: typeof trees, n: number) => (list.length > n ? list.sort((a, b) => a.d - b.d).slice(0, n) : list);
@@ -256,6 +300,13 @@ export class Vegetation {
     for (const p of this.rocks) p.write(rk.length, (arr) => rk.forEach((e, k) => this.put(arr, k, e.t, e.i)));
     const gr = nearest(grass, L.grass);
     this.grass.write(gr.length, (arr) => gr.forEach((e, k) => this.put(arr, k, e.t, e.i)));
+    let cropCount = 0;
+    this.crops.forEach((q, k) => {
+      const list = nearest(crops[k], L.crops);
+      q.pool.write(list.length, (arr) => list.forEach((e, n) => this.put(arr, n, e.t, e.i)));
+      cropCount += list.length;
+    });
+    this.stats.crops = cropCount;
     this.stats.shrubs = sh.length;
     this.stats.rocks = rk.length;
     this.stats.grass = gr.length;
