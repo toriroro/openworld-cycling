@@ -87,7 +87,7 @@ npm run deploy
 - **地図**: 世界地図を押すと行き先になり、分岐を経路に沿って自動で選ぶ。走った道は太く描く
 - **喫茶店**: 店の前で止まると立ち寄りになり、スタンプが残る。メニューの「スタンプ帳」から、立ち寄った店を選んでそこから走れる
 - **保存**: 10 秒ごと、タブを隠した時、閉じる時に端末に残す
-- **メニュー**: 一時停止、視点、眺める、自転車と装い、スタンプ帳、地図、操作、タイトルへ。設定は 出力（漕ぐ時と眺める時の W）、視点、画質（標準・軽量）、時刻、音量、消音、眺める進路（未走行の道を優先・道なり）、眺める時の fps
+- **メニュー**: 一時停止、視点、眺める、自転車と装い、スタンプ帳、地図、操作、タイトルへ。設定は 出力（漕ぐ時と眺める時の W）、視点、画質（標準・軽量）、時刻（世界の時計・固定）、天候（世界の天候・晴れ・曇り・霧に固定）、音量、消音、眺める進路（未走行の道を優先・道なり）、眺める時の fps
 
 ## できていること
 
@@ -101,6 +101,7 @@ npm run deploy
 | R1 河川の生成 | 大きな川を高さ関数に組み込む、橋、河川敷の自転車道、2D 地図の川（3D の水面は R2） | [r1-summary](artifacts/r1-summary.md) |
 | 見本の街区（途中） | 町の中心を街区にする（区画道路・路地・歩道・敷地・電柱・街路樹）。建物は北海道・東北の町を手本に 8 つの型（一軒家・古い家・アパート・マンション・商店・古い商店・テナントビル・貸店舗）。見た目だけで、生成器は変えていない | [都市と交通の草案 12章](docs/history/specs/2026-11-13-urban-and-traffic-draft.md)、[画面写真](artifacts/district/) |
 | 農地 | 平野を田・畑・牧草地にする（区画と作物を地形の材質で描く、防風林、牧草ロール、道路沿いの作物の株）。見た目だけで、生成器は変えていない | [farm](artifacts/farm/summary.md) |
+| 空と天候 | 世界の時計（1 日 = 実時間 4 時間）、場所と時刻で決まる天候（晴れ・曇り・霧）、雲の層・星・月の光、霧と曇りの光と霞。設定で自分の画面だけ固定できる | [sky](artifacts/sky/summary.md) |
 
 ## 確かめていないこと
 
@@ -118,6 +119,7 @@ npm run deploy
 | `/?notitle=1` | 起動画面を出さない |
 | `/?fresh=1` | 保存を使わない |
 | `/?x=…&z=…` | 場所を指定して始める（起動画面と保存は使わない） |
+| `/?time=…&weather=…` | 時刻（時）と天候（`clear`・`cloudy`・`fog`）を決める。保存しない |
 | `/?dev=1` | 本番ビルドでも計測用の `window.__dev` を置く（開発サーバーと自動操作のブラウザでは常に置く） |
 
 検査と計測:
@@ -130,7 +132,7 @@ npm run typecheck
 npm test
 ```
 
-`scripts/` のブラウザでの確認（開発サーバーが動いている前提、Playwright と Chrome を使う）: `m3-check.mjs`（画面の重なりと描画量）、`m4-check.mjs`（続き・眺める・喫茶店・音）、`m4-hour.mjs`（1 時間の無操作走行）、`junction-shots.mjs`、`buildings-shots.mjs`、`r1-shots.mjs`、`district-shots.mjs`（街区）、`building-style-shots.mjs`（建物の型ごと）、`district-budget.mjs`（街区の描画量）、`farm-shots.mjs`（農地）。世界の検査: `npm run world:report`、`scripts/junction-report.ts`、`scripts/river-report.ts`、`scripts/district-report.ts`、`scripts/farm-report.ts`。
+`scripts/` のブラウザでの確認（開発サーバーが動いている前提、Playwright と Chrome を使う）: `m3-check.mjs`（画面の重なりと描画量）、`m4-check.mjs`（続き・眺める・喫茶店・音）、`m4-hour.mjs`（1 時間の無操作走行）、`junction-shots.mjs`、`buildings-shots.mjs`、`r1-shots.mjs`、`district-shots.mjs`（街区）、`building-style-shots.mjs`（建物の型ごと）、`district-budget.mjs`（街区の描画量）、`farm-shots.mjs`（農地）、`sky-shots.mjs`（空と天候）。世界の検査: `npm run world:report`、`scripts/junction-report.ts`、`scripts/river-report.ts`、`scripts/district-report.ts`、`scripts/farm-report.ts`、`scripts/weather-report.ts`（天候の割合と続く長さ）。
 
 ## ディレクトリ
 

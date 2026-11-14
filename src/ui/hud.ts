@@ -22,12 +22,18 @@ export interface HudState {
   paused: boolean;
   /** 行き先までの直線距離 (m)。行き先がなければ null */
   goalDistance?: number | null;
+  /** 世界の時刻（時） */
+  hour?: number;
+  /** 天候の名前 */
+  weather?: string;
 }
 
 export interface Settings {
   power: number;
   quality: Quality;
+  clock: "world" | "fixed";
   hour: number;
+  weather: "world" | "clear" | "cloudy" | "fog";
   camera: CameraMode;
 }
 
@@ -58,7 +64,16 @@ export class Hud {
   private touch: HTMLElement;
   private uturnBtn: HTMLButtonElement;
   private roadEl: HTMLElement;
-  private settingsEls: { power: HTMLInputElement; powerOut: HTMLElement; quality: HTMLSelectElement; hour: HTMLInputElement; hourOut: HTMLElement; camera: HTMLSelectElement };
+  private settingsEls: {
+    power: HTMLInputElement;
+    powerOut: HTMLElement;
+    quality: HTMLSelectElement;
+    clock: HTMLSelectElement;
+    hour: HTMLInputElement;
+    hourOut: HTMLElement;
+    weather: HTMLSelectElement;
+    camera: HTMLSelectElement;
+  };
   menuOpen = false;
   private keysEl!: HTMLElement;
   onSettings: (s: Partial<Settings>) => void = () => {};
@@ -145,21 +160,56 @@ export class Hud {
     }
     quality.value = settings.quality;
     quality.addEventListener("change", () => this.onSettings({ quality: quality.value as Quality }));
-    const rh = row("時刻");
+    // 時刻と天候: 世界のものか、自分の画面だけ固定するか（概要仕様 3.7）
+    const sel = (r: HTMLElement, options: [string, string][], value: string) => {
+      const e = h("select", "", "", r);
+      for (const [v, l] of options) {
+        const o = h("option", "", l, e);
+        o.value = v;
+      }
+      e.value = value;
+      return e;
+    };
+    const clock = sel(
+      row("時刻"),
+      [
+        ["world", "世界の時計"],
+        ["fixed", "固定"],
+      ],
+      settings.clock,
+    );
+    const rh = row("固定する時刻");
     const hour = h("input", "", "", rh);
     hour.type = "range";
-    hour.min = "5";
-    hour.max = "19";
+    hour.min = "0";
+    hour.max = "23.75";
     hour.step = "0.25";
     hour.value = String(settings.hour);
+    hour.disabled = settings.clock === "world";
     const hourOut = h("span", "menu-value", fmtHour(settings.hour), rh);
+    clock.addEventListener("change", () => {
+      hour.disabled = clock.value === "world";
+      // 固定にした時は、その時の時刻から始める（時刻は Game が決めて syncSettings で戻す）
+      this.onSettings({ clock: clock.value as Settings["clock"] });
+    });
     hour.addEventListener("input", () => {
       hourOut.textContent = fmtHour(Number(hour.value));
       this.onSettings({ hour: Number(hour.value) });
     });
+    const weather = sel(
+      row("天候"),
+      [
+        ["world", "世界の天候"],
+        ["clear", "晴れに固定"],
+        ["cloudy", "曇りに固定"],
+        ["fog", "霧に固定"],
+      ],
+      settings.weather,
+    );
+    weather.addEventListener("change", () => this.onSettings({ weather: weather.value as Settings["weather"] }));
     // 足した設定の行はこの印の前に入る（キーの一覧は「操作」の画面へ移した）
     this.keysEl = h("div", "menu-end", "", this.menu);
-    this.settingsEls = { power, powerOut, quality, hour, hourOut, camera };
+    this.settingsEls = { power, powerOut, quality, clock, hour, hourOut, weather, camera };
 
     // 一時停止の表示
     this.pauseEl = h("div", "pause-banner hidden", "一時停止中", this.root);
@@ -219,10 +269,15 @@ export class Hud {
   syncSettings(s: Partial<Settings>) {
     if (s.camera) this.settingsEls.camera.value = s.camera;
     if (s.quality) this.settingsEls.quality.value = s.quality;
+    if (s.clock) {
+      this.settingsEls.clock.value = s.clock;
+      this.settingsEls.hour.disabled = s.clock === "world";
+    }
     if (s.hour !== undefined) {
       this.settingsEls.hour.value = String(s.hour);
       this.settingsEls.hourOut.textContent = fmtHour(s.hour);
     }
+    if (s.weather) this.settingsEls.weather.value = s.weather;
     if (s.power !== undefined) {
       this.settingsEls.power.value = String(s.power);
       this.settingsEls.powerOut.textContent = `${s.power} W`;
@@ -240,7 +295,8 @@ export class Hud {
     this.stats.dist.textContent = (st.odometer / 1000).toFixed(2);
     this.stats.climb.textContent = String(Math.round(st.climb));
     this.stats.time.textContent = fmtTime(st.time);
-    this.roadEl.textContent = `${st.roadName}  標高 ${Math.round(st.elevation)} m${st.goalDistance != null ? `  行き先まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}`;
+    const sky = st.hour !== undefined ? `  ${fmtHour(st.hour)}${st.weather ? ` ${st.weather}` : ""}` : "";
+    this.roadEl.textContent = `${st.roadName}  標高 ${Math.round(st.elevation)} m${sky}${st.goalDistance != null ? `  行き先まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}`;
     this.pauseEl.classList.toggle("hidden", !st.paused);
     this.uturnBtn.classList.toggle("hidden", !st.canUTurn);
     this.updateBranch(st.upcoming);
@@ -288,6 +344,6 @@ export class Hud {
 }
 
 function fmtHour(hh: number) {
-  const m = Math.round((hh % 1) * 60);
-  return `${Math.floor(hh)}:${String(m).padStart(2, "0")}`;
+  const total = Math.floor(hh * 60 + 1e-6) % (24 * 60);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }

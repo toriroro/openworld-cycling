@@ -113,6 +113,7 @@ export class WorldView {
     this.renderer.setPixelRatio(light ? dpr * 0.75 : dpr);
     this.renderer.shadowMap.enabled = !light;
     this.env.setShadows(!light);
+    this.env.setQuality(light);
     this.terrain.ranges = light ? RANGES_LIGHT : RANGES_STANDARD;
     this.terrain.vegDensity = light ? 0.5 : 1;
     this.vegetation?.setQuality(light);
@@ -166,9 +167,9 @@ export class WorldView {
       this.pruneT = now;
       this.towns.prune(eye.x, eye.z, 12000);
     }
-    this.vegetation.setDaylight(0.35 + 0.65 * this.env.daylight);
-    this.districts.setDaylight(0.35 + 0.65 * this.env.daylight);
-    this.env.follow(this.camera.position);
+    this.vegetation.setDaylight(this.env.light);
+    this.districts.setDaylight(this.env.light);
+    this.env.follow(this.camera.position, eye.x, eye.z);
     beforeRender?.();
     this.renderer.render(this.scene, this.camera);
   }

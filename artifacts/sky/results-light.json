@@ -1,0 +1,439 @@
+{
+  "date": "2026-11-14T05:50:50.089Z",
+  "quality": "light",
+  "shots": {
+    "road-clear-morning-light": {
+      "triangles": 292768,
+      "calls": 93,
+      "sky": {
+        "hour": 6.5,
+        "weather": {
+          "kind": "clear",
+          "cloud": 0.3,
+          "fog": 0
+        },
+        "cloud": 0.3,
+        "mist": 0,
+        "fogNear": 960,
+        "fogFar": 11999.999999999993,
+        "sun": 1.482052464649024,
+        "hemi": 1.0961748195242327
+      }
+    },
+    "road-clear-noon-light": {
+      "triangles": 292768,
+      "calls": 93,
+      "sky": {
+        "hour": 12,
+        "weather": {
+          "kind": "clear",
+          "cloud": 0.3,
+          "fog": 0
+        },
+        "cloud": 0.3,
+        "mist": 0,
+        "fogNear": 960,
+        "fogFar": 11999.999999999993,
+        "sun": 3.2,
+        "hemi": 1.3
+      }
+    },
+    "road-clear-evening-light": {
+      "triangles": 292768,
+      "calls": 93,
+      "sky": {
+        "hour": 17.6,
+        "weather": {
+          "kind": "clear",
+          "cloud": 0.3,
+          "fog": 0
+        },
+        "cloud": 0.3,
+        "mist": 0,
+        "fogNear": 960,
+        "fogFar": 11999.999999999993,
+        "sun": 1.0950020597649244,
+        "hemi": 1.0133585111195862
+      }
+    },
+    "road-clear-night-light": {
+      "triangles": 292768,
+      "calls": 93,
+      "sky": {
+        "hour": 22,
+        "weather": {
+          "kind": "clear",
+          "cloud": 0.3,
+          "fog": 0
+        },
+        "cloud": 0.3,
+        "mist": 0,
+        "fogNear": 960,
+        "fogFar": 11999.999999999993,
+        "sun": 0.8,
+        "hemi": 0.45
+      }
+    },
+    "road-cloudy-morning-light": {
+      "triangles": 292768,
+      "calls": 93,
+      "sky": {
+        "hour": 6.5,
+        "weather": {
+          "kind": "cloudy",
+          "cloud": 0.92,
+          "fog": 0
+        },
+        "cloud": 0.92,
+        "mist": 0,
+        "fogNear": 487.695,
+        "fogFar": 7276.949999999993,
+        "sun": 0.1987543509029189,
+        "hemi": 2.0685990292693566
+      }
+    },
+    "road-cloudy-noon-light": {
+      "triangles": 292768,
+      "calls": 93,
+      "sky": {
+        "hour": 12,
+        "weather": {
+          "kind": "cloudy",
+          "cloud": 0.92,
+          "fog": 0
+        },
+        "cloud": 0.92,
+        "mist": 0,
+        "fogNear": 487.695,
+        "fogFar": 7276.949999999993,
+        "sun": 0.4291439999999998,
+        "hemi": 2.579159375
+      }
+    },
+    "road-cloudy-evening-light": {
+      "triangles": 292768,
+      "calls": 93,
+      "sky": {
+        "hour": 17.6,
+        "weather": {
+          "kind": "cloudy",
+          "cloud": 0.92,
+          "fog": 0
+        },
+        "cloud": 0.92,
+        "mist": 0,
+        "fogNear": 487.695,
+        "fogFar": 7276.949999999993,
+        "sun": 0.14684798872992452,
+        "hemi": 1.8611530063956576
+      }
+    },
+    "road-cloudy-night-light": {
+      "triangles": 292768,
+      "calls": 93,
+      "sky": {
+        "hour": 22,
+        "weather": {
+          "kind": "cloudy",
+          "cloud": 0.92,
+          "fog": 0
+        },
+        "cloud": 0.92,
+        "mist": 0,
+        "fogNear": 487.695,
+        "fogFar": 7276.949999999993,
+        "sun": 0.2489775,
+        "hemi": 0.45
+      }
+    },
+    "road-fog-morning-light": {
+      "triangles": 292768,
+      "calls": 93,
+      "sky": {
+        "hour": 6.5,
+        "weather": {
+          "kind": "fog",
+          "cloud": 0.7,
+          "fog": 0.85
+        },
+        "cloud": 0.7,
+        "mist": 0.85,
+        "fogNear": 133.96875000000003,
+        "fogFar": 986.3665028605922,
+        "sun": 0.48433474544730104,
+        "hemi": 1.8521993583675849
+      }
+    },
+    "road-fog-noon-light": {
+      "triangles": 292768,
+      "calls": 93,
+      "sky": {
+        "hour": 12,
+        "weather": {
+          "kind": "fog",
+          "cloud": 0.7,
+          "fog": 0.85
+        },
+        "cloud": 0.7,
+        "mist": 0.85,
+        "fogNear": 133.96875000000003,
+        "fogFar": 986.3665028605922,
+        "sun": 1.04576,
+        "hemi": 2.2945
+      }
+    },
+    "road-fog-evening-light": {
+      "triangles": 292768,
+      "calls": 93,
+      "sky": {
+        "hour": 17.6,
+        "weather": {
+          "kind": "fog",
+          "cloud": 0.7,
+          "fog": 0.85
+        },
+        "cloud": 0.7,
+        "mist": 0.85,
+        "fogNear": 133.96875000000003,
+        "fogFar": 986.3665028605922,
+        "sun": 0.35784667313117724,
+        "hemi": 1.6724879691295023
+      }
+    },
+    "road-fog-night-light": {
+      "triangles": 292768,
+      "calls": 93,
+      "sky": {
+        "hour": 22,
+        "weather": {
+          "kind": "fog",
+          "cloud": 0.7,
+          "fog": 0.85
+        },
+        "cloud": 0.7,
+        "mist": 0.85,
+        "fogNear": 133.96875000000003,
+        "fogFar": 986.3665028605922,
+        "sun": 0.37160000000000004,
+        "hemi": 0.45
+      }
+    },
+    "above-clear-morning-light": {
+      "triangles": 233611,
+      "calls": 65,
+      "sky": {
+        "hour": 6.5,
+        "weather": {
+          "kind": "clear",
+          "cloud": 0.3,
+          "fog": 0
+        },
+        "cloud": 0.3,
+        "mist": 0,
+        "fogNear": 960,
+        "fogFar": 11999.999999999993,
+        "sun": 1.482052464649024,
+        "hemi": 1.0961748195242327
+      }
+    },
+    "above-clear-noon-light": {
+      "triangles": 233611,
+      "calls": 65,
+      "sky": {
+        "hour": 12,
+        "weather": {
+          "kind": "clear",
+          "cloud": 0.3,
+          "fog": 0
+        },
+        "cloud": 0.3,
+        "mist": 0,
+        "fogNear": 960,
+        "fogFar": 11999.999999999993,
+        "sun": 3.2,
+        "hemi": 1.3
+      }
+    },
+    "above-clear-evening-light": {
+      "triangles": 233611,
+      "calls": 65,
+      "sky": {
+        "hour": 17.6,
+        "weather": {
+          "kind": "clear",
+          "cloud": 0.3,
+          "fog": 0
+        },
+        "cloud": 0.3,
+        "mist": 0,
+        "fogNear": 960,
+        "fogFar": 11999.999999999993,
+        "sun": 1.0950020597649244,
+        "hemi": 1.0133585111195862
+      }
+    },
+    "above-clear-night-light": {
+      "triangles": 233611,
+      "calls": 65,
+      "sky": {
+        "hour": 22,
+        "weather": {
+          "kind": "clear",
+          "cloud": 0.3,
+          "fog": 0
+        },
+        "cloud": 0.3,
+        "mist": 0,
+        "fogNear": 960,
+        "fogFar": 11999.999999999993,
+        "sun": 0.8,
+        "hemi": 0.45
+      }
+    },
+    "above-cloudy-morning-light": {
+      "triangles": 233611,
+      "calls": 65,
+      "sky": {
+        "hour": 6.5,
+        "weather": {
+          "kind": "cloudy",
+          "cloud": 0.92,
+          "fog": 0
+        },
+        "cloud": 0.92,
+        "mist": 0,
+        "fogNear": 487.695,
+        "fogFar": 7276.949999999993,
+        "sun": 0.1987543509029189,
+        "hemi": 2.0685990292693566
+      }
+    },
+    "above-cloudy-noon-light": {
+      "triangles": 233611,
+      "calls": 65,
+      "sky": {
+        "hour": 12,
+        "weather": {
+          "kind": "cloudy",
+          "cloud": 0.92,
+          "fog": 0
+        },
+        "cloud": 0.92,
+        "mist": 0,
+        "fogNear": 487.695,
+        "fogFar": 7276.949999999993,
+        "sun": 0.4291439999999998,
+        "hemi": 2.579159375
+      }
+    },
+    "above-cloudy-evening-light": {
+      "triangles": 233611,
+      "calls": 65,
+      "sky": {
+        "hour": 17.6,
+        "weather": {
+          "kind": "cloudy",
+          "cloud": 0.92,
+          "fog": 0
+        },
+        "cloud": 0.92,
+        "mist": 0,
+        "fogNear": 487.695,
+        "fogFar": 7276.949999999993,
+        "sun": 0.14684798872992452,
+        "hemi": 1.8611530063956576
+      }
+    },
+    "above-cloudy-night-light": {
+      "triangles": 233611,
+      "calls": 65,
+      "sky": {
+        "hour": 22,
+        "weather": {
+          "kind": "cloudy",
+          "cloud": 0.92,
+          "fog": 0
+        },
+        "cloud": 0.92,
+        "mist": 0,
+        "fogNear": 487.695,
+        "fogFar": 7276.949999999993,
+        "sun": 0.2489775,
+        "hemi": 0.45
+      }
+    },
+    "above-fog-morning-light": {
+      "triangles": 233611,
+      "calls": 65,
+      "sky": {
+        "hour": 6.5,
+        "weather": {
+          "kind": "fog",
+          "cloud": 0.7,
+          "fog": 0.85
+        },
+        "cloud": 0.7,
+        "mist": 0.85,
+        "fogNear": 133.96875000000003,
+        "fogFar": 986.3665028605922,
+        "sun": 0.48433474544730104,
+        "hemi": 1.8521993583675849
+      }
+    },
+    "above-fog-noon-light": {
+      "triangles": 233611,
+      "calls": 65,
+      "sky": {
+        "hour": 12,
+        "weather": {
+          "kind": "fog",
+          "cloud": 0.7,
+          "fog": 0.85
+        },
+        "cloud": 0.7,
+        "mist": 0.85,
+        "fogNear": 133.96875000000003,
+        "fogFar": 986.3665028605922,
+        "sun": 1.04576,
+        "hemi": 2.2945
+      }
+    },
+    "above-fog-evening-light": {
+      "triangles": 233611,
+      "calls": 65,
+      "sky": {
+        "hour": 17.6,
+        "weather": {
+          "kind": "fog",
+          "cloud": 0.7,
+          "fog": 0.85
+        },
+        "cloud": 0.7,
+        "mist": 0.85,
+        "fogNear": 133.96875000000003,
+        "fogFar": 986.3665028605922,
+        "sun": 0.35784667313117724,
+        "hemi": 1.6724879691295023
+      }
+    },
+    "above-fog-night-light": {
+      "triangles": 233611,
+      "calls": 65,
+      "sky": {
+        "hour": 22,
+        "weather": {
+          "kind": "fog",
+          "cloud": 0.7,
+          "fog": 0.85
+        },
+        "cloud": 0.7,
+        "mist": 0.85,
+        "fogNear": 133.96875000000003,
+        "fogFar": 986.3665028605922,
+        "sun": 0.37160000000000004,
+        "hemi": 0.45
+      }
+    }
+  },
+  "errors": []
+}

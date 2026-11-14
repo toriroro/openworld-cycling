@@ -1,5 +1,5 @@
 // 入口。起動画面から走るゲームを始める。
-// 開発・検証用: ?mode=m2（M2 の道路に沿って進むカメラ）、?notitle=1（起動画面を出さない）、?fresh=1（保存を使わない）、?x=&z=（場所を指定）。
+// 開発・検証用: ?mode=m2（M2 の道路に沿って進むカメラ）、?notitle=1（起動画面を出さない）、?fresh=1（保存を使わない）、?x=&z=（場所を指定）、?time=&weather=（時刻・天候を決める）。
 // 計測・検証用の窓口 window.__dev は、開発サーバー・?dev=1・自動操作のブラウザ（navigator.webdriver）の時だけ置く。
 
 import "./ui/game.css";
@@ -22,6 +22,7 @@ const roads = new RoadClient(seed, 10000);
 const view = new WorldView(canvas, seed, roads);
 if (q.get("quality") === "light" || q.get("quality") === "standard") view.setQuality(q.get("quality") as Quality);
 view.env.setHour(num("time", 14.5));
+const skyWeather = q.get("weather");
 
 function resize() {
   const r = canvas.getBoundingClientRect();
@@ -41,6 +42,11 @@ if (q.get("mode") === "m2" && devTools) {
   // 自動操作のブラウザ（検証スクリプト）と場所を指定した時は起動画面を出さない
   const title = !navigator.webdriver && q.get("notitle") !== "1" && resume;
   const game = new Game(view, roads, { x: startX, z: startZ }, { resume, title });
+  // 検証用: ?time= と ?weather=clear|cloudy|fog で時刻・天候を決める（保存しない）
+  if (q.has("time") || skyWeather) {
+    const w = skyWeather === "clear" || skyWeather === "cloudy" || skyWeather === "fog" ? skyWeather : undefined;
+    game.setForcedSky({ hour: q.has("time") ? num("time", 14.5) : undefined, weather: w });
+  }
   // 計測・検証用の窓口（scripts/m3-*.mjs から使う）
   const dev = {
     view,
@@ -106,6 +112,18 @@ if (q.get("mode") === "m2" && devTools) {
     async save() {
       await game.save();
       return game.lastSaved;
+    },
+    /** 時刻・天候を決める（null で世界のものに戻す） */
+    setSky(f: { hour?: number; weather?: "clear" | "cloudy" | "fog" } | null) {
+      game.setForcedSky(f);
+    },
+    /** 世界の時計をずらす (ms) */
+    setClockOffset(ms: number) {
+      game.clockOffset = ms;
+    },
+    skyInfo() {
+      const e = view.env;
+      return { hour: e.hour, weather: game.weatherNow, cloud: e.cloud, mist: e.mist, fogNear: e.fog.near, fogFar: e.fog.far, sun: e.sun.intensity, hemi: e.hemi.intensity };
     },
     setTimeScale(k: number) {
       game.timeScale = k;

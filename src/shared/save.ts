@@ -25,7 +25,11 @@ export interface Stamp {
 export interface SaveSettings {
   power: number;
   quality: "standard" | "light" | null;
+  /** 時刻: 世界の時計 / 画面だけ固定（固定の時は hour） */
+  clock: "world" | "fixed";
   hour: number;
+  /** 天候: 世界の天候 / 画面だけ固定 */
+  weather: "world" | "clear" | "cloudy" | "fog";
   camera: string;
   volume: number;
   muted: boolean;
@@ -55,7 +59,9 @@ export interface SaveData {
 export const DEFAULT_SETTINGS: SaveSettings = {
   power: 180,
   quality: null,
+  clock: "world",
   hour: 14.5,
+  weather: "world",
   camera: "chase",
   volume: 0.3,
   muted: false,
@@ -73,7 +79,9 @@ export function sanitizeSettings(value: unknown): SaveSettings {
   return {
     power: num(s.power, d.power, 50, 400),
     quality: s.quality === "standard" || s.quality === "light" ? s.quality : null,
+    clock: s.clock === "fixed" ? "fixed" : "world",
     hour: num(s.hour, d.hour, 0, 24),
+    weather: s.weather === "clear" || s.weather === "cloudy" || s.weather === "fog" ? s.weather : "world",
     camera: str(s.camera, d.camera, 20),
     volume: num(s.volume, d.volume, 0, 1),
     muted: typeof s.muted === "boolean" ? s.muted : d.muted,

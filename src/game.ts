@@ -6,6 +6,7 @@ import { SoundSystem } from "./audio/sound.ts";
 import { platform } from "./platform/index.ts";
 import { DEFAULT_SETTINGS, parseSave, SAVE_KEY, SAVE_VERSION, type SaveData, type SaveSettings, type Stamp } from "./shared/save.ts";
 import { GENERATOR_VERSION, ORIGIN } from "./shared/world/constants.ts";
+import { FIXED_WEATHER, type Weather, type WeatherKind, WEATHER_LABELS, weatherAt, worldHour } from "./shared/world/weather.ts";
 import { RiddenLog } from "./sim/ridden.ts";
 import { watchChoice } from "./sim/watch.ts";
 import { DT } from "./sim/bicycle.ts";
@@ -87,6 +88,15 @@ export class Game {
   /** 音（モック仕様 7.5） */
   readonly sound = new SoundSystem();
   private volumeSel: HTMLSelectElement;
+  /** いまの場所の天候（画面に出す名前と、描く雲・霧の量） */
+  weatherNow: Weather = FIXED_WEATHER.clear;
+  /** 次の空の計算で、雲と霧をすぐに切り替える */
+  private skySnap = true;
+  private skyT = 0;
+  /** 世界の時計のずれ (ms、検証用) */
+  clockOffset = 0;
+  /** 検証用: 保存しない形で時刻・天候を決める（URL の ?time= ?weather= と window.__dev） */
+  forceSky: { hour?: number; weather?: WeatherKind } | null = null;
   /** 保存データを読み終えた時（保存がなければ null） */
   readonly ready: Promise<SaveData | null>;
   readonly title = new TitleScreen();
@@ -102,7 +112,8 @@ export class Game {
     opts: { resume?: boolean; title?: boolean } = {},
   ) {
     this.anchor = { ...start };
-    const settings: Settings = { power: this.manual.setting, quality: view.quality, hour: view.env.hour, camera: this.camera };
+    const st = this.settings;
+    const settings: Settings = { power: this.manual.setting, quality: view.quality, clock: st.clock, hour: st.hour, weather: st.weather, camera: this.camera };
     this.hud = new Hud(this.input, settings);
     this.hud.onSettings = (s) => this.applySettings(s, true);
     // 小地図と世界地図（モック仕様 7.4）
@@ -241,10 +252,17 @@ export class Game {
       // 画質は選んだ時だけ残す（選んでいなければ端末に合わせた既定）
       if (fromUser) this.settings.quality = s.quality;
     }
-    if (s.hour !== undefined) {
-      view.env.setHour(s.hour);
-      this.settings.hour = s.hour;
+    if (s.clock) this.settings.clock = s.clock;
+    if (fromUser && s.clock === "fixed" && s.hour === undefined) {
+      // 固定にした時は、いま見ている時刻のまま止める
+      const hour = Math.round(view.env.hour * 4) / 4;
+      this.settings.hour = hour % 24;
+      this.hud.syncSettings({ hour: this.settings.hour });
     }
+    if (s.hour !== undefined) this.settings.hour = s.hour;
+    if (s.weather) this.settings.weather = s.weather;
+    if (s.clock || s.weather) this.skySnap = true;
+    if (fromUser && (s.clock || s.hour !== undefined || s.weather)) void this.save();
     if (s.camera) {
       this.camera = s.camera;
       this.settings.camera = s.camera;
@@ -255,7 +273,10 @@ export class Game {
   private applySave(d: SaveData) {
     this.settings = { ...d.settings };
     const cam = (CAMERA_MODES as readonly string[]).includes(d.settings.camera) ? (d.settings.camera as CameraMode) : undefined;
-    this.applySettings({ power: d.settings.power, hour: d.settings.hour, camera: cam, quality: (d.settings.quality ?? undefined) as Quality | undefined }, false);
+    this.applySettings(
+      { power: d.settings.power, clock: d.settings.clock, hour: d.settings.hour, weather: d.settings.weather, camera: cam, quality: (d.settings.quality ?? undefined) as Quality | undefined },
+      false,
+    );
     this.settings.quality = d.settings.quality;
     this.outfit = d.outfit;
     this.player.setOutfit(d.outfit);
@@ -353,6 +374,36 @@ export class Game {
       this.resume = null;
     }
     this.ride = ride;
+    this.skySnap = true;
+  }
+
+  /**
+   * 空: 世界の時計と、いる場所の天候（概要仕様 3.7）。設定で自分の画面だけ固定できる。
+   * 天候は 1 秒ごとに求め、描く雲・霧はゆっくり近づける。
+   */
+  private updateSky(dt: number) {
+    const env = this.view.env;
+    const ms = Date.now() + this.clockOffset;
+    const f = this.forceSky;
+    const st = this.settings;
+    env.setClock(ms);
+    env.setHour(f?.hour ?? (st.clock === "fixed" ? st.hour : worldHour(ms)));
+    const now = performance.now();
+    if (this.skySnap || now - this.skyT > 1000) {
+      this.skyT = now;
+      const fixed = f?.weather ?? (st.weather === "world" ? null : st.weather);
+      const w = fixed ? FIXED_WEATHER[fixed] : weatherAt(this.anchor.x, this.anchor.z, ms);
+      this.weatherNow = w;
+      env.setWeather(w.cloud, w.fog, this.skySnap);
+      this.skySnap = false;
+    }
+    env.step(dt);
+  }
+
+  /** 検証用: 時刻・天候を決める（null で世界のものに戻す） */
+  setForcedSky(f: { hour?: number; weather?: WeatherKind } | null) {
+    this.forceSky = f;
+    this.skySnap = true;
   }
 
   /** 眺める乗り方の開始・終了: 自動の入力元、視点の自動切替、画面の常時点灯 */
@@ -515,6 +566,7 @@ export class Game {
     this.anchor = { x, z };
     this.ride = null;
     this.smoothEye = null;
+    this.skySnap = true;
   }
 
   private handleActions() {
@@ -660,6 +712,7 @@ export class Game {
       fov = 50;
       this.smoothEye = null;
     }
+    this.updateSky(dt);
     this.view.frame(eye, target, fov, () => {
       this.player.group.visible = !!pose;
       if (pose && ride) {
@@ -726,6 +779,8 @@ export class Game {
       watching: this.watching,
       paused: this.paused,
       goalDistance,
+      hour: this.view.env.hour,
+      weather: WEATHER_LABELS[this.weatherNow.kind],
     });
   }
 }
