@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { WORLD_SEED } from "../src/shared/world/constants.ts";
+import { ORIGIN, WORLD_SEED } from "../src/shared/world/constants.ts";
 import { railHash, roadsHash } from "../src/shared/world/inspect.ts";
 import { RAIL_MAX_GRADE, solveProfile } from "../src/shared/world/rail.ts";
 import { circumradius } from "../src/shared/world/shape.ts";
 import { World } from "../src/shared/world/world.ts";
 
-// 起点の西の、線路が 1 本通る 16km 四方
-const RECT = { x0: -53000, z0: 0, x1: -37000, z1: 16000 };
+// 起点の葛郷（必ず拠点）の東の 16km 四方。葛新線が通る
+const RECT = { x0: -34000, z0: 3000, x1: -18000, z1: 19000 };
 
 describe("鉄道の生成（鉄道の草案 L1）", () => {
   const w = new World(WORLD_SEED);
@@ -14,6 +14,8 @@ describe("鉄道の生成（鉄道の草案 L1）", () => {
 
   it("線路が引かれ、勾配 2.5% と最小曲線半径を守り、駅は 3km 以上離れる", () => {
     expect(lines.length).toBeGreaterThan(0);
+    // 起点の葛郷は拠点で、線の端の駅になる
+    expect(lines.some((l) => l.start === ORIGIN.node || l.end === ORIGIN.node)).toBe(true);
     for (const l of lines) {
       const P = l.points;
       const n = P.length / 3;

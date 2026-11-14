@@ -26,6 +26,7 @@ const wait = async () => {
 const views = [
   ["wide", -32500, 11250, 75],
   ["origin", -32500, 11250, 18],
+  ["origin-near", -32500, 11250, 5],
 ];
 await page.goto(`${base}/map.html?x=-32500&z=11250&mpp=75`);
 for (const [name, x, z, mpp] of views) {

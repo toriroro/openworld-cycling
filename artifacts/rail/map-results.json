@@ -1,17 +1,21 @@
 {
-  "date": "2026-11-14T07:09:10.452Z",
+  "date": "2026-11-14T09:00:54.762Z",
   "shots": {
     "wide": {
       "rails": 22,
-      "waitS": 83.6
+      "waitS": 85.9
     },
     "origin": {
       "rails": 22,
-      "waitS": 3
+      "waitS": 2.3
+    },
+    "origin-near": {
+      "rails": 22,
+      "waitS": 2.6
     },
     "station": {
-      "name": "鹿岬",
-      "km": 17.3
+      "name": "葛郷",
+      "km": 0.4
     }
   },
   "errors": []

@@ -4,7 +4,7 @@
 // 分岐に関わる計算は加減乗除・sqrt・floor・abs・min・max だけで書く。
 
 import { now } from "./clock.ts";
-import { MAX_SEA_CROSSING, NODE_CELL, ROAD_MIN_ELEVATION } from "./constants.ts";
+import { MAX_SEA_CROSSING, NODE_CELL, ORIGIN, ROAD_MIN_ELEVATION } from "./constants.ts";
 import { hashUnit } from "./hash.ts";
 import { longestSeaRun, nodeLess } from "./nodes.ts";
 import { findRailRoute, RAIL_ROUTE_PARAMS, type RailGrid } from "./rail-route.ts";
@@ -26,6 +26,8 @@ const RAIL_MARGIN = 3000;
 export const RAIL_MAX_GRADE = 0.025;
 const TRUNK_MIN_RADIUS = 300;
 const BRANCH_MIN_RADIUS = 200;
+/** 経路の長さが直線のこの倍（＋2km）を超える辺は作らない（大きく回り込んで高さを稼ぐ線を作らない）【初期値】 */
+const MAX_DETOUR = 1.7;
 /** 辺の最大の長さ (m) */
 const MAX_EDGE = 60000;
 /** 支線を出す拠点の割合と、廃線にする支線の割合 */
@@ -109,13 +111,14 @@ export class Railways {
     const key = `${rcx},${rcz}`;
     if (this.hubCache.has(key)) return this.hubCache.get(key)!;
     let h = this.rawHub(rcx, rcz);
-    if (h)
+    // 起点の葛郷は必ず拠点にする（決定 2026-11-14）。葛郷から 12km 以内の隣の拠点は作らない
+    if (h && h.id !== ORIGIN.node)
       for (let dz = -1; dz <= 1 && h; dz++)
         for (let dx = -1; dx <= 1 && h; dx++) {
           if (!dx && !dz) continue;
           const o = this.rawHub(rcx + dx, rcz + dz);
           if (!o || d2(o, h) > HUB_GAP * HUB_GAP) continue;
-          if (o.importance > h.importance || (o.importance === h.importance && nodeLess(o, h))) h = null;
+          if (o.id === ORIGIN.node || o.importance > h.importance || (o.importance === h.importance && nodeLess(o, h))) h = null;
         }
     this.hubCache.set(key, h);
     return h;
@@ -125,6 +128,15 @@ export class Railways {
     const key = `${rcx},${rcz}`;
     if (this.rawHubCache.has(key)) return this.rawHubCache.get(key)!;
     const k = RAIL_CELL / NODE_CELL;
+    // 起点の格子では起点の町を拠点の候補にする
+    const [ocx, ocz] = ORIGIN.node.slice(2).split("_").map(Number);
+    if (Math.floor(ocx / k) === rcx && Math.floor(ocz / k) === rcz) {
+      const o = this.world.node(ocx, ocz);
+      if (o) {
+        this.rawHubCache.set(key, o);
+        return o;
+      }
+    }
     let best: WorldNode | null = null;
     for (let j = 0; j < k; j++)
       for (let i = 0; i < k; i++) {
@@ -370,7 +382,6 @@ export class Railways {
     const gz = Math.round(b.z / RAIL_GRID) - grid.iz0;
     const route = findRailRoute(grid, sx, sz, gx, gz, { ...RAIL_ROUTE_PARAMS, maxGrade: RAIL_MAX_GRADE });
     if (!route) return { line: null, expanded: 0 };
-    // 経路の費用が直線の 3 倍を超える辺は作らない（遠回りの線は引かない）
     const n0 = route.cells.length / 2;
     const raw = new Float64Array(n0 * 2);
     const keep = new Uint8Array(n0);
@@ -388,7 +399,7 @@ export class Railways {
     raw[(n0 - 1) * 2] = b.x;
     raw[(n0 - 1) * 2 + 1] = b.z;
     const straight = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z));
-    if (polylineLength(raw) > 3 * straight + 2000) return { line: null, expanded: route.expanded };
+    if (polylineLength(raw) > MAX_DETOUR * straight + 2000) return { line: null, expanded: route.expanded };
     const minR = e.kind === "trunk" ? TRUNK_MIN_RADIUS : BRANCH_MIN_RADIUS;
     let xz = shapeCenterline(raw, keep, minR, RAIL_STEP);
     // 線路は道路より曲がりにくいので、半径が足りない所が残れば、ゆるめる回数を増やす
