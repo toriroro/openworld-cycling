@@ -266,6 +266,7 @@ export class TerrainStreamer {
       roads: spec.conform ? this.roads.pack(this.tileRect(t), ROAD_FLAT + ROAD_BLEND + step + 8, t.level === 0 ? 1 : 2) : null,
       uvRepeat: 16,
       lots: t.level < 2 && this.towns ? this.towns.lotsIn(this.tileRect(t)) : null,
+      districts: t.level < 2 && this.towns ? this.towns.surfacesIn(this.tileRect(t, step)) : null,
       vegDetail: t.level === 0 ? 2 : t.level === 1 ? 1 : 0,
       vegDensity: this.vegDensity,
     };

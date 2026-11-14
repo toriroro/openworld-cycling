@@ -28,14 +28,24 @@ export interface Building {
   /** 前の道路の高さ */
   roadY: number;
   floors: number;
-  roof: "gable" | "hip" | "flat";
+  /** flat は無落雪屋根・陸屋根、shed は片流れ */
+  roof: "gable" | "hip" | "flat" | "shed";
   roofMat: "tile" | "metal";
   wallMat: "siding" | "plaster";
   /** 道路沿いのブロック塀 */
   fence: boolean;
   /** 窓の並びなど細部の種 */
   seed: number;
+  /** 1 階が店（街区の幹線沿い） */
+  shop?: boolean;
+  /** 建物の型（街区の建物。なければ描く時に種から家の型を決める） */
+  style?: BuildingStyle;
+  /** 店の業種の番号（看板の文字） */
+  sign?: number;
 }
+
+/** 建物の型（形は src/render/building/styles.ts） */
+export type BuildingStyle = "house" | "oldhouse" | "apartment" | "mansion" | "shop" | "oldshop" | "tenant" | "strip";
 
 export interface Cafe {
   poi: Poi;

@@ -1,0 +1,70 @@
+{
+  "date": "2026-11-14T03:59:21.111Z",
+  "districts": {
+    "districts": 1,
+    "triangles": 25130,
+    "buildMs": 33.5,
+    "layoutMs": [
+      16.400000005960464,
+      25.700000002980232,
+      15,
+      15.800000011920929
+    ]
+  },
+  "buildings": {
+    "buildings": 442,
+    "cafes": 0,
+    "triangles": 71688,
+    "buildMs": 26
+  },
+  "shots": {
+    "above": {
+      "triangles": 823215,
+      "calls": 138
+    },
+    "above-close": {
+      "triangles": 755959,
+      "calls": 139
+    },
+    "main-1": {
+      "triangles": 829260,
+      "calls": 165
+    },
+    "main-2": {
+      "triangles": 733552,
+      "calls": 152
+    },
+    "main-3": {
+      "triangles": 846136,
+      "calls": 174
+    },
+    "alley": {
+      "triangles": 738684,
+      "calls": 147
+    },
+    "enter": {
+      "triangles": 898709,
+      "calls": 175
+    },
+    "junction": {
+      "triangles": 754013,
+      "calls": 162
+    },
+    "corner": {
+      "triangles": 766928,
+      "calls": 163
+    },
+    "backstreet": {
+      "triangles": 767966,
+      "calls": 167
+    }
+  },
+  "ray": {
+    "rays": 912,
+    "poke": 0,
+    "missed": 0,
+    "worst": null,
+    "samples": []
+  },
+  "errors": []
+}

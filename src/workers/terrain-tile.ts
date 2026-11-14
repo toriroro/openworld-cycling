@@ -6,6 +6,7 @@
 
 import { gradNoise } from "../shared/world/noise.ts";
 import type { Terrain } from "../shared/world/terrain.ts";
+import { DISTRICT_CLEAR, sampleSurface, type SurfaceGrid } from "../render/district/surface.ts";
 import { placeVegetation } from "./vegetation-place.ts";
 
 /** 道路の点列（タイルの左上からの相対）。1点 5 要素: x, z, y, 半幅, 印（1 = 橋） */
@@ -29,6 +30,8 @@ export interface TileInput {
   vegDensity?: number;
   /** 植生を置かない敷地（建物・喫茶店）。タイルの左上からの相対で [x, z, r, ...] */
   lots?: Float32Array | null;
+  /** 街区の造成した面（世界座標の格子）。地面をこの面の少し下に合わせ、色を土の色にし、植生を置かない */
+  districts?: SurfaceGrid[] | null;
 }
 
 export interface TileOutput {
@@ -62,6 +65,8 @@ const SHOULDER = [0.52, 0.49, 0.42];
 const SEABED = [0.52, 0.5, 0.4];
 const DRY = [0.62, 0.6, 0.38];
 const COAST_GRASS = [0.58, 0.6, 0.38];
+/** 街区の中の、何も載っていない地面（砂利まじりの土） */
+const URBAN = [0.55, 0.56, 0.44];
 
 interface Nearest {
   e: number;
@@ -134,6 +139,9 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
   const hs = new Float64Array(G * G);
   const q = inp.roads && inp.roads.pts.length ? new RoadQuery(inp.roads, ROAD_FLAT + ROAD_BLEND + step) : null;
   const nearRoad = new Float32Array(G * G).fill(1e9);
+  const districts = inp.districts && inp.districts.length ? inp.districts : null;
+  const urban = districts ? new Float32Array(G * G) : null;
+  const ds = { h: 0, m: 0 };
   for (let j = 0; j < G; j++)
     for (let i = 0; i < G; i++) {
       const lx = (i - 1) * step;
@@ -150,6 +158,12 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
           }
         }
       }
+      if (districts)
+        for (const d of districts) {
+          if (!sampleSurface(d, x0 + lx, z0 + lz, ds) || ds.m <= 0) continue;
+          h = h * (1 - ds.m) + (ds.h - DISTRICT_CLEAR) * ds.m;
+          if (ds.m > urban![j * G + i]) urban![j * G + i] = ds.m;
+        }
       hs[j * G + i] = h;
     }
 
@@ -232,6 +246,11 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
         else c = c * (1 - sand) + SAND[k] * sand;
         const e = nearRoad[g];
         if (e < 2.5) c = SHOULDER[k] * (1 - smooth(0.5, 2.5, e)) + c * smooth(0.5, 2.5, e);
+        if (urban && h >= 0) {
+          // 外周の外のすり付けの帯には色を広げない（重みの 4 乗）
+          const um = urban[g] * urban[g] * urban[g] * urban[g];
+          c = c * (1 - um) + URBAN[k] * bright * um;
+        }
         color[v * 3 + k] = c;
       }
     }
@@ -319,6 +338,10 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
     },
     roadEdge: (lx, lz) => q?.nearest(lx, lz)?.e ?? 1e9,
     inLot: (lx, lz) => {
+      if (urban) {
+        const i = Math.max(0, Math.min(G - 1, Math.round(lx / step) + 1)), j = Math.max(0, Math.min(G - 1, Math.round(lz / step) + 1));
+        if (urban[j * G + i] > 0.35) return true;
+      }
       const L = inp.lots;
       if (!L) return false;
       for (let k = 0; k < L.length; k += 3) {
