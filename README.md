@@ -4,7 +4,7 @@
 
 - 全体の仕様: [docs/history/specs/2026-11-13-openworld-cycling-overview.md](docs/history/specs/2026-11-13-openworld-cycling-overview.md)
 - モックの仕様: [docs/history/specs/2026-11-13-mock.md](docs/history/specs/2026-11-13-mock.md)
-- 次の段階の草案: [河川](docs/history/specs/2026-11-13-rivers-draft.md)、[都市と交通](docs/history/specs/2026-11-13-urban-and-traffic-draft.md)
+- 次の段階の草案: [河川](docs/history/specs/2026-11-13-rivers-draft.md)、[都市と交通](docs/history/specs/2026-11-13-urban-and-traffic-draft.md)、[鉄道](docs/history/specs/2026-11-14-railway-draft.md)
 
 ## 起動
 
