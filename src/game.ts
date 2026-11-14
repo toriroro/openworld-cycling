@@ -12,6 +12,7 @@ import { watchChoice } from "./sim/watch.ts";
 import { DT } from "./sim/bicycle.ts";
 import { AutoPower, ManualPower } from "./sim/power.ts";
 import { Ride } from "./sim/ride.ts";
+import { type Rider, TRAFFIC_LIGHT, TRAFFIC_STANDARD, Traffic } from "./sim/traffic/traffic.ts";
 import { sampleRoad } from "./sim/road-network.ts";
 import { CAMERA_MODES, type CameraMode, cameraPose } from "./render/camera-rig.ts";
 import type { Quality } from "./render/world-view.ts";
@@ -85,6 +86,9 @@ export class Game {
   /** 出発した店（60m 離れるまで、また止まっても立ち寄りにしない） */
   private lastCafe: { id: string; x: number; z: number } | null = null;
   private stopPanel = new StopPanel();
+  /** 交通（都市と交通の草案 6 章）。端末ごとに出し、同期しない */
+  readonly traffic: Traffic;
+  private trafficSel: HTMLSelectElement;
   /** 音（モック仕様 7.5） */
   readonly sound = new SoundSystem();
   private volumeSel: HTMLSelectElement;
@@ -112,6 +116,8 @@ export class Game {
     opts: { resume?: boolean; title?: boolean } = {},
   ) {
     this.anchor = { ...start };
+    this.traffic = new Traffic(roads.net, (Date.now() & 0x7fffffff) | 1, (x, z) => view.heights.height(x, z));
+    this.traffic.options = view.quality === "light" ? TRAFFIC_LIGHT : TRAFFIC_STANDARD;
     const st = this.settings;
     const settings: Settings = { power: this.manual.setting, quality: view.quality, clock: st.clock, hour: st.hour, weather: st.weather, camera: this.camera };
     this.hud = new Hud(this.input, settings);
@@ -151,6 +157,21 @@ export class Game {
       },
     );
     this.sound.setVolume(this.settings.volume, this.settings.muted);
+    this.trafficSel = this.hud.addSelect(
+      "交通量",
+      [
+        ["normal", "標準"],
+        ["few", "少ない"],
+        ["off", "なし"],
+      ],
+      this.settings.traffic,
+      (v) => {
+        this.settings.traffic = v;
+        this.traffic.level = v;
+        void this.save();
+      },
+    );
+    this.traffic.level = this.settings.traffic;
     this.stopPanel.onDepart = () => this.depart();
     this.stampBook.onPick = (st) => this.startFrom(st);
     this.hud.addButton("スタンプ帳", () => {
@@ -248,6 +269,7 @@ export class Game {
     }
     if (s.quality) {
       view.setQuality(s.quality);
+      this.traffic.options = s.quality === "light" ? TRAFFIC_LIGHT : TRAFFIC_STANDARD;
       this.player.setLod(s.quality === "light" ? "low" : "high");
       // 画質は選んだ時だけ残す（選んでいなければ端末に合わせた既定）
       if (fromUser) this.settings.quality = s.quality;
@@ -294,6 +316,8 @@ export class Game {
     this.sound.setVolume(this.settings.volume, d.settings.muted);
     this.muteSel.value = d.settings.muted ? "on" : "off";
     this.fpsSel.value = d.settings.fps30 ? "30" : "free";
+    this.trafficSel.value = d.settings.traffic;
+    this.traffic.level = d.settings.traffic;
     if (d.pos) this.anchor = { x: d.pos.x, z: d.pos.z };
     this.resume = { pos: d.pos, odometer: d.odometer, climb: d.climb, time: d.time, generator: d.generator };
     this.ride = null;
@@ -398,6 +422,31 @@ export class Game {
       this.skySnap = false;
     }
     env.step(dt);
+  }
+
+  /** 近くの車の音の大きさ（近く・速いほど大きい。0〜1） */
+  private trafficLoudness(): number {
+    let sum = 0;
+    for (const v of this.traffic.vehicles) {
+      const d = Math.hypot(v.x - this.anchor.x, v.z - this.anchor.z);
+      if (d > 150) continue;
+      sum += (Math.min(1, 0.25 + v.speed / 14) * (v.type === "bus" ? 1.6 : 1)) / (1 + (d / 14) ** 2);
+    }
+    return Math.min(1, sum);
+  }
+
+  /** 交通を進める（一時停止中は止める）。自転車を避ける相手として渡す */
+  private updateTraffic(dt: number, pose: ReturnType<Ride["pose"]> | null) {
+    const ride = this.ride;
+    if (this.paused || !ride) return;
+    const rider: Rider | null = pose ? { x: pose.x, z: pose.z, dx: pose.dx, dz: pose.dz, speed: ride.speed, pos: { ...ride.pos }, offset: ride.offset } : null;
+    this.traffic.hour = this.view.env.hour;
+    let left = dt * this.timeScale;
+    while (left > 1e-6) {
+      const h = Math.min(0.1, left);
+      this.traffic.update(h, this.anchor.x, this.anchor.z, rider);
+      left -= h;
+    }
   }
 
   /** 検証用: 時刻・天候を決める（null で世界のものに戻す） */
@@ -557,6 +606,7 @@ export class Game {
     this.anchor = { x: st.x, z: st.z };
     this.ride = null;
     this.smoothEye = null;
+    this.traffic.reset();
   }
 
   teleport(x: number, z: number) {
@@ -567,6 +617,7 @@ export class Game {
     this.ride = null;
     this.smoothEye = null;
     this.skySnap = true;
+    this.traffic.reset();
   }
 
   private handleActions() {
@@ -648,6 +699,7 @@ export class Game {
       speed: this.ride?.speed ?? 0,
       surface: this.ride?.road?.surface ?? "paved",
       riding: !!this.ride && !this.paused && !this.stop && !document.hidden,
+      traffic: this.paused || document.hidden ? 0 : this.trafficLoudness(),
     });
     const ride = this.ride;
     this.manual.pedal = this.input.pedal;
@@ -713,7 +765,10 @@ export class Game {
       this.smoothEye = null;
     }
     this.updateSky(dt);
+    this.updateTraffic(dt, pose);
     this.view.frame(eye, target, fov, () => {
+      const env = this.view.env;
+      this.view.trafficView.update(this.traffic, this.view.originX, this.view.originZ, 2.2 * Math.max(1 - env.daylight, env.mist * 0.7), eye.x, eye.z);
       this.player.group.visible = !!pose;
       if (pose && ride) {
         this.player.update(

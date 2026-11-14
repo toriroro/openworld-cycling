@@ -12,6 +12,7 @@ import { Vegetation } from "./vegetation.ts";
 import { BuildingMeshes } from "./buildings.ts";
 import { DistrictMeshes } from "./district/meshes.ts";
 import { Towns } from "./towns.ts";
+import { TrafficView } from "./traffic/traffic-view.ts";
 
 export type Quality = "standard" | "light";
 
@@ -33,6 +34,8 @@ export class WorldView {
   readonly buildings: BuildingMeshes;
   /** 町の街区（区画道路・歩道・敷地・電柱・街路樹） */
   readonly districts: DistrictMeshes;
+  /** 車とバス停（sim/traffic を読んで描く） */
+  readonly trafficView = new TrafficView();
   private pruneT = 0;
   quality: Quality = "standard";
   /** 描画の原点（世界座標、REBASE_UNIT の倍数） */
@@ -102,7 +105,7 @@ export class WorldView {
     this.buildings = new BuildingMeshes(this.towns, aniso);
     this.districts = new DistrictMeshes(this.towns, paved, structure, aniso);
     this.materials.push(...this.districts.materials);
-    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group, this.districts.group);
+    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group, this.districts.group, this.trafficView.group);
     this.setQuality(matchMedia("(pointer: coarse)").matches ? "light" : "standard");
   }
 
@@ -119,6 +122,7 @@ export class WorldView {
     this.vegetation?.setQuality(light);
     this.buildings?.setQuality(light);
     this.districts?.setQuality(light);
+    this.trafficView?.setQuality(light);
     this.roadMeshes.range = light ? 900 : 1600;
     const far = this.terrain.ranges.far;
     this.env.setFar(far);
@@ -222,6 +226,7 @@ export class WorldView {
       vegetation: { ...this.vegetation.stats },
       buildings: { ...this.buildings.stats },
       districts: { ...this.districts.stats, layoutMs: this.towns.districtMs.slice(-4) },
+      traffic: { ...this.trafficView.stats },
       roads: this.roadMeshes.stats(),
       roadsLoaded: this.roads.net.roads.size,
       roadBlocksPending: this.roads.pending,

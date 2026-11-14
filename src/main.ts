@@ -121,6 +121,16 @@ if (q.get("mode") === "m2" && devTools) {
     setClockOffset(ms: number) {
       game.clockOffset = ms;
     },
+    trafficInfo() {
+      const t = game.traffic;
+      return {
+        level: t.level,
+        count: t.vehicles.length,
+        stats: { ...t.stats },
+        view: { ...view.trafficView.stats },
+        vehicles: t.vehicles.map((v) => ({ id: v.id, type: v.type, road: v.pos.road, s: v.pos.s, x: v.x, z: v.z, speed: v.speed, passing: !!v.passing, turn: !!v.turn })),
+      };
+    },
     skyInfo() {
       const e = view.env;
       return { hour: e.hour, weather: game.weatherNow, cloud: e.cloud, mist: e.mist, fogNear: e.fog.near, fogFar: e.fog.far, sun: e.sun.intensity, hemi: e.hemi.intensity };

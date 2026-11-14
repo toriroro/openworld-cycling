@@ -30,6 +30,8 @@ export interface SaveSettings {
   hour: number;
   /** 天候: 世界の天候 / 画面だけ固定 */
   weather: "world" | "clear" | "cloudy" | "fog";
+  /** 交通量: なし / 少ない / 標準 */
+  traffic: "off" | "few" | "normal";
   camera: string;
   volume: number;
   muted: boolean;
@@ -62,6 +64,7 @@ export const DEFAULT_SETTINGS: SaveSettings = {
   clock: "world",
   hour: 14.5,
   weather: "world",
+  traffic: "normal",
   camera: "chase",
   volume: 0.3,
   muted: false,
@@ -82,6 +85,7 @@ export function sanitizeSettings(value: unknown): SaveSettings {
     clock: s.clock === "fixed" ? "fixed" : "world",
     hour: num(s.hour, d.hour, 0, 24),
     weather: s.weather === "clear" || s.weather === "cloudy" || s.weather === "fog" ? s.weather : "world",
+    traffic: s.traffic === "off" || s.traffic === "few" ? s.traffic : "normal",
     camera: str(s.camera, d.camera, 20),
     volume: num(s.volume, d.volume, 0, 1),
     muted: typeof s.muted === "boolean" ? s.muted : d.muted,

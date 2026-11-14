@@ -1,0 +1,95 @@
+{
+  "date": "2026-11-14T06:27:11.806Z",
+  "quality": "standard",
+  "shots": {
+    "chase": {
+      "triangles": 588744,
+      "calls": 159,
+      "vehicles": 6,
+      "drawn": 6,
+      "stops": 2,
+      "shelters": 0
+    },
+    "above": {
+      "triangles": 629847,
+      "calls": 155,
+      "vehicles": 6,
+      "drawn": 6,
+      "stops": 2,
+      "shelters": 0
+    },
+    "type-sedan": {
+      "triangles": 592341,
+      "calls": 157,
+      "vehicles": 6,
+      "drawn": 6,
+      "stops": 2,
+      "shelters": 0
+    },
+    "type-kei": {
+      "triangles": 577212,
+      "calls": 150,
+      "vehicles": 6,
+      "drawn": 6,
+      "stops": 2,
+      "shelters": 0
+    },
+    "type-van": {
+      "triangles": 542905,
+      "calls": 140,
+      "vehicles": 6,
+      "drawn": 6,
+      "stops": 2,
+      "shelters": 0
+    },
+    "type-keiTruck": {
+      "triangles": 585186,
+      "calls": 154,
+      "vehicles": 6,
+      "drawn": 6,
+      "stops": 2,
+      "shelters": 0
+    },
+    "lineup": {
+      "triangles": 565663,
+      "calls": 158,
+      "vehicles": 6,
+      "drawn": 6,
+      "stops": 2,
+      "shelters": 0
+    },
+    "bus-stop": {
+      "triangles": 594428,
+      "calls": 163,
+      "vehicles": 6,
+      "drawn": 6,
+      "stops": 2,
+      "shelters": 0
+    },
+    "night": {
+      "triangles": 446806,
+      "calls": 128,
+      "vehicles": 6,
+      "drawn": 6,
+      "stops": 2,
+      "shelters": 0
+    },
+    "fog": {
+      "triangles": 446806,
+      "calls": 128,
+      "vehicles": 6,
+      "drawn": 6,
+      "stops": 2,
+      "shelters": 0
+    }
+  },
+  "errors": [],
+  "traffic": {
+    "spawned": 19,
+    "removed": 13,
+    "overlaps": 0,
+    "passes": 3,
+    "busStops": 0,
+    "yields": 1
+  }
+}
