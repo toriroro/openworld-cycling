@@ -20,6 +20,8 @@ const RAIL_REACH = 2;
 export const RAIL_GRID = 100;
 /** 線路の点の間隔 (m) */
 export const RAIL_STEP = 5;
+/** 2 回目の探索で道路を調べる、1 回目の経路からの距離 (m) */
+const ROAD_BAND = 800;
 /** 探索の範囲を両端の矩形から広げる量 (m) */
 const RAIL_MARGIN = 3000;
 /** 幹線・支線の最大勾配と最小曲線半径（鉄道の草案 4 章）【初期値】 */
@@ -52,6 +54,8 @@ const UNDER_CLEAR = 6;
 /** 踏切にできる条件: 交わる角度の sin、道路の前後 15m の勾配 */
 const LEVEL_MIN_SIN = 0.7071;
 const LEVEL_MAX_ROAD_GRADE = 0.04;
+/** 踏切の線路と道路の高さの差の許し (m) */
+const LEVEL_TOLERANCE = 0.3;
 /** 橋: 地面より高い量 (m) と長さ (m)。トンネル: 地面が高い量 (m) と長さ (m) */
 const RAIL_BRIDGE_HEIGHT = 8;
 const RAIL_BRIDGE_LENGTH = 30;
@@ -380,8 +384,13 @@ export class Railways {
     const sz = Math.round(a.z / RAIL_GRID) - grid.iz0;
     const gx = Math.round(b.x / RAIL_GRID) - grid.ix0;
     const gz = Math.round(b.z / RAIL_GRID) - grid.iz0;
-    const route = findRailRoute(grid, sx, sz, gx, gz, { ...RAIL_ROUTE_PARAMS, maxGrade: RAIL_MAX_GRADE });
-    if (!route) return { line: null, expanded: 0 };
+    const params = { ...RAIL_ROUTE_PARAMS, maxGrade: RAIL_MAX_GRADE };
+    const first = findRailRoute(grid, sx, sz, gx, gz, params);
+    if (!first) return { line: null, expanded: 0 };
+    // 2 回目: 1 回目の経路の近く（800m の帯）の道路を格子に印して探し直す。道路の上を走らない、横切る回数を減らす
+    this.markRoads(grid, first.cells);
+    const route = findRailRoute(grid, sx, sz, gx, gz, params) ?? first;
+    route.expanded += route === first ? 0 : first.expanded;
     const n0 = route.cells.length / 2;
     const raw = new Float64Array(n0 * 2);
     const keep = new Uint8Array(n0);
@@ -436,9 +445,10 @@ export class Railways {
       for (let k = ia + 1; k < ib; k++) target[k] = target[ia] + ((target[ib] - target[ia]) * (k - ia)) / (ib - ia);
     }
 
-    // 駅
-    const stations = this.pickStations(e, xz, ds, length);
+    // 道路との交わり（線の形だけで決まる）と駅。途中の駅は、平らな区間に道路との交わりが入らないようにずらす
+    const hits = this.roadHits(e.id, xz, ds);
     const flat = e.kind === "trunk" ? STATION_FLAT : STATION_FLAT_BRANCH;
+    const stations = this.pickStations(e, xz, ds, length, hits, flat);
     const lim = new Float64Array(n).fill(RAIL_MAX_GRADE * ds);
     for (const st of stations) {
       const i0 = Math.max(0, Math.floor((st.s - flat) / ds));
@@ -452,8 +462,7 @@ export class Railways {
     // 1 回目: 両端だけを固定（駅は lim で平らにする）
     let prof = solveProfile(sm, lim, pins);
 
-    // 道路との交わり
-    const hits = this.roadHits(e.id, xz, ds);
+    // 道路との交わりの分け方
     const crossings: RailCrossing[] = [];
     const cpins = new Map(pins);
     for (const h of hits) {
@@ -488,7 +497,9 @@ export class Railways {
       const i = Math.max(1, Math.min(n - 2, Math.round(c.s / ds)));
       if (!prof.dropped.has(i)) continue;
       const yy = prof.y[i];
-      if (yy >= h.roadY + OVER_CLEAR - 0.5) c.kind = "over";
+      // 解いた高さが道路と 0.3m 以内なら踏切のまま（路面の継ぎ目で吸収できる）
+      if (Math.abs(yy - h.roadY) <= LEVEL_TOLERANCE) c.kind = "level";
+      else if (yy >= h.roadY + OVER_CLEAR - 0.5) c.kind = "over";
       else if (h.roadBridge && yy <= h.roadY - UNDER_CLEAR) c.kind = "under";
       else c.unresolved = true;
     }
@@ -530,8 +541,50 @@ export class Railways {
     };
   }
 
+  /** 経路の格子の列から ROAD_BAND 以内を帯の印（bit3）、そこにかかる道路の点がある格子を道路の印（bit2）にする */
+  private markRoads(grid: RailGrid, cells: Int32Array) {
+    const { w, h, ix0, iz0, flags } = grid;
+    const R = Math.ceil(ROAD_BAND / RAIL_GRID);
+    const n = cells.length / 2;
+    for (let i = 0; i < n; i++) {
+      const cx = cells[i * 2] - ix0;
+      const cz = cells[i * 2 + 1] - iz0;
+      for (let dz = -R; dz <= R; dz++)
+        for (let dx = -R; dx <= R; dx++) {
+          const x = cx + dx;
+          const z = cz + dz;
+          if (x >= 0 && z >= 0 && x < w && z < h) flags[z * w + x] |= 8;
+        }
+    }
+    const roads = new Map<string, Road>();
+    const piece = 20;
+    for (let i0 = 0; i0 < n; i0 += piece) {
+      let x0 = Infinity;
+      let z0 = Infinity;
+      let x1 = -Infinity;
+      let z1 = -Infinity;
+      for (let i = i0; i < Math.min(n, i0 + piece + 1); i++) {
+        x0 = Math.min(x0, cells[i * 2]);
+        x1 = Math.max(x1, cells[i * 2]);
+        z0 = Math.min(z0, cells[i * 2 + 1]);
+        z1 = Math.max(z1, cells[i * 2 + 1]);
+      }
+      const m = ROAD_BAND;
+      for (const r of this.world.roadsInRect({ x0: x0 * RAIL_GRID - m, z0: z0 * RAIL_GRID - m, x1: x1 * RAIL_GRID + m, z1: z1 * RAIL_GRID + m })) roads.set(r.id, r);
+    }
+    for (const r of roads.values()) {
+      const P = r.points;
+      for (let j = 0; j < P.length; j += 15) {
+        const x = Math.round((P[j] + r.origin[0]) / RAIL_GRID) - ix0;
+        const z = Math.round((P[j + 2] + r.origin[1]) / RAIL_GRID) - iz0;
+        if (x >= 0 && z >= 0 && x < w && z < h) flags[z * w + x] |= 4;
+      }
+    }
+    grid.roads = true;
+  }
+
   /** 線から 600m 以内の町・集落に駅を置く。駅どうしは 3km 以上離す（重要度の高い方を残す） */
-  private pickStations(e: RailEdge, xz: Float64Array, ds: number, length: number): RailStation[] {
+  private pickStations(e: RailEdge, xz: Float64Array, ds: number, length: number, hits: RoadHit[], flat: number): RailStation[] {
     const n = xz.length / 2;
     const b = { x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity };
     for (let i = 0; i < n; i++) {
@@ -572,6 +625,18 @@ export class Railways {
     const chosen: { nd: WorldNode; s: number }[] = [];
     for (const f of found) if (!chosen.some((c) => Math.abs(c.s - f.s) < STATION_SPACING)) chosen.push(f);
     chosen.sort((p, q) => p.s - q.s);
+    // 平らな区間（前後 flat + 30m）に道路との交わりがあれば、600m まで線に沿ってずらす
+    const clear = (s: number) => !hits.some((h) => Math.abs(h.s - s) < flat + 30);
+    for (const c of chosen) {
+      if (clear(c.s)) continue;
+      for (let k = 1; k <= 12; k++) {
+        const d = Math.ceil(k / 2) * 50 * (k % 2 ? 1 : -1);
+        const s2 = c.s + d;
+        if (s2 < STATION_SPACING / 2 || s2 > length - STATION_SPACING / 2 || !clear(s2)) continue;
+        c.s = s2;
+        break;
+      }
+    }
     return [
       ends[0],
       ...chosen.map((c) => ({ id: `${e.id}#st_${c.nd.id}`, s: c.s, name: c.nd.name, node: c.nd.id, kind: "small" as const, side: side(c.nd) })),

@@ -1,17 +1,17 @@
 {
-  "date": "2026-11-14T09:00:54.762Z",
+  "date": "2026-11-14T09:19:09.892Z",
   "shots": {
     "wide": {
       "rails": 22,
-      "waitS": 85.9
+      "waitS": 89.7
     },
     "origin": {
       "rails": 22,
-      "waitS": 2.3
+      "waitS": 2.8
     },
     "origin-near": {
       "rails": 22,
-      "waitS": 2.6
+      "waitS": 2.5
     },
     "station": {
       "name": "葛郷",

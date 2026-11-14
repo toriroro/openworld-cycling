@@ -23,8 +23,10 @@ export interface RailGrid {
   /** 格子の一辺 (m) */
   cell: number;
   heights: Float64Array;
-  /** bit0 = 水（海・湖）、bit1 = 川の河原と縁 */
+  /** bit0 = 水（海・湖）、bit1 = 川の河原と縁、bit2 = 道路が通る、bit3 = 道路を調べた帯の中 */
   flags: Uint8Array;
+  /** 道路を調べた（bit2・bit3 が意味を持つ） */
+  roads?: boolean;
 }
 
 export interface RailRouteParams {
@@ -40,6 +42,10 @@ export interface RailRouteParams {
   riverCost: number;
   /** まっすぐ跳ぶ移動の最大の格子数 */
   maxJump: number;
+  /** 道路を横切る費用 (m)、道路の格子から道路の格子へ進む費用（水平距離に掛ける追加分）、調べた帯の外へ出る費用（同） */
+  roadCross: number;
+  roadAlong: number;
+  offBand: number;
   /** トンネルにする、地面が線より高い量 (m)。高架にする、線より低い量 (m) */
   tunnelCover: number;
   viaductClear: number;
@@ -54,6 +60,9 @@ export const RAIL_ROUTE_PARAMS: Omit<RailRouteParams, "maxGrade"> = {
   bridgeCost: 3,
   riverCost: 3,
   maxJump: 24,
+  roadCross: 250,
+  roadAlong: 6,
+  offBand: 1.5,
   tunnelCover: 12,
   viaductClear: 8,
   heuristicWeight: 1.2,
@@ -148,6 +157,15 @@ export function findRailRoute(grid: RailGrid, sx: number, sz: number, gx: number
     return Math.sqrt(dx * dx + dz * dz) * hw;
   };
   const isWater = (c: number) => (gf[c] & 1) !== 0;
+  const useRoads = !!grid.roads;
+  /** 道路の印による追加の費用（地上の移動） */
+  const roadTerm = (from: number, to: number, dist: number) => {
+    if (!useRoads) return 0;
+    let c = 0;
+    if (gf[to] & 4) c += gf[from] & 4 ? dist * p.roadAlong : p.roadCross;
+    if (!(gf[to] & 8)) c += dist * p.offBand;
+    return c;
+  };
   const riv = (c: number) => (gf[c] >> 1) & 1;
 
   const startCell = sz * w + sx;
@@ -274,7 +292,7 @@ export function findRailRoute(grid: RailGrid, sx: number, sz: number, gx: number
           }
         }
       }
-      relax(s, g0, ncell, nd, dist * (1 + gradeTerm + turn), 0, nx, nz);
+      relax(s, g0, ncell, nd, dist * (1 + gradeTerm + turn) + roadTerm(cell, ncell, dist), 0, nx, nz);
     }
   }
   if (goal < 0) return null;
