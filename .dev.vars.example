@@ -1,0 +1,4 @@
+# ローカルで `npx wrangler dev` を動かす時の秘密。このファイルを .dev.vars に写して値を入れる（.dev.vars は git に入れない）。
+# 公開先の値とは別の、確認用の値を使う。乱数で作るなら: node scripts/make-dev-vars.mjs
+SITE_PASSWORD=
+SESSION_SECRET=

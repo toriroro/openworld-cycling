@@ -2,6 +2,8 @@ node_modules/
 dist/
 .vite/
 .wrangler/
+# ローカルで wrangler dev を動かす時の秘密（.dev.vars.example を写して作る）
+.dev.vars
 test-results/
 playwright-report/
 *.log

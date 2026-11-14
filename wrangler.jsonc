@@ -1,10 +1,23 @@
-// ウェブ版の公開設定。今は静的ファイルだけを配る（Worker のコードと /api はまだ無い）。
+// ウェブ版の公開設定。Worker（worker/index.ts）がパスワードを確かめてから静的ファイルを渡す。/api はまだ無い。
 // 公開: npm run deploy
+// 秘密（設定ファイルには書かない）: SITE_PASSWORD（遊ぶ人に伝えるパスワード、12 文字以上）、SESSION_SECRET（Cookie の署名用の乱数）
+//   npx wrangler secret put SITE_PASSWORD
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "openworld-cycling",
-  "compatibility_date": "2026-11-14",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-13",
   "assets": {
-    "directory": "./dist"
-  }
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // すべての要求を先に Worker へ通す。外すと静的ファイルが認証なしで読める。
+    "run_worker_first": true
+  },
+  // 版ごとの URL（<版>-openworld-cycling.….workers.dev）は出さない。古い版は認証の無い状態で残るため。
+  "preview_urls": false,
+  // パスワードの試行の上限（Cloudflare の拠点ごとの概数）
+  "ratelimits": [
+    { "name": "LOGIN_LIMIT_IP", "namespace_id": "4101", "simple": { "limit": 5, "period": 60 } },
+    { "name": "LOGIN_LIMIT_ALL", "namespace_id": "4102", "simple": { "limit": 30, "period": 60 } }
+  ]
 }

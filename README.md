@@ -40,6 +40,22 @@ npm run deploy
 
 本番ビルドをしてから `wrangler deploy` を実行する。先に `npx wrangler login` で Cloudflare にログインしておく。試作の間は `public/_headers` で検索エンジンに載せない指定を付けている。
 
+### パスワード
+
+公開先はパスワードを知っている人だけが開ける。照合は Worker（`worker/auth.ts`）の中で行い、通るまではゲームの HTML・スクリプト・素材を返さない。ブラウザへ送るコードにパスワードは入らない。
+
+- パスワードを決める・変える（12 文字以上。入力は画面に出ない）:
+
+  ```bash
+  npx wrangler secret put SITE_PASSWORD
+  ```
+
+  変えると、それまでにログインした人は全員入れ直しになる。12 文字未満や未登録の時は誰も開けない。
+- `SESSION_SECRET` は Cookie の署名に使う乱数（32 文字以上）。人に伝える物ではない。登録し直すと全員が入れ直しになる。
+- ログインは 30 日間有効。試行は同じ接続元から 1 分に 5 回、全体で 1 分に 30 回まで（Cloudflare の拠点ごとの概数）。
+- 版ごとの URL（`preview_urls`）は切ってある。入れると認証の無い古い版が開ける。
+- ローカルで Worker ごと動かす時は `node scripts/make-dev-vars.mjs` で確認用の秘密（`.dev.vars`）を作り、`npm run build` の後に `npx wrangler dev` を実行する。
+
 ## 遊び方
 
 起動すると最初の画面が出る。
