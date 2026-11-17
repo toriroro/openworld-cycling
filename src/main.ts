@@ -7,7 +7,7 @@ import "./ui/game.css";
 import { startM2 } from "./dev/m2-camera.ts";
 import { Game } from "./game.ts";
 import { platform } from "./platform/index.ts";
-import { rayCheck } from "./render/raycheck.ts";
+import { groundProbe, rayCheck } from "./render/raycheck.ts";
 import { type Quality, WorldView } from "./render/world-view.ts";
 import { WORLD_SEED } from "./shared/world/constants.ts";
 import { RoadClient } from "./workers/road-client.ts";
@@ -24,7 +24,7 @@ async function chooseWorld(): Promise<WorldChoice> {
     try {
       return await hokkaidoWorld(seed);
     } catch (e) {
-      // 変換データが無い（scripts/hokkaido/build-h0.ts を実行していない）時は生成の世界で始める
+      // 変換データが無い（scripts/hokkaido/build.ts を実行していない）時は生成の世界で始める
       console.error("北海道の世界を読めない", e);
     }
   }
@@ -97,6 +97,10 @@ if (q.get("mode") === "m2" && devTools) {
     },
     setPaused(p: boolean) {
       game.paused = p;
+    },
+    /** 描いている地形の高さ（[x, z] の並び → 高さ。当たらなければ null） */
+    groundAt(points: [number, number][]) {
+      return groundProbe(view, points);
     },
     rayCheck(radius = 600) {
       const a = game.ride ? game.ride.pose() : { x: startX, z: startZ };

@@ -1,0 +1,303 @@
+{
+  "builtAt": "2026-11-17T11:52:51.330Z",
+  "area": {
+    "x0": -30000,
+    "x1": 30000,
+    "z0": -30060,
+    "z1": 29920
+  },
+  "options": {
+    "includeMinor": true,
+    "mergeJunction": 12,
+    "stub": 25,
+    "sigma": 12,
+    "junctionBlend": 30,
+    "mergeDual": true
+  },
+  "withMinor": {
+    "roads": 55294,
+    "km": 10240.1,
+    "byClass": [
+      {
+        "cls": 0,
+        "name": "幹線",
+        "roads": 3378,
+        "km": 896.5
+      },
+      {
+        "cls": 1,
+        "name": "一般道",
+        "roads": 12312,
+        "km": 2582.9
+      },
+      {
+        "cls": 2,
+        "name": "山道",
+        "roads": 33653,
+        "km": 4644.8
+      },
+      {
+        "cls": 3,
+        "name": "林道",
+        "roads": 5557,
+        "km": 1973.8
+      },
+      {
+        "cls": 4,
+        "name": "自転車道",
+        "roads": 394,
+        "km": 142.2
+      }
+    ],
+    "junctions": {
+      "total": 39041,
+      "deg3plus": 30512,
+      "deadEnds": 7143,
+      "deg2": 1386
+    },
+    "junctionToJunction": {
+      "all": {
+        "count": 46460,
+        "p10": 37,
+        "p25": 50,
+        "median": 97,
+        "p75": 187,
+        "under50": 11686,
+        "under150": 31808
+      },
+      "main": {
+        "count": 14455,
+        "p10": 38,
+        "p25": 64,
+        "median": 130,
+        "p75": 269,
+        "under50": 2551,
+        "under150": 8075
+      }
+    },
+    "components": {
+      "count": 757,
+      "largestShare": 0.951
+    },
+    "grade": {
+      "overLimitKm": 268.3,
+      "overLimitKmByClass": [
+        34.79,
+        29.53,
+        110.3,
+        86.98,
+        6.69
+      ],
+      "roadsSteeperThan15": 1820
+    },
+    "roadMinusGround": {
+      "p50": 0.01,
+      "p90": 0.15,
+      "p99": 0.68,
+      "max": 12.99
+    },
+    "bridges": {
+      "count": 2340,
+      "km": 117.44
+    },
+    "tunnels": {
+      "count": 30,
+      "km": 12.67
+    },
+    "onewayMainKm": 62.5,
+    "build": {
+      "dual": {
+        "keptWays": 1050,
+        "droppedWays": 1042,
+        "keptKm": 497.6,
+        "droppedKm": 490.4,
+        "reattachedNodes": 2037,
+        "lostNodes": 18,
+        "colorConflicts": 0
+      },
+      "shallowTunnels": 175,
+      "selectedWays": 32899,
+      "pieces": 65227,
+      "segments": 57659,
+      "mergedJunctionLinks": 1890,
+      "removedStubs": 475
+    }
+  },
+  "withoutMinor": {
+    "roads": 7038,
+    "km": 3621.7,
+    "byClass": [
+      {
+        "cls": 0,
+        "name": "幹線",
+        "roads": 1301,
+        "km": 896.5
+      },
+      {
+        "cls": 1,
+        "name": "一般道",
+        "roads": 5388,
+        "km": 2583.1
+      },
+      {
+        "cls": 2,
+        "name": "山道",
+        "roads": 0,
+        "km": 0
+      },
+      {
+        "cls": 3,
+        "name": "林道",
+        "roads": 0,
+        "km": 0
+      },
+      {
+        "cls": 4,
+        "name": "自転車道",
+        "roads": 349,
+        "km": 142.2
+      }
+    ],
+    "junctions": {
+      "total": 4864,
+      "deg3plus": 3420,
+      "deadEnds": 773,
+      "deg2": 671
+    },
+    "junctionToJunction": {
+      "all": {
+        "count": 5294,
+        "p10": 115,
+        "p25": 161,
+        "median": 340,
+        "p75": 591,
+        "under50": 223,
+        "under150": 1239
+      },
+      "main": {
+        "count": 5155,
+        "p10": 123,
+        "p25": 169,
+        "median": 348,
+        "p75": 597,
+        "under50": 176,
+        "under150": 1155
+      }
+    },
+    "components": {
+      "count": 129,
+      "largestShare": 0.981
+    },
+    "grade": {
+      "overLimitKm": 72.03,
+      "overLimitKmByClass": [
+        35.1,
+        30.22,
+        0,
+        0,
+        6.71
+      ],
+      "roadsSteeperThan15": 199
+    },
+    "roadMinusGround": {
+      "p50": 0.01,
+      "p90": 0.09,
+      "p99": 0.55,
+      "max": 12.99
+    },
+    "bridges": {
+      "count": 1208,
+      "km": 91.16
+    },
+    "tunnels": {
+      "count": 26,
+      "km": 12.39
+    },
+    "onewayMainKm": 62.4,
+    "build": {
+      "dual": {
+        "keptWays": 1050,
+        "droppedWays": 1042,
+        "keptKm": 497.6,
+        "droppedKm": 490.1,
+        "reattachedNodes": 1141,
+        "lostNodes": 14,
+        "colorConflicts": 0
+      },
+      "shallowTunnels": 84,
+      "selectedWays": 8642,
+      "pieces": 12089,
+      "segments": 7628,
+      "mergedJunctionLinks": 513,
+      "removedStubs": 77
+    }
+  },
+  "water": {
+    "riverKm2": 64.1,
+    "lakeKm2": 24.11
+  },
+  "landuseShare": {
+    "urban": 0.036,
+    "farm": 0.108,
+    "forest": 0.407,
+    "open": 0.005
+  },
+  "places": {
+    "nodes": 449,
+    "cafes": 409,
+    "cafesKept": 91,
+    "cafesThinned": 318,
+    "cafesFarFromRoad": 77,
+    "cafeCell": 1500,
+    "viewpoints": 18,
+    "passes": 2
+  },
+  "buildings": {
+    "input": 741629,
+    "kept": 704456,
+    "tooSmall": 36432,
+    "onRoad": 646,
+    "skipped": 95,
+    "byStyle": {
+      "apartment": 63942,
+      "strip": 71130,
+      "tenant": 3131,
+      "mansion": 13130,
+      "house": 437170,
+      "shop": 4962,
+      "oldhouse": 109660,
+      "oldshop": 1331
+    },
+    "withLevels": 11435
+  },
+  "streets": {
+    "ways": 160743,
+    "km": [
+      14257.5,
+      7202.5
+    ],
+    "pieces": 255891,
+    "clippedPoints": 422725
+  },
+  "sidewalks": {
+    "km": 2809.3,
+    "trees": 95598,
+    "runs": 51802
+  },
+  "coverage": {
+    "over06": 0.114,
+    "over25": 0.038,
+    "commercialOver15": 0.027
+  },
+  "files": {
+    "terrainPagesMB": 218.2,
+    "overviewMB": 8.6,
+    "terrainPages": 900,
+    "buildingsMB": 45.4,
+    "buildingPages": 565,
+    "streetsMB": 10.1,
+    "sidewalksMB": 18,
+    "roadsMB": 21.9,
+    "worldJsonMB": 3.3
+  }
+}

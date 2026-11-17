@@ -1,0 +1,42 @@
+{
+  "loadSec": 7.849,
+  "places": {
+    "start-odori": {
+      "pos": {
+        "x": 188,
+        "y": 21,
+        "z": 53
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0,
+        "other": 0,
+        "urban": 1,
+        "town": 1
+      },
+      "triangles": 1617596,
+      "calls": 268,
+      "ray": {
+        "rays": 4038,
+        "poke": 1,
+        "missed": 20,
+        "worst": {
+          "road": "h1473886801_0",
+          "s": 0,
+          "over": 0.16951839870728946
+        }
+      }
+    }
+  },
+  "ride": {
+    "meters": 1270,
+    "frameP95ms": 33.5,
+    "frames": 1760
+  },
+  "cafe": {
+    "name": "喫茶店（北3条東3丁目）",
+    "nearCount": 39
+  },
+  "errors": []
+}

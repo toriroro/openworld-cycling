@@ -1,6 +1,6 @@
 // 画面をドラッグして視点を回す（マウスでも指でも、ポインターイベントで扱う。概要仕様 9.5 #8）。
 // 後方・ドローンの視点ではライダーを中心にぐるりと回り、一人称では見る向きを変える。
-// 離して 3 秒たつと、ゆっくり元の向きへ戻る。
+// 離しても回した向きのまま（2026-11-17 ユーザー）。視点を選び直すと reset() で元の向きに戻す。
 
 /** 回す角度の範囲 */
 const PITCH_MIN = -0.35;
@@ -8,9 +8,6 @@ const PITCH_MAX = 1.1;
 /** 1px あたりの角度 */
 const YAW_PER_PX = 0.007;
 const PITCH_PER_PX = 0.005;
-/** 離してから戻り始めるまでの秒数と、戻る速さ（1/秒） */
-const RETURN_AFTER = 3;
-const RETURN_RATE = 1.2;
 
 export class OrbitDrag {
   /** 左回りが正（ライダーの上から見て） */
@@ -19,7 +16,6 @@ export class OrbitDrag {
   pitch = 0;
   private pointer: number | null = null;
   private last = { x: 0, y: 0 };
-  private idle = Infinity;
   enabled = true;
 
   constructor(el: HTMLElement) {
@@ -36,12 +32,12 @@ export class OrbitDrag {
       this.last = { x: e.clientX, y: e.clientY };
       this.yaw -= dx * YAW_PER_PX;
       this.pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, this.pitch + dy * PITCH_PER_PX));
-      this.idle = 0;
     });
     const end = (e: PointerEvent) => {
       if (e.pointerId !== this.pointer) return;
       this.pointer = null;
-      this.idle = 0;
+      // 一周以上回していても、角度は -π..π にそろえておく
+      this.yaw = Math.atan2(Math.sin(this.yaw), Math.cos(this.yaw));
     };
     el.addEventListener("pointerup", end);
     el.addEventListener("pointercancel", end);
@@ -57,20 +53,8 @@ export class OrbitDrag {
     return Math.abs(this.yaw) > 1e-3 || Math.abs(this.pitch) > 1e-3;
   }
 
-  update(dt: number) {
-    if (this.dragging) return;
-    this.idle += dt;
-    if (this.idle < RETURN_AFTER) return;
-    // 一周以上回していても近い向きから戻る
-    this.yaw = Math.atan2(Math.sin(this.yaw), Math.cos(this.yaw));
-    const k = Math.min(1, dt * RETURN_RATE);
-    this.yaw -= this.yaw * k;
-    this.pitch -= this.pitch * k;
-    if (!this.active) {
-      this.yaw = 0;
-      this.pitch = 0;
-    }
-  }
+  /** 毎フレーム呼ぶ（今は何もしない。離した後も向きを保つ） */
+  update(_dt: number) {}
 
   reset() {
     this.yaw = 0;

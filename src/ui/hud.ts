@@ -2,6 +2,7 @@
 // 文言は操作・状態・事実情報だけ。sim の状態は読むだけ。
 
 import { CAMERA_LABELS, CAMERA_MODES, type CameraMode } from "../render/camera-rig.ts";
+import { POWER_MAX, POWER_MIN } from "../sim/power.ts";
 import type { Quality } from "../render/world-view.ts";
 import type { Upcoming } from "../sim/ride.ts";
 import type { Input } from "./input.ts";
@@ -30,6 +31,8 @@ export interface HudState {
 
 export interface Settings {
   power: number;
+  /** ペダリングで体がぶれ始める出力 (W) */
+  sway: number;
   quality: Quality;
   clock: "world" | "fixed";
   hour: number;
@@ -58,6 +61,8 @@ export class Hud {
   private stats: Record<string, HTMLElement> = {};
   private branch: HTMLElement;
   private branchKey = "";
+  private swayInput!: HTMLInputElement;
+  private swayOut!: HTMLElement;
   private menu: HTMLElement;
   private menuBtn: HTMLButtonElement;
   private pauseEl: HTMLElement;
@@ -132,8 +137,8 @@ export class Hud {
     const rp = row("出力");
     const power = h("input", "", "", rp);
     power.type = "range";
-    power.min = "50";
-    power.max = "400";
+    power.min = String(POWER_MIN);
+    power.max = String(POWER_MAX);
     power.step = "10";
     power.value = String(settings.power);
     const powerOut = h("span", "menu-value", `${settings.power} W`, rp);
@@ -141,6 +146,21 @@ export class Hud {
       powerOut.textContent = `${power.value} W`;
       this.onSettings({ power: Number(power.value) });
     });
+    // 体がぶれ始める出力（この出力から腰・肩・車体の左右の振れが出始め、2 倍で最大）
+    const rs = row("体がぶれ始める出力");
+    const sway = h("input", "", "", rs);
+    sway.type = "range";
+    sway.min = "100";
+    sway.max = String(POWER_MAX);
+    sway.step = "10";
+    sway.value = String(settings.sway);
+    const swayOut = h("span", "menu-value", `${settings.sway} W`, rs);
+    sway.addEventListener("input", () => {
+      swayOut.textContent = `${sway.value} W`;
+      this.onSettings({ sway: Number(sway.value) });
+    });
+    this.swayInput = sway;
+    this.swayOut = swayOut;
     const rc = row("視点");
     const camera = h("select", "", "", rc);
     for (const m of CAMERA_MODES) {
@@ -281,6 +301,10 @@ export class Hud {
     if (s.power !== undefined) {
       this.settingsEls.power.value = String(s.power);
       this.settingsEls.powerOut.textContent = `${s.power} W`;
+    }
+    if (s.sway !== undefined) {
+      this.swayInput.value = String(s.sway);
+      this.swayOut.textContent = `${s.sway} W`;
     }
   }
 

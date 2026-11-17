@@ -100,7 +100,11 @@ export interface RoadBuildOptions {
 
 export const DEFAULT_ROAD_OPTIONS: RoadBuildOptions = { includeMinor: true, mergeJunction: 12, stub: 25, sigma: 12, junctionBlend: 30, mergeDual: true };
 
+/** トンネルとして描く（内壁・坑口、地形を削らない）のは、中ほどの地面が路面よりこれだけ上にあるもの (m) */
+const TUNNEL_MIN_COVER = 6;
+
 export function buildRoads(d: OsmData, dem: Grid, opt: RoadBuildOptions = DEFAULT_ROAD_OPTIONS) {
+  let shallowTunnels = 0;
   // 1. 選ぶ
   let ways: { w: OsmWay; spec: RoadSpec }[] = [];
   // 標高の格子の外の点で切る（範囲の端は行き止まりになる）
@@ -324,6 +328,7 @@ export function buildRoads(d: OsmData, dem: Grid, opt: RoadBuildOptions = DEFAUL
       }
     }
     const spans: Span[] = [];
+    const ground = Float64Array.from(y);
     for (let i = 0; i < curve.n; ) {
       if (!curve.flag[i]) {
         i++;
@@ -335,6 +340,17 @@ export function buildRoads(d: OsmData, dem: Grid, opt: RoadBuildOptions = DEFAUL
       const a = Math.max(0, i - 1);
       const b = Math.min(curve.n - 1, j + 1);
       for (let k = a + 1; k < b; k++) y[k] = y[a] + ((y[b] - y[a]) * (k - a)) / (b - a);
+      // 浅いトンネル（市街地の地下の道で、縦断が地面の高さのもの）は普通の道として描く。山の中を通るトンネルだけ残す（北海道の草案 20 章）
+      if (kind === "tunnel") {
+        const cover: number[] = [];
+        for (let k = a + 1; k < b; k++) cover.push(ground[k] - y[k]);
+        cover.sort((p, q) => p - q);
+        if ((cover[Math.floor(cover.length / 2)] ?? 0) < TUNNEL_MIN_COVER) {
+          shallowTunnels++;
+          i = j + 1;
+          continue;
+        }
+      }
       spans.push({ from: a * ds, to: b * ds, kind });
       i = j + 1;
     }
@@ -402,7 +418,7 @@ export function buildRoads(d: OsmData, dem: Grid, opt: RoadBuildOptions = DEFAUL
     }
   }
   const outJunctions: BuiltJunction[] = [...junctions.values()].map(({ id, x, y, z, arms }) => ({ id, x, y, z, arms }));
-  return { roads, junctions: outJunctions, stats: { dual, selectedWays: ways.length, pieces: pieces.length, segments: segs.length, mergedJunctionLinks: merged, removedStubs: stubs } };
+  return { roads, junctions: outJunctions, stats: { dual, shallowTunnels, selectedWays: ways.length, pieces: pieces.length, segments: segs.length, mergedJunctionLinks: merged, removedStubs: stubs } };
 }
 
 /** 中心を通るキャットマル・ロム（向心）で曲線にし、step 以下の等間隔に取り直す。flag は元の辺ごと */

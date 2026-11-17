@@ -1,4 +1,5 @@
 // 北海道の PBF から、範囲の中の建物の外形を取り出す（北海道の草案 15.1 の b）。
+// H2 から build.ts は PBF を直接読む（pbf-area.ts）ので、この出力は使わない。H0 の時の手順の記録として残す。
 //   npx tsx scripts/hokkaido/extract-buildings.ts
 // 入力: assets-source/hokkaido/pbf/*.osm.pbf（Geofabrik の北海道の抽出）
 // 出力: assets-source/hokkaido/h0/buildings.json（世界座標の外形と、使う札だけ。git に入れない）

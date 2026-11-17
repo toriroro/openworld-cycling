@@ -1,5 +1,5 @@
 // 北海道の世界の建物（OSM の外形。北海道の草案 15 章）の画面写真と描画量。
-// 開発サーバーが動いている前提（MAP_BASE、既定 5180）。先に extract-buildings.ts と build-h0.ts を実行する。
+// 開発サーバーが動いている前提（MAP_BASE、既定 5180）。先に npx tsx scripts/hokkaido/build.ts で変換データを作る。
 // node scripts/hokkaido-buildings-shots.mjs。QUALITY=light で軽量画質。結果は artifacts/hokkaido/buildings/。
 
 import { chromium } from "@playwright/test";

@@ -6,7 +6,7 @@ export interface PowerSource {
 
 /** 手動: 押している間、設定した出力。ブレーキは別の入力 */
 export class ManualPower implements PowerSource {
-  /** 設定した出力 (W)。50〜400 */
+  /** 設定した出力 (W)。POWER_MIN〜POWER_MAX */
   setting = 180;
   pedal = false;
   brake = 0;
@@ -24,4 +24,5 @@ export class AutoPower implements PowerSource {
 }
 
 export const POWER_MIN = 50;
-export const POWER_MAX = 400;
+/** 出力の上限（2026-11-17 ユーザーの指定で 400 → 700W） */
+export const POWER_MAX = 700;

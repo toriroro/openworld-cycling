@@ -104,13 +104,15 @@ export class WorldView {
       polygonOffsetFactor: -4,
       polygonOffsetUnits: -8,
     });
+    // トンネルの照明（北海道の世界）
+    const lamp = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
     const patch = paved.clone();
     patch.polygonOffsetFactor = -2;
     patch.polygonOffsetUnits = -4;
-    this.materials.push(terrainMat, paved, gravel, structure, patch);
+    this.materials.push(terrainMat, paved, gravel, structure, patch, lamp);
 
     this.terrain = new TerrainStreamer(seed, terrainMat, roads, world);
-    this.roadMeshes = new RoadMeshes(roads, this.heights, { paved, gravel, structure, patch });
+    this.roadMeshes = new RoadMeshes(roads, this.heights, { paved, gravel, structure, patch, lamp });
     this.vegetation = new Vegetation(this.terrain);
     this.towns = new Towns(seed, roads, this.heights, this.world.id === "generated");
     this.terrain.towns = this.towns;
@@ -196,11 +198,13 @@ export class WorldView {
     }
     this.camera.position.set(eye.x - this.originX, eye.y, eye.z - this.originZ);
     this.camera.lookAt(target.x - this.originX, target.y, target.z - this.originZ);
-    if (fov !== undefined && Math.abs(this.camera.fov - fov) > 0.01) {
-      this.camera.fov = fov;
+    if ((fov !== undefined && Math.abs(this.camera.fov - fov) > 0.01) || this.camera.near !== this.nearPlane) {
+      if (fov !== undefined) this.camera.fov = fov;
+      this.camera.near = this.nearPlane;
       this.camera.updateProjectionMatrix();
     }
     this.roads.update(eye.x, eye.z);
+    this.updatePages(eye.x, eye.z);
     this.terrain.update(eye.x, eye.z);
     this.roadMeshes.update(eye.x, eye.z);
     this.vegetation.update(eye.x, eye.z);
@@ -230,7 +234,13 @@ export class WorldView {
    * 光線は地形（近景）にだけ当て、路面は道路の中心線と幅から求めて高い方を使う（交差点の多い札幌で、
    * 道路のメッシュへの光線が 1 フレームに 40ms を超えたため。北海道の草案 18 章）。
    */
+  /** カメラの近い面 (m)。一人称では手元が映るように手前にする（game.ts が決める） */
+  nearPlane = 0.8;
+
   surfaceHeight(x: number, z: number): number {
+    // トンネルの中（北海道の世界）は路面の高さ。内壁の外へ少しはみ出した視点も山の上へ押し上げない
+    const tunnel = this.roads.tunnelAt(x, z, 3);
+    if (tunnel !== null) return tunnel;
     const now = performance.now();
     if (now - this.groundTargetsT > 500) {
       this.groundTargetsT = now;
@@ -252,8 +262,21 @@ export class WorldView {
     return new THREE.Vector3(x - this.originX, y, z - this.originZ);
   }
 
+  /** 北海道の世界: 視点の 500m 四方が変わるたびに、周りの頁（地形・建物・道・歩道）を読む（北海道の草案 20 章） */
+  private pagesAt = "";
+  private pagesPending = 0;
+  private updatePages(x: number, z: number) {
+    const local = this.world.local;
+    if (!local) return;
+    const k = `${Math.round(x / 500)},${Math.round(z / 500)}`;
+    if (k === this.pagesAt) return;
+    this.pagesAt = k;
+    this.pagesPending++;
+    void local.ensureAround(x, z).finally(() => this.pagesPending--);
+  }
+
   settled(): boolean {
-    return this.roads.pending === 0 && this.terrain.settled() && this.roadMeshes.pendingBuild === 0 && (this.realBuildings?.pending ?? 0) === 0 && (this.realStreets?.pending ?? 0) === 0;
+    return this.pagesPending === 0 && this.roads.pending === 0 && this.terrain.settled() && this.roadMeshes.pendingBuild === 0 && (this.realBuildings?.pending ?? 0) === 0 && (this.realStreets?.pending ?? 0) === 0;
   }
 
   stats() {

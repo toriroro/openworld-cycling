@@ -40,6 +40,8 @@ export function rayCheck(view: WorldView, cx: number, cz: number, radius: number
       const z = r.points[i * 3 + 2] + r.origin[1];
       if ((x - cx) ** 2 + (z - cz) ** 2 > radius * radius) continue;
       const y = r.points[i * 3 + 1];
+      // トンネルの中は地形が路面の上にある（山の中）
+      if (e.bridge[i] === 2) continue;
       const a = Math.max(0, i - 1), b = Math.min(n - 1, i + 1);
       let tx = r.points[b * 3] - r.points[a * 3];
       let tz = r.points[b * 3 + 2] - r.points[a * 3 + 2];
@@ -69,4 +71,21 @@ export function rayCheck(view: WorldView, cx: number, cz: number, radius: number
     }
   }
   return res;
+}
+
+/** 描いている地形（近景のタイル）の高さを、上からの光線で求める（検証用）。当たらなければ null */
+export function groundProbe(view: WorldView, points: [number, number][]): (number | null)[] {
+  const meshes: THREE.Object3D[] = [];
+  view.terrain.group.traverse((o) => {
+    if (o instanceof THREE.Mesh && o.visible && o.userData.level === 0) meshes.push(o);
+  });
+  view.scene.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster();
+  ray.far = 3000;
+  const down = new THREE.Vector3(0, -1, 0);
+  return points.map(([x, z]) => {
+    ray.set(new THREE.Vector3(x - view.originX, 1500, z - view.originZ), down);
+    const h = ray.intersectObjects(meshes, false)[0];
+    return h ? h.point.y : null;
+  });
 }

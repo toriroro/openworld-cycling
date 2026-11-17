@@ -175,11 +175,13 @@ export class RoadClient {
       }
       const n = r.points.length / 3;
       const ds = r.length / (n - 1);
+      // 点ごとの印: 1 = 橋、2 = トンネル（北海道の世界。地形を下げず、内壁と坑口を描く。北海道の草案 20 章）
       const bridge = new Uint8Array(n);
-      // トンネル（北海道の世界）は H2 で坑口と内壁を作るまで、地形を路面に合わせた切り通しとして描く（橋にしない）
       for (const sp of r.spans) {
-        if (sp.kind === "tunnel") continue;
-        for (let i = Math.floor(sp.from / ds); i <= Math.min(n - 1, Math.ceil(sp.to / ds)); i++) bridge[i] = 1;
+        const v = sp.kind === "tunnel" ? 2 : 1;
+        const a = sp.kind === "tunnel" ? Math.ceil(sp.from / ds) : Math.floor(sp.from / ds);
+        const b = sp.kind === "tunnel" ? Math.floor(sp.to / ds) : Math.ceil(sp.to / ds);
+        for (let i = Math.max(0, a); i <= Math.min(n - 1, b); i++) bridge[i] = v;
       }
       this.entries.set(r.id, { road: r, bounds: roadBounds(r), blocks: new Set([block]), bridge });
       this.net.addRoad(r);
@@ -195,8 +197,36 @@ export class RoadClient {
     return this.entries.values();
   }
 
+  /** 点ごとの印（1 = 橋、2 = トンネル） */
   bridgeFlags(id: string): Uint8Array | undefined {
     return this.entries.get(id)?.bridge;
+  }
+
+  /** (x, z) がトンネルの中（道路の端から margin m 以内）なら路面の高さ、でなければ null（視点を山の上へ押し上げないため） */
+  tunnelAt(x: number, z: number, margin: number): number | null {
+    for (const e of this.entries.values()) {
+      const b = e.bounds;
+      const road = e.road;
+      if (!road.spans.some((s) => s.kind === "tunnel")) continue;
+      const hw = road.width / 2 + margin;
+      if (x < b.x0 - hw || x > b.x1 + hw || z < b.z0 - hw || z > b.z1 + hw) continue;
+      const P = road.points;
+      const n = P.length / 3;
+      const ox = road.origin[0];
+      const oz = road.origin[1];
+      for (let i = 0; i + 1 < n; i++) {
+        if (e.bridge[i] !== 2 || e.bridge[i + 1] !== 2) continue;
+        const ax = P[i * 3] + ox, az = P[i * 3 + 2] + oz;
+        if (Math.abs(ax - x) > hw + 3 || Math.abs(az - z) > hw + 3) continue;
+        const bx = P[i * 3 + 3] + ox, bz = P[i * 3 + 5] + oz;
+        const dx = bx - ax, dz = bz - az;
+        const l2 = dx * dx + dz * dz || 1;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
+        const ex = ax + dx * t - x, ez = az + dz * t - z;
+        if (ex * ex + ez * ez <= hw * hw) return P[i * 3 + 1] + (P[i * 3 + 4] - P[i * 3 + 1]) * t;
+      }
+    }
+    return null;
   }
 
   /**

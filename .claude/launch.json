@@ -4,6 +4,7 @@
     { "name": "dev", "runtimeExecutable": "npx", "runtimeArgs": ["vite", "--port", "5180", "--strictPort"], "port": 5180 },
     { "name": "preview", "runtimeExecutable": "npx", "runtimeArgs": ["vite", "preview", "--port", "5181", "--strictPort"], "port": 5181 },
     { "name": "worker", "runtimeExecutable": "npx", "runtimeArgs": ["wrangler", "dev", "--port", "8791"], "port": 8791 },
+    { "name": "dev-hokkaido", "runtimeExecutable": "npx", "runtimeArgs": ["vite", "--port", "5183", "--strictPort"], "port": 5183 },
     { "name": "rider", "runtimeExecutable": "npx", "runtimeArgs": ["vite", "--port", "5182", "--strictPort"], "port": 5182 }
   ]
 }

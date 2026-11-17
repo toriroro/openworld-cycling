@@ -143,18 +143,43 @@ export function buildStreets(d: OsmData, dem: Grid, rideSegs: Seg[], rideWayIds:
     // 高さ: 標高を 3 点でならす
     const ys = xs.map((x, i) => gridAt(dem, x, zs[i]));
     const sm = ys.map((_, i) => (ys[Math.max(0, i - 1)] + 2 * ys[i] + ys[Math.min(ys.length - 1, i + 1)]) / 4);
-    // 走る道の上・範囲の外を切り取って、続く所ごとに出す
+    // 走る道の上・範囲の外を切り取って、続く所ごとに出す。
+    // 走る道で切れる所は、点の間（4m）で境目を求めて端の点を足す（車の通る道は走る道の縁の 0.2m 内側まで伸ばし、路面の下に入れる。
+    // 4m ごとの点で切るだけだと、走る道の手前で最大 4m の隙間ができた）
+    const extraOf = (x: number, z: number) => (spec.kind === 1 && coverage && coverage(x, z) >= 0.06 ? 5 : 0.5 + (spec.kind === 0 ? 0 : spec.width / 2));
+    const edgeOf = (x: number, z: number) => (spec.kind === 0 ? -0.2 : extraOf(x, z));
+    const inRange = (x: number, z: number) => x >= dem.x0 && x <= gx1 && z >= dem.z0 && z <= gz1;
+    const kept = xs.map((x, i) => inRange(x, zs[i]) && !onRide(x, zs[i], extraOf(x, zs[i])));
+    /** a（残す点）から b（切る点）へ、走る道の縁（edgeOf）の手前の一番遠い点 */
+    const edgePoint = (a: number, b: number): [number, number, number] | null => {
+      if (!inRange(xs[b], zs[b])) return null;
+      let lo = 0;
+      let hi = 1;
+      for (let it = 0; it < 10; it++) {
+        const t = (lo + hi) / 2;
+        const x = xs[a] + (xs[b] - xs[a]) * t;
+        const z = zs[a] + (zs[b] - zs[a]) * t;
+        if (onRide(x, z, edgeOf(x, z))) hi = t;
+        else lo = t;
+      }
+      if (lo < 0.02) return null;
+      return [xs[a] + (xs[b] - xs[a]) * lo, sm[a] + (sm[b] - sm[a]) * lo, zs[a] + (zs[b] - zs[a]) * lo];
+    };
     let run: number[] = [];
     for (let i = 0; i < xs.length; i++) {
-      const x = xs[i];
-      const z = zs[i];
-      const extra = spec.kind === 1 && coverage && coverage(x, z) >= 0.06 ? 5 : 0.5 + (spec.kind === 0 ? 0 : spec.width / 2);
-      const keep = x >= dem.x0 && x <= gx1 && z >= dem.z0 && z <= gz1 && !onRide(x, z, extra);
-      if (keep) {
-        run.push(x, sm[i], z);
+      if (kept[i]) {
+        if (!run.length && i > 0) {
+          const e = edgePoint(i, i - 1);
+          if (e) run.push(...e);
+        }
+        run.push(xs[i], sm[i], zs[i]);
         continue;
       }
       stats.clippedPoints++;
+      if (run.length && i > 0 && kept[i - 1]) {
+        const e = edgePoint(i - 1, i);
+        if (e) run.push(...e);
+      }
       if (run.length >= 6) emit(run, spec.width, spec.kind);
       run = [];
     }

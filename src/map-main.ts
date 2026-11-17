@@ -9,7 +9,7 @@ const q = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (q.has(k) ? Number(q.get(k)) : d);
 const seed = num("seed", WORLD_SEED);
 const mark = q.has("mark") ? q.get("mark")!.split(",").map(Number) : null;
-/** ?world=hokkaido で北海道の世界（北海道の草案 7 章 H0） */
+/** ?world=hokkaido で北海道の世界（北海道の草案 7 章。H2: 札幌圏） */
 const hokkaido = q.get("world") === "hokkaido";
 if (hokkaido) {
   const credit = document.getElementById("credit")!;
@@ -58,7 +58,7 @@ const map = new WorldMap(canvas, {
   onStatus: (s) => {
     const km = (s.mpp * 100) / 1000;
     statusEl.textContent =
-      `${hokkaido ? "北海道 H0" : `種 ${seed}`}  x ${Math.round(s.x)}  z ${Math.round(s.z)}  100px = ${km < 1 ? Math.round(km * 1000) + "m" : km.toFixed(1) + "km"}` +
+      `${hokkaido ? "北海道 札幌圏" : `種 ${seed}`}  x ${Math.round(s.x)}  z ${Math.round(s.z)}  100px = ${km < 1 ? Math.round(km * 1000) + "m" : km.toFixed(1) + "km"}` +
       `  道路 ${s.roads}本  線路 ${s.rails ?? 0}本` +
       (s.pendingBlocks ? `  道路を生成中 残り${s.pendingBlocks}区画` : "") +
       (s.pendingTiles ? `  地形 残り${s.pendingTiles}` : "");

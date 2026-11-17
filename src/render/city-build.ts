@@ -33,6 +33,31 @@ const YARD = ["#8e897e", "#857f73", "#6d7650", "#77805a", "#9a978e"].map(hex);
 const APRON = ["#5d5d5a", "#666663", "#a19f98", "#8f8d86"].map(hex);
 /** 敷地を地面より浮かせる高さ (m)。隣の敷地と重なってちらつかないよう、建物ごとに少しずらす */
 const PAD_LIFT = 0.07;
+/**
+ * 建物の基礎を土台の高さから地中へ伸ばす深さ (m)。土台は外形の 4 隅の標高の低い方だが、描く地形（8m の格子・道へのなじませ）は
+ * 標高より低い所があり、斜面で建物の低い側が浮いて見えたため（2026-11-17）
+ */
+const FOUNDATION = 3;
+const C_FOUNDATION: Rgb = hex("#8a8780");
+
+/** 近くの建物の基礎（土台の下の 4 面。上は建物の壁が始まる高さ） */
+function foundation(m: Mesher, data: HokkaidoBuildings, k: number, ox: number, oz: number) {
+  const D = data.data;
+  const o = k * BUILDING_REC;
+  const a = D[o + 5];
+  const X = v3(Math.cos(a), 0, Math.sin(a));
+  const Z = v3(-X.z, 0, X.x);
+  const cx = D[o] - ox;
+  const cz = D[o + 1] - oz;
+  const hw = D[o + 2] / 2;
+  const hd = D[o + 3] / 2;
+  const y0 = D[o + 6] - FOUNDATION;
+  const at = (p: number, q: number) => v3(cx + X.x * p + Z.x * q, y0, cz + X.z * p + Z.z * q);
+  m.wall(at(-hw, hd), Z, 2 * hw, FOUNDATION, C_FOUNDATION, 1);
+  m.wall(at(hw, -hd), v3(-Z.x, 0, -Z.z), 2 * hw, FOUNDATION, C_FOUNDATION, 1);
+  m.wall(at(hw, hd), X, 2 * hd, FOUNDATION, C_FOUNDATION, 1);
+  m.wall(at(-hw, -hd), v3(-X.x, 0, -X.z), 2 * hd, FOUNDATION, C_FOUNDATION, 1);
+}
 
 /** 記録 → 生成の世界と同じ形の建物 */
 export function recordBuilding(data: HokkaidoBuildings, k: number): Building {
@@ -121,7 +146,8 @@ function box(m: Mesher, data: HokkaidoBuildings, k: number, ox: number, oz: numb
   const cz = D[o + 1] - oz;
   const hw = D[o + 2] / 2;
   const hd = D[o + 3] / 2;
-  const y0 = D[o + 6];
+  // 地中へ基礎の分だけ伸ばす（FOUNDATION）
+  const y0 = D[o + 6] - FOUNDATION;
   // 三角屋根は壁の上に屋根の半分の高さを足して箱にする（遠くでは形を出さない）
   const y1 = D[o + 7] + D[o + 4] + (home && !flat ? 1.2 : 0.3);
   const at = (p: number, q: number, y: number) => v3(cx + X.x * p + Z.x * q, y, cz + X.z * p + Z.z * q);
@@ -143,6 +169,7 @@ export function buildNear(data: HokkaidoBuildings, heights: TerrainLike, list: n
   for (const k of list) {
     const b = recordBuilding(data, k);
     buildBuilding(kit, b, v3(b.x - ox, 0, b.z - oz));
+    foundation(out.trim, data, k, ox, oz);
     pad(out.trim, data, heights, k, ox, oz);
   }
   let triangles = 0;

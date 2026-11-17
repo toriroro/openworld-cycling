@@ -20,3 +20,9 @@ export const SOURCE_DIR = "assets-source/hokkaido";
 export function bboxString(b: LatLonBox): string {
   return `${b.south},${b.west},${b.north},${b.east}`;
 }
+
+/**
+ * H2: 札幌圏 約 60km 四方（石狩の海岸、江別、定山渓、支笏湖の北の端）。北海道の草案 18.1。
+ * 標高は DEM10B（z14）。H0 の範囲は 5m 格子をそのまま使う。
+ */
+export const H2_BOX: LatLonBox = { south: 42.79, west: 140.98, north: 43.33, east: 141.72 };

@@ -1,10 +1,10 @@
 // 北海道の世界の建物・敷地・走らない道の形を作る Worker（北海道の草案 18 章）。
 // メインスレッドで作ると 1 フレームに 10〜50ms かかったため。結果は転送できる配列で返す（概要仕様 9.5 #3）。
 
-import { HOKKAIDO_BASE, type HokkaidoBuildings, type HokkaidoSidewalks, type HokkaidoStreets, type HokkaidoTerrain } from "../shared/world/hokkaido.ts";
+import { HOKKAIDO_BASE, type HokkaidoBuildings, type HokkaidoSidewalks, type HokkaidoStreets, type HokkaidoTerrain, rectOfCells } from "../shared/world/hokkaido.ts";
 import { buildFar, buildNear, buildStreets } from "../render/city-build.ts";
 import type { MeshArrays } from "../render/building/mesher.ts";
-import { loadBuildings, loadHokkaidoTerrain, loadSidewalks, loadStreets } from "./hokkaido-load.ts";
+import { cityStores, loadHokkaidoTerrain, loadTerrainMeta, pageLoader } from "./hokkaido-load.ts";
 
 export type CityRequest =
   | { type: "init"; base?: string; seed: number }
@@ -30,16 +30,31 @@ self.onmessage = (ev: MessageEvent<CityRequest>) => {
   const req = ev.data;
   if (req.type === "init") {
     const base = req.base ?? HOKKAIDO_BASE;
-    ready = Promise.all([loadBuildings(base), loadStreets(base), loadHokkaidoTerrain(base, req.seed), loadSidewalks(base)]).then(([b, s, t, w]) => {
-      buildings = b;
-      streets = s;
-      terrain = t;
-      sidewalks = w;
+    ready = loadTerrainMeta(base).then(async (meta) => {
+      terrain = await loadHokkaidoTerrain(base, req.seed, meta);
+      const c = cityStores(meta, pageLoader(base));
+      buildings = c.buildings;
+      streets = c.streets;
+      sidewalks = c.sidewalks;
     });
     return;
   }
-  void ready.then(() => handle(req));
+  void ready.then(() => prepare(req)).then(() => handle(req));
 };
+
+/** 依頼の区画の頁（建物・道・歩道・地形）を読む（北海道の草案 20 章）。地形の頁は 60 枚（約 15MB）まで持つ */
+async function prepare(req: Exclude<CityRequest, { type: "init" }>) {
+  const cells = [...req.cells, ...(req.walkCells ?? [])];
+  if (!cells.length || !terrain) return;
+  const r = rectOfCells(cells, 250);
+  const pad = { x0: r.x0 - 20, z0: r.z0 - 20, x1: r.x1 + 20, z1: r.z1 + 20 };
+  terrain.evict((r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2, Infinity, 60);
+  await Promise.all([
+    terrain.ensure(pad),
+    req.type === "streets" ? streets?.ensure(r) : buildings?.ensure(r),
+    req.type === "streets" ? sidewalks?.ensure(r) : undefined,
+  ]);
+}
 
 function handle(req: Exclude<CityRequest, { type: "init" }>) {
   const t0 = performance.now();

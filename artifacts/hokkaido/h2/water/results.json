@@ -1,0 +1,52 @@
+{
+  "loadSec": 8.57,
+  "places": {
+    "toyohira-river": {
+      "pos": {
+        "x": 371,
+        "y": 48,
+        "z": 3858
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0.7,
+        "mountain": 0,
+        "other": 0.3,
+        "urban": 0,
+        "town": 1
+      },
+      "triangles": 1336289,
+      "calls": 290,
+      "ray": {
+        "rays": 2037,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    "hoheikyo-lake": {
+      "pos": {
+        "x": -18638,
+        "y": 429,
+        "z": 15075
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0.9672699219382044,
+        "other": 0.03273007806179562
+      },
+      "triangles": 1049203,
+      "calls": 155,
+      "ray": {
+        "rays": 411,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    }
+  },
+  "ride": null,
+  "cafe": null,
+  "errors": []
+}

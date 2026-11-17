@@ -1,24 +1,30 @@
-// H0（札幌の中心 約 20km 四方）の変換（北海道の草案 4 章・7 章）。
-//   npx tsx scripts/hokkaido/build-h0.ts
-// 入力: assets-source/hokkaido/h0/（取得済みの元データ）
-// 出力: public/data/hokkaido/h0/（world.json・terrain.bin・roads.bin）と artifacts/hokkaido/h0-report.json
+// 北海道の世界の変換（北海道の草案 4 章・7 章・18.1・20 章）。
+//   npx tsx scripts/hokkaido/build.ts h2   札幌圏 約 60km 四方（既定）
+//   npx tsx scripts/hokkaido/build.ts h0   札幌の中心 約 20km 四方（比べる用）
+// 入力: assets-source/hokkaido/ の標高タイル（h0/dem・h2/dem）と北海道の PBF（pbf/）
+// 出力: public/data/hokkaido/{h0,h2}/（world.json・roads.bin・overview.bin・pages/）と artifacts/hokkaido/{h0,h2}-report.json
 //
 // 変換データは OSM の派生データベース（ODbL 1.0）。標高は国土地理院の標高タイルを加工したもの。
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { convertBuildings, type RawBuilding, type Seg } from "./buildings.ts";
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { convertBuildings, type Seg } from "./buildings.ts";
 import { buildSidewalks, buildingCoverage, coverageAt } from "./sidewalks.ts";
 import { buildStreets } from "./streets.ts";
-import { H0_BOX, SOURCE_DIR } from "./area.ts";
+import { H0_BOX, H2_BOX, type LatLonBox, SOURCE_DIR } from "./area.ts";
 import { buildGrid, type Grid, gridAt } from "./dem.ts";
-import { areasOf, lineOf, loadOsm, type Tags } from "./osm.ts";
+import { areasOf, lineOf, type Tags } from "./osm.ts";
+import { writeBuildingPages, writeSidewalkPages, writeStreetPages, writeTerrainPages } from "./pages.ts";
+import { loadPbfArea } from "./pbf-area.ts";
 import { project } from "./projection.ts";
 import { fillRings, type Raster, strokeLine } from "./raster.ts";
 import { type BuiltJunction, type BuiltRoad, buildRoads, DEFAULT_ROAD_OPTIONS } from "./roads.ts";
 import { ROAD_CLASSES } from "../../src/shared/world/constants.ts";
 import { HOKKAIDO_LANDUSE, HOKKAIDO_WATER, type HokkaidoMeta } from "../../src/shared/world/hokkaido.ts";
 
-const OUT = "public/data/hokkaido/h0";
+const AREA = process.argv[2] ?? "h2";
+if (AREA !== "h0" && AREA !== "h2") throw new Error(`範囲は h0 か h2（${AREA}）`);
+const BOX = AREA === "h2" ? H2_BOX : H0_BOX;
+const OUT = `public/data/hokkaido/${AREA}`;
 const REPORT = "artifacts/hokkaido";
 const log = (...a: unknown[]) => console.log(...a);
 let t0 = performance.now();
@@ -28,28 +34,75 @@ const lap = (what: string) => {
 };
 
 // ---- 範囲（世界座標で、元データが全部ある内側の矩形。10m に丸める） ----
-const sw = project(H0_BOX.south, H0_BOX.west);
-const se = project(H0_BOX.south, H0_BOX.east);
-const nw = project(H0_BOX.north, H0_BOX.west);
-const ne = project(H0_BOX.north, H0_BOX.east);
-const X0 = Math.ceil(Math.max(sw.x, nw.x) / 10) * 10;
-const X1 = Math.floor(Math.min(se.x, ne.x) / 10) * 10;
-const Z0 = Math.ceil(Math.max(nw.z, ne.z) / 10) * 10;
-const Z1 = Math.floor(Math.min(sw.z, se.z) / 10) * 10;
-log(`範囲 x ${X0}〜${X1}、z ${Z0}〜${Z1}（${((X1 - X0) / 1000).toFixed(1)} × ${((Z1 - Z0) / 1000).toFixed(1)} km）`);
+function worldRect(b: LatLonBox) {
+  const sw = project(b.south, b.west);
+  const se = project(b.south, b.east);
+  const nw = project(b.north, b.west);
+  const ne = project(b.north, b.east);
+  return {
+    x0: Math.ceil(Math.max(sw.x, nw.x) / 10) * 10,
+    x1: Math.floor(Math.min(se.x, ne.x) / 10) * 10,
+    z0: Math.ceil(Math.max(nw.z, ne.z) / 10) * 10,
+    z1: Math.floor(Math.min(sw.z, se.z) / 10) * 10,
+  };
+}
+const { x0: X0, x1: X1, z0: Z0, z1: Z1 } = worldRect(BOX);
+log(`${AREA}: 範囲 x ${X0}〜${X1}、z ${Z0}〜${Z1}（${((X1 - X0) / 1000).toFixed(1)} × ${((Z1 - Z0) / 1000).toFixed(1)} km）`);
 
-// ---- 標高: 5m 格子（道路の縦断用）と 10m 格子（地形用） ----
-const dem5 = buildGrid(`${SOURCE_DIR}/h0/dem/manifest.json`, X0, Z0, X1, Z1, 5);
-lap("標高 5m 格子");
-const nx = Math.round((X1 - X0) / 10) + 1;
-const nz = Math.round((Z1 - Z0) / 10) + 1;
-const dem10: Grid = { x0: X0, z0: Z0, step: 10, nx, nz, heights: new Float32Array(nx * nz) };
-for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) dem10.heights[j * nx + i] = dem5.heights[j * 2 * dem5.nx + i * 2];
+// ---- 標高: 10m 格子（地形）と、H0 の範囲の 5m 格子（道路の縦断。dem5.fine） ----
+// H2 では H0 の範囲の外は DEM10B だけ。H0 の縁 300m で 5A から 10B へなめらかに移す（北海道の草案 20 章）。
+// 欠け（海）は海にする: 水 = 海、高さは岸からの距離で 1m から 16m まで深くする。陸は 0.3m より下げない（海面 0 の平面に沈めない）。
+const H0R = worldRect(H0_BOX);
+const LAND_MIN = 0.3;
+const manifests = [`${SOURCE_DIR}/h0/dem/manifest.json`, ...(AREA === "h2" ? [`${SOURCE_DIR}/h2/dem/manifest.json`] : [])];
+const fineArea = AREA === "h2" ? { ...H0R, blend: 300 } : undefined;
+const dem10 = buildGrid(manifests, X0, Z0, X1, Z1, 10, { fine: fineArea, allowMissing: AREA === "h2" });
+const nx = dem10.nx;
+const nz = dem10.nz;
+const seaMask = new Uint8Array(nx * nz);
+for (let i = 0; i < nx * nz; i++) if (Number.isNaN(dem10.heights[i])) seaMask[i] = 1;
+{
+  // 岸からの距離（格子の数、8 近傍の 2 回なめ）
+  const INF = 1e9;
+  const d = new Float32Array(nx * nz);
+  for (let i = 0; i < nx * nz; i++) d[i] = seaMask[i] ? INF : 0;
+  for (let j = 0; j < nz; j++)
+    for (let i = 0; i < nx; i++) {
+      const k = j * nx + i;
+      if (!d[k]) continue;
+      if (i > 0) d[k] = Math.min(d[k], d[k - 1] + 1);
+      if (j > 0) d[k] = Math.min(d[k], d[k - nx] + 1, i > 0 ? d[k - nx - 1] + 1.414 : INF, i < nx - 1 ? d[k - nx + 1] + 1.414 : INF);
+    }
+  for (let j = nz - 1; j >= 0; j--)
+    for (let i = nx - 1; i >= 0; i--) {
+      const k = j * nx + i;
+      if (!d[k]) continue;
+      if (i < nx - 1) d[k] = Math.min(d[k], d[k + 1] + 1);
+      if (j < nz - 1) d[k] = Math.min(d[k], d[k + nx] + 1, i < nx - 1 ? d[k + nx + 1] + 1.414 : INF, i > 0 ? d[k + nx - 1] + 1.414 : INF);
+    }
+  for (let i = 0; i < nx * nz; i++) dem10.heights[i] = seaMask[i] ? -Math.min(16, 1 + d[i] * 10 * 0.03) : Math.max(LAND_MIN, dem10.heights[i]);
+}
+lap(`標高 10m 格子（海 ${((dem10.missing * 100) / 1e6).toFixed(1)}km²）`);
+const fine = buildGrid(manifests, Math.max(X0, H0R.x0), Math.max(Z0, H0R.z0), Math.min(X1, H0R.x1), Math.min(Z1, H0R.z1), 5, { fine: fineArea });
+for (let i = 0; i < fine.heights.length; i++) fine.heights[i] = Math.max(LAND_MIN, fine.heights[i]);
+if (AREA === "h0") {
+  // H0 だけの時は 10m 格子も 5m 格子から取る（今までと同じ値）
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) dem10.heights[j * nx + i] = fine.heights[j * 2 * fine.nx + i * 2];
+}
+/** 道路・建物などの高さ（H0 の範囲は 5m、外は 10m） */
+const dem5: Grid = { ...dem10, fine };
+lap("標高 5m 格子（H0 の範囲）");
+
+// ---- OSM（北海道の PBF から範囲を取り出す） ----
+const pbfName = readdirSync(`${SOURCE_DIR}/pbf`).filter((f) => f.endsWith(".osm.pbf")).sort().at(-1);
+if (!pbfName) throw new Error(`${SOURCE_DIR}/pbf に .osm.pbf が無い`);
+const osm = loadPbfArea(`${SOURCE_DIR}/pbf/${pbfName}`, BOX);
+lap(`PBF ${pbfName}（${JSON.stringify(osm.stats)}）`);
 
 // ---- 水と土地利用（10m 格子の格子点で判定） ----
 const newRaster = (): Raster => ({ x0: X0, z0: Z0, step: 10, nx, nz, data: new Uint8Array(nx * nz) });
 const water = newRaster();
-const wd = loadOsm(`${SOURCE_DIR}/h0/osm/water.json`);
+const wd = osm.water;
 const isRiverArea = (t: Tags) => (t.natural === "water" && (t.water === "river" || t.water === "canal" || t.water === "stream")) || t.waterway === "riverbank";
 for (const a of areasOf(wd, (t) => t.natural === "water" || t.waterway === "riverbank")) {
   if (a.tags.water === "wastewater") continue;
@@ -62,8 +115,10 @@ for (const w of wd.ways.values()) {
   const line = lineOf(wd, w);
   if (line) strokeLine(water, line, half, HOKKAIDO_WATER.river, true);
 }
+// 標高の欠け（海）は、川・湖の多角形より優先して海にする
+for (let i = 0; i < nx * nz; i++) if (seaMask[i]) water.data[i] = HOKKAIDO_WATER.sea;
 const landuse = newRaster();
-const ld = loadOsm(`${SOURCE_DIR}/h0/osm/landuse.json`);
+const ld = osm.landuse;
 const LANDUSE: [(t: Tags) => boolean, number][] = [
   [(t) => ["grassland", "scrub", "heath", "bare_rock"].includes(t.natural ?? "") || ["grass", "recreation_ground", "greenfield"].includes(t.landuse ?? ""), HOKKAIDO_LANDUSE.open],
   [(t) => ["farmland", "meadow", "orchard", "farmyard", "vineyard"].includes(t.landuse ?? ""), HOKKAIDO_LANDUSE.farm],
@@ -77,7 +132,7 @@ for (const [accept, v] of LANDUSE) for (const a of areasOf(ld, accept)) fillRing
 lap("水・土地利用");
 
 // ---- 道路 ----
-const rd = loadOsm(`${SOURCE_DIR}/h0/osm/roads.json`);
+const rd = osm.roads;
 // 走る道は等級 2・3（unclassified・track）を除く（決定 2026-11-17、北海道の草案 13.1 #8）。入れた版は数字だけ
 const built = buildRoads(rd, dem5, { ...DEFAULT_ROAD_OPTIONS, includeMinor: false });
 lap("道路");
@@ -85,7 +140,7 @@ const builtAll = buildRoads(rd, dem5, DEFAULT_ROAD_OPTIONS);
 lap("道路（等級 2・3 を入れた版。数字だけ）");
 
 // ---- 地名・立ち寄り地点 ----
-const pd = loadOsm(`${SOURCE_DIR}/h0/osm/places.json`);
+const pd = osm.places;
 const PLACE: Record<string, { kind: "town" | "village"; importance: number }> = {
   city: { kind: "town", importance: 1 },
   suburb: { kind: "town", importance: 0.9 },
@@ -220,8 +275,7 @@ for (const p of placeElements.sort((a, b) => a.id - b.id)) {
 }
 lap("地名・地点");
 
-// ---- 建物（北海道の草案 15 章。extract-buildings.ts で PBF から取り出したもの） ----
-const BUILDING_FILE = `${SOURCE_DIR}/h0/buildings.json`;
+// ---- 建物（北海道の草案 15 章。PBF から取り出したもの） ----
 let buildingOut: ReturnType<typeof convertBuildings> | null = null;
 // 走る道（2m の点を 5 つおきに線分にする）
 const rideSegs: Seg[] = [];
@@ -233,8 +287,7 @@ for (const r of built.roads) {
     rideSegs.push({ ax: r.points[i * 3] + r.origin[0], az: r.points[i * 3 + 2] + r.origin[1], bx: r.points[j * 3] + r.origin[0], bz: r.points[j * 3 + 2] + r.origin[1], hw: r.width / 2, ride: true });
   }
 }
-if (existsSync(BUILDING_FILE)) {
-  const rawB = JSON.parse(readFileSync(BUILDING_FILE, "utf8")) as { buildings: RawBuilding[] };
+{
   const segs: Seg[] = [...rideSegs];
   // 走らない道（住宅街の道など。建物の向きを決めるのに使う）
   const STREET_W: Record<string, number> = { residential: 5, living_street: 4, service: 3.5, unclassified: 5.5, track: 3, pedestrian: 4 };
@@ -248,7 +301,7 @@ if (existsSync(BUILDING_FILE)) {
       if (a && b) segs.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, hw: width / 2, ride: false });
     }
   }
-  buildingOut = convertBuildings(rawB.buildings, dem5, segs, 250);
+  buildingOut = convertBuildings(osm.buildings, dem5, segs, 250);
   lap(`建物 ${buildingOut.stats.kept}`);
 }
 // 建物の込み具合（市街地・郊外。北海道の草案 19 章）
@@ -259,22 +312,22 @@ const commercial = buildingCoverage(buildingOut?.data ?? new Float32Array(0), { 
 const streetOut = buildStreets(rd, dem5, rideSegs, new Set(built.roads.flatMap((r) => r.ways)), 250, (x, z) => coverageAt(coverage, x, z));
 lap(`走らない道 ${streetOut.stats.km.join("km・")}km`);
 // 幹線の歩道と街路樹
-const sidewalkOut = buildSidewalks(built.roads, buildingOut?.data ?? new Float32Array(0), coverage, 250);
+const sidewalkOut = buildSidewalks(built.roads, buildingOut?.data ?? new Float32Array(0), coverage, 250, streetOut);
 lap(`歩道 ${sidewalkOut.stats.km}km、街路樹 ${sidewalkOut.stats.trees}`);
 
-// ---- 書き出し ----
+// ---- 書き出し（北海道の草案 20 章: 地形・建物・走らない道・歩道は 2km 四方の頁に分ける） ----
+rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
-// 高さ Int16、水 Uint8、土地利用 Uint8、建物の込み具合 Uint8、店・ビルの込み具合 Uint8（0〜1 を 0〜255）
-const terrain = new Uint8Array(nx * nz * 6);
-const hv = new Int16Array(terrain.buffer, 0, nx * nz);
+const gridInfo = { x0: X0, z0: Z0, step: 10, nx, nz };
+const hv = new Int16Array(nx * nz);
 for (let i = 0; i < nx * nz; i++) hv[i] = Math.round(dem10.heights[i] * 10);
-terrain.set(water.data, nx * nz * 2);
-terrain.set(landuse.data, nx * nz * 3);
+const cov8 = new Uint8Array(nx * nz);
+const com8 = new Uint8Array(nx * nz);
 for (let i = 0; i < nx * nz; i++) {
-  terrain[nx * nz * 4 + i] = Math.round(coverage.v[i] * 255);
-  terrain[nx * nz * 5 + i] = Math.round(commercial.v[i] * 255);
+  cov8[i] = Math.round(coverage.v[i] * 255);
+  com8[i] = Math.round(commercial.v[i] * 255);
 }
-writeFileSync(`${OUT}/terrain.bin`, terrain);
+const terrainPages = writeTerrainPages(OUT, gridInfo, hv, [water.data, landuse.data, cov8, com8]);
 let total = 0;
 for (const r of built.roads) total += r.points.length;
 const all = new Float32Array(total);
@@ -286,32 +339,28 @@ const roadMeta = built.roads.map((r) => {
   return m;
 });
 writeFileSync(`${OUT}/roads.bin`, new Uint8Array(all.buffer));
+const streetPages = writeStreetPages(OUT, gridInfo, streetOut.pts, streetOut.index);
+const sidewalkPages = writeSidewalkPages(OUT, gridInfo, sidewalkOut.pts, sidewalkOut.trees, sidewalkOut.index);
+const buildingPages = buildingOut ? writeBuildingPages(OUT, gridInfo, buildingOut.data, buildingOut.index) : { pages: [], MB: 0 };
 const meta: HokkaidoMeta = {
-  version: 1,
-  area: "h0",
+  version: 2,
+  area: AREA,
   attribution: [
     "© OpenStreetMap contributors（ODbL 1.0）",
     "出典：国土地理院ウェブサイト 標高タイル（https://maps.gsi.go.jp/development/ichiran.html）を加工して作成",
   ],
   builtAt: new Date().toISOString(),
   grid: { x0: X0, z0: Z0, step: 10, nx, nz },
+  pages: { ...terrainPages.pages, buildings: buildingPages.pages, streets: streetPages.pages, sidewalks: sidewalkPages.pages },
+  overview: terrainPages.overview,
   roads: roadMeta.map(({ points: _p, ...r }) => r),
   junctions: built.junctions,
   nodes,
   pois,
 };
 writeFileSync(`${OUT}/world.json`, JSON.stringify(meta));
-writeFileSync(`${OUT}/streets.bin`, new Uint8Array(streetOut.pts.buffer));
-writeFileSync(`${OUT}/streets.json`, JSON.stringify(streetOut.index));
-writeFileSync(`${OUT}/sidewalks.bin`, new Uint8Array(sidewalkOut.pts.buffer));
-writeFileSync(`${OUT}/trees.bin`, new Uint8Array(sidewalkOut.trees.buffer));
-writeFileSync(`${OUT}/sidewalks.json`, JSON.stringify(sidewalkOut.index));
-if (buildingOut) {
-  writeFileSync(`${OUT}/buildings.bin`, new Uint8Array(buildingOut.data.buffer));
-  writeFileSync(`${OUT}/buildings.json`, JSON.stringify(buildingOut.index));
-}
-// 地形の Worker が読む小さい方（格子だけ）
-writeFileSync(`${OUT}/terrain.json`, JSON.stringify({ version: 1, area: meta.area, grid: meta.grid }));
+// 地形・建物の Worker が読む小さい方（格子と頁だけ）
+writeFileSync(`${OUT}/terrain.json`, JSON.stringify({ version: 2, area: meta.area, grid: meta.grid, pages: meta.pages, overview: meta.overview }));
 lap("書き出し");
 
 // ---- 検査（北海道の草案 4.4） ----
@@ -411,8 +460,18 @@ const report = {
     over25: +(coverage.v.filter((v) => v >= 0.25).length / coverage.v.length).toFixed(3),
     commercialOver15: +(commercial.v.filter((v) => v >= 0.15).length / commercial.v.length).toFixed(3),
   },
-  files: { streetsMB: +(streetOut.pts.byteLength / 1e6).toFixed(1), buildingsMB: buildingOut ? +(buildingOut.data.byteLength / 1e6).toFixed(1) : 0, terrainMB: +(terrain.length / 1e6).toFixed(1), roadsMB: +(all.byteLength / 1e6).toFixed(1) },
+  files: {
+    terrainPagesMB: terrainPages.pagesMB,
+    overviewMB: terrainPages.overviewMB,
+    terrainPages: terrainPages.pages.npx * terrainPages.pages.npz,
+    buildingsMB: buildingPages.MB,
+    buildingPages: buildingPages.pages.length,
+    streetsMB: streetPages.MB,
+    sidewalksMB: sidewalkPages.MB,
+    roadsMB: +(all.byteLength / 1e6).toFixed(1),
+    worldJsonMB: +(JSON.stringify(meta).length / 1e6).toFixed(1),
+  },
 };
 mkdirSync(REPORT, { recursive: true });
-writeFileSync(`${REPORT}/h0-report.json`, JSON.stringify(report, null, 2));
+writeFileSync(`${REPORT}/${AREA}-report.json`, JSON.stringify(report, null, 2));
 log(JSON.stringify(report, null, 2));

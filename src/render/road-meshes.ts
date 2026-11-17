@@ -1,5 +1,6 @@
 // 道路のメッシュ（モック仕様 5.3）。道路を 250m ごとに分け、近くのものだけ作る。
-// 路面、中央線・外側線（等級による）、路肩、谷側のガードレール、橋（床版・欄干・橋脚）。
+// 路面、中央線・外側線（等級による）、路肩、谷側のガードレール、橋（床版・欄干・橋脚）、
+// トンネル（北海道の世界。内壁・照明・坑口。中は暗くする。北海道の草案 20 章）。
 // 接続点: 道路は接続点の口で止め、口の内側を舗装面で埋める。隣り合う腕の路肩は曲線（隅切り）でつなぎ、外側線も曲線に沿って引く。
 
 import * as THREE from "three";
@@ -10,6 +11,7 @@ import { junctionShape, type JunctionShape, roadFrame, type Vec3 } from "../sim/
 import { rectDist, type RoadClient } from "../workers/road-client.ts";
 import { buildAsphaltSurface } from "./asphalt-profile.ts";
 import { buildGravelSurface } from "./gravel-profile.ts";
+import { TUNNEL_CROWN } from "../workers/terrain-tile.ts";
 
 export const CHUNK_LENGTH = 250;
 
@@ -19,6 +21,8 @@ export interface RoadMaterials {
   structure: THREE.Material;
   /** 補修跡（舗装の上に重ねる） */
   patch: THREE.Material;
+  /** トンネルの照明（光の当たり方によらない明るさ） */
+  lamp: THREE.Material;
 }
 
 interface Chunk {
@@ -35,7 +39,10 @@ interface Chunk {
   cell: string;
   /** 作った時の、この区間にかかる接続点の切れ目 */
   gapKey: string;
+  /** トンネルの影だけを落とす箱（三角形の頂点の並び。区間の原点から） */
+  caster: Float32Array | null;
 }
+
 
 /**
  * 道路の区間を区画（CELL m 四方）ごとに 1 つのメッシュにまとめる。区間ごとにメッシュを作ると、
@@ -49,6 +56,8 @@ interface Cell {
   oz: number;
   chunks: Set<string>;
   mesh: THREE.Mesh | null;
+  /** トンネルの影だけを落とす箱 */
+  caster: THREE.Mesh | null;
   dirty: boolean;
 }
 
@@ -77,6 +86,19 @@ const C_LINE = [0.92, 0.92, 0.9];
 const C_RAIL = [0.78, 0.8, 0.8];
 const C_POST = [0.6, 0.62, 0.62];
 const C_CONCRETE = [0.62, 0.61, 0.58];
+/** トンネルの内壁（下の腰壁は明るいタイル、上は吹付けのコンクリート）と坑口 */
+const C_TUNNEL_WALL = [0.7, 0.69, 0.64];
+const C_TUNNEL_ARCH = [0.42, 0.41, 0.39];
+const C_PORTAL = [0.66, 0.65, 0.61];
+/** トンネルの照明（ナトリウム灯の色） */
+const C_LAMP = [1, 0.72, 0.4];
+/**
+ * トンネルの中の色の掛け率（坑口から奥へ 30m で下げる）。中は影だけの箱（caster）で日が当たらないので、
+ * 色は少しだけ下げ、照明の色（暖色）に寄せる
+ */
+const TUNNEL_DARK = 0.8;
+const TUNNEL_TINT = [1.15, 1.02, 0.82];
+const TUNNEL_RAMP = 30;
 const C_SHOULDER = [0.72, 0.7, 0.66];
 /** 未舗装路の路肩（sRGB 0.42, 0.5, 0.28 を線形に） */
 const C_GRAVEL_VERGE = [0.148, 0.218, 0.061];
@@ -146,6 +168,8 @@ export class RoadMeshes {
   private lastCz = NaN;
   private lastVersion = -1;
   private wanted: { key: string; road: Road; k: number; d: number }[] = [];
+  /** トンネルの影だけを落とす箱の材質（画面には色も深さも書かない。影の描画は材質の色を使わないので影だけ落ちる） */
+  private readonly casterMat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, colorWrite: false, depthWrite: false });
 
   constructor(
     private roads: RoadClient,
@@ -157,9 +181,11 @@ export class RoadMeshes {
     this.originX = x;
     this.originZ = z;
     for (const c of this.cells.values()) {
-      if (!c.mesh) continue;
-      c.mesh.position.set(c.ox - x, 0, c.oz - z);
-      c.mesh.updateMatrix();
+      for (const m of [c.mesh, c.caster]) {
+        if (!m) continue;
+        m.position.set(c.ox - x, 0, c.oz - z);
+        m.updateMatrix();
+      }
     }
     if (this.discs) {
       this.discs.position.set(this.discs.userData.ox - x, 0, this.discs.userData.oz - z);
@@ -250,7 +276,7 @@ export class RoadMeshes {
   private cellOf(key: string, x: number, z: number): Cell {
     let c = this.cells.get(key);
     if (!c) {
-      c = { key, ox: Math.floor(x / CELL) * CELL, oz: Math.floor(z / CELL) * CELL, chunks: new Set(), mesh: null, dirty: false };
+      c = { key, ox: Math.floor(x / CELL) * CELL, oz: Math.floor(z / CELL) * CELL, chunks: new Set(), mesh: null, caster: null, dirty: false };
       this.cells.set(key, c);
     }
     return c;
@@ -272,6 +298,10 @@ export class RoadMeshes {
       this.releaseQueue.push(cell.mesh);
       cell.mesh = null;
     }
+    if (cell.caster) {
+      this.releaseQueue.push(cell.caster);
+      cell.caster = null;
+    }
     const list: Chunk[] = [];
     for (const k of cell.chunks) {
       const c = this.chunks.get(k);
@@ -282,7 +312,7 @@ export class RoadMeshes {
       return;
     }
     let V = 0;
-    const slotLen = [0, 0, 0, 0];
+    const slotLen = [0, 0, 0, 0, 0];
     const slotOf = (c: Chunk, mi: number) => (mi === 0 ? c.surface : mi + 1);
     for (const c of list) {
       V += c.geo.getAttribute("position").count;
@@ -292,9 +322,10 @@ export class RoadMeshes {
     const nor = new Float32Array(V * 3);
     const col = new Float32Array(V * 3);
     const uv = new Float32Array(V * 2);
-    const total = slotLen[0] + slotLen[1] + slotLen[2] + slotLen[3];
+    const total = slotLen[0] + slotLen[1] + slotLen[2] + slotLen[3] + slotLen[4];
     const index = V > 65535 ? new Uint32Array(total) : new Uint16Array(total);
-    const slotAt = [0, slotLen[0], slotLen[0] + slotLen[1], slotLen[0] + slotLen[1] + slotLen[2]];
+    const slotAt = [0];
+    for (let k = 1; k < 5; k++) slotAt.push(slotAt[k - 1] + slotLen[k - 1]);
     const fill = slotAt.slice();
     let vbase = 0;
     for (const c of list) {
@@ -327,9 +358,9 @@ export class RoadMeshes {
     geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
     geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
     geo.setIndex(new THREE.BufferAttribute(index, 1));
-    for (let k = 0; k < 4; k++) if (slotLen[k]) geo.addGroup(slotAt[k], slotLen[k], k);
+    for (let k = 0; k < 5; k++) if (slotLen[k]) geo.addGroup(slotAt[k], slotLen[k], k);
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, [this.mats.paved, this.mats.gravel, this.mats.structure, this.mats.patch]);
+    const mesh = new THREE.Mesh(geo, [this.mats.paved, this.mats.gravel, this.mats.structure, this.mats.patch, this.mats.lamp]);
     mesh.name = "road";
     mesh.receiveShadow = true;
     mesh.castShadow = false;
@@ -338,6 +369,36 @@ export class RoadMeshes {
     mesh.updateMatrix();
     cell.mesh = mesh;
     this.group.add(mesh);
+    // トンネルの影だけを落とす箱（中を太陽の光から隠す）
+    let cv = 0;
+    for (const c of list) cv += c.caster?.length ?? 0;
+    if (cv) {
+      const cp = new Float32Array(cv);
+      let o = 0;
+      for (const c of list) {
+        if (!c.caster) continue;
+        const dx = c.ox - cell.ox;
+        const dz = c.oz - cell.oz;
+        for (let i = 0; i < c.caster.length; i += 3) {
+          cp[o + i] = c.caster[i] + dx;
+          cp[o + i + 1] = c.caster[i + 1];
+          cp[o + i + 2] = c.caster[i + 2] + dz;
+        }
+        o += c.caster.length;
+      }
+      const cg = new THREE.BufferGeometry();
+      cg.setAttribute("position", new THREE.BufferAttribute(cp, 3));
+      cg.computeBoundingSphere();
+      const cm = new THREE.Mesh(cg, this.casterMat);
+      cm.name = "road:tunnel-shadow";
+      cm.castShadow = true;
+      cm.receiveShadow = false;
+      cm.matrixAutoUpdate = false;
+      cm.position.copy(mesh.position);
+      cm.updateMatrix();
+      cell.caster = cm;
+      this.group.add(cm);
+    }
   }
 
   private build(road: Road, k: number): Chunk {
@@ -373,6 +434,7 @@ export class RoadMeshes {
     const at = (j: number, off: number, dy: number) => [px[j] + rx[j] * off, py[j] + dy, pz[j] + rz[j] * off];
     const sOf = (j: number) => (i0 + j) * ds;
     const isBridge = (j: number) => bridge[i0 + j] === 1;
+    const isTunnel = (j: number) => bridge[i0 + j] === 2;
     // 接続点の口の内側の点（路面・路肩・区画線・ガードレールを作らない）
     const gaps = this.gapsOf(road);
     const cut: boolean[] = [];
@@ -468,6 +530,76 @@ export class RoadMeshes {
       }
     }
 
+    // トンネル: 内壁・照明・坑口。中の路面などの色を暗くする
+    const lamp = new GeoBuilder();
+    let caster: Float32Array | null = null;
+    const tunnelRuns: number[][] = [];
+    {
+      let q = 0;
+      while (q < cnt) {
+        if (!isTunnel(q)) {
+          q++;
+          continue;
+        }
+        let e = q;
+        while (e < cnt && isTunnel(e)) e++;
+        const run = Array.from({ length: e - q }, (_, t) => q + t);
+        if (run.length >= 2) tunnelRuns.push(run);
+        q = e;
+      }
+    }
+    if (tunnelRuns.length) {
+      // 点 i がトンネルの外か。道路の端の外は、接続点の先の道路もトンネルでなければ外（坑口が道路の端にある）
+      const startOut = bridge[0] === 2 && this.tunnelEndIsPortal(road, true);
+      const endOut = bridge[n - 1] === 2 && this.tunnelEndIsPortal(road, false);
+      const outside = (i: number) => (i < 0 ? startOut : i > n - 1 ? endOut : bridge[i] !== 2);
+      // 坑口からの距離（TUNNEL_RAMP で打ち切る。トンネルの外は -1）
+      const lim = Math.ceil(TUNNEL_RAMP / ds) + 1;
+      const depth = (j: number) => {
+        const i = i0 + j;
+        if (bridge[i] !== 2) return -1;
+        let d = lim;
+        for (let q = 1; q <= lim; q++) {
+          if (outside(i - q) || outside(i + q)) {
+            d = q - 1;
+            break;
+          }
+        }
+        return Math.min(TUNNEL_RAMP, d * ds);
+      };
+      const dim: number[] = [];
+      for (let q = 0; q < cnt; q++) {
+        const d = depth(q);
+        dim.push(d < 0 ? 1 : 1 - (1 - TUNNEL_DARK) * Math.min(1, d / TUNNEL_RAMP));
+      }
+      for (const run of tunnelRuns)
+        this.tunnel(
+          str,
+          lamp,
+          at,
+          run,
+          hw,
+          sOf,
+          dim,
+          (q) => outside(i0 + q - 1),
+          (q) => outside(i0 + q + 1),
+        );
+      // 中の路面・路肩・区画線を暗くする（坑口から 30m で TUNNEL_DARK まで）
+      for (const gb of [surf, pat]) darkenNear(gb, px, pz, dim);
+      // 影だけを落とす箱: 内壁の外側の左右の壁と屋根
+      const side = hw + 1.4;
+      const top = TUNNEL_CROWN + 0.6;
+      const cb = new GeoBuilder();
+      for (const run of tunnelRuns) {
+        const col = (off: number, y: number) => run.map((q) => at(q, off, y));
+        cb.strip(col(-side, -0.5), col(-side, top), [0, 0, 0]);
+        cb.strip(col(-side, top), col(side, top), [0, 0, 0]);
+        cb.strip(col(side, top), col(side, -0.5), [0, 0, 0]);
+      }
+      caster = new Float32Array(cb.idx.length * 3);
+      cb.idx.forEach((v, i) => caster!.set(cb.pos.slice(v * 3, v * 3 + 3), i * 3));
+    }
+
     // 橋: 床版の側面と底面、欄干、橋脚
     let j = 0;
     while (j < cnt) {
@@ -484,12 +616,13 @@ export class RoadMeshes {
 
     const g = new THREE.BufferGeometry();
     const all = new GeoBuilder();
-    all.pos = [...surf.pos, ...str.pos, ...pat.pos];
-    all.col = [...surf.col, ...str.col, ...pat.col];
-    all.uv = [...surf.uv, ...str.uv, ...pat.uv];
+    all.pos = [...surf.pos, ...str.pos, ...pat.pos, ...lamp.pos];
+    all.col = [...surf.col, ...str.col, ...pat.col, ...lamp.col];
+    all.uv = [...surf.uv, ...str.uv, ...pat.uv, ...lamp.uv];
     const off = surf.pos.length / 3;
     const off2 = off + str.pos.length / 3;
-    all.idx = [...surf.idx, ...str.idx.map((v) => v + off), ...pat.idx.map((v) => v + off2)];
+    const off3 = off2 + pat.pos.length / 3;
+    all.idx = [...surf.idx, ...str.idx.map((v) => v + off), ...pat.idx.map((v) => v + off2), ...lamp.idx.map((v) => v + off3)];
     g.setAttribute("position", new THREE.Float32BufferAttribute(all.pos, 3));
     g.setAttribute("color", new THREE.Float32BufferAttribute(all.col, 3));
     g.setAttribute("uv", new THREE.Float32BufferAttribute(all.uv, 2));
@@ -497,9 +630,10 @@ export class RoadMeshes {
     g.addGroup(0, surf.idx.length, 0);
     g.addGroup(surf.idx.length, str.idx.length, 1);
     if (pat.idx.length) g.addGroup(surf.idx.length + str.idx.length, pat.idx.length, 2);
+    if (lamp.idx.length) g.addGroup(surf.idx.length + str.idx.length + pat.idx.length, lamp.idx.length, 3);
     g.computeVertexNormals();
     const cell = `${Math.floor(ox / CELL)},${Math.floor(oz / CELL)}`;
-    return { key: `${road.id}#${k}`, road: road.id, k, geo: g, surface: road.surface === "paved" ? 0 : 1, ox, oz, cell, gapKey: this.gapKey(road, k) };
+    return { key: `${road.id}#${k}`, road: road.id, k, geo: g, surface: road.surface === "paved" ? 0 : 1, ox, oz, cell, gapKey: this.gapKey(road, k), caster };
   }
 
   private rail(
@@ -535,6 +669,125 @@ export class RoadMeshes {
         const u = c[q], v = c[(q + 1) % 4];
         b.quad([u[0], y1, u[1]], [v[0], y1, v[1]], [v[0], y0, v[1]], [u[0], y0, u[1]], C_POST, undefined, true);
       }
+    }
+  }
+
+  /** トンネルのまま終わる道路の端が坑口か（接続点の先の道路の端がトンネルでなければ坑口） */
+  private tunnelEndIsPortal(road: Road, atStart: boolean): boolean {
+    const jid = atStart ? road.start : road.end;
+    const jn = this.roads.net.junctions.get(jid);
+    if (!jn) return true;
+    for (const a of jn.arms) {
+      if (a.road === road.id) continue;
+      const f = this.roads.bridgeFlags(a.road);
+      if (!f) continue;
+      const other = this.roads.net.roads.get(a.road);
+      const atOtherStart = other ? a.s < other.length / 2 : a.s < 1;
+      if (f[atOtherStart ? 0 : f.length - 1] === 2) return false;
+    }
+    return true;
+  }
+
+  /**
+   * トンネルの内壁（断面: 監査路の縁石 → 監査路 → 側壁 → 天井の弧）、天井の照明、坑口の面壁（区間の中に坑口がある時）。
+   * 構造物の材質は両面なので、内壁は 1 枚。坑口の面壁は内壁の断面と外の長方形の間を埋める。
+   */
+  private tunnel(
+    b: GeoBuilder,
+    lamp: GeoBuilder,
+    at: (j: number, off: number, dy: number) => number[],
+    run: number[],
+    hw: number,
+    sOf: (j: number) => number,
+    dim: number[],
+    portalBefore: (j: number) => boolean,
+    portalAfter: (j: number) => boolean,
+  ) {
+    const side = hw + 1.0;
+    // 断面（左端から右端へ）: [横の位置, 高さ]
+    const prof: [number, number][] = [
+      [-(hw + 0.3), 0],
+      [-(hw + 0.3), 0.25],
+      [-side, 0.25],
+      [-side, 2.6],
+      [-side, 4.2],
+      [-side * 0.72, 5.7],
+      [-side * 0.38, TUNNEL_CROWN - 0.15],
+      [0, TUNNEL_CROWN],
+    ];
+    for (let k = prof.length - 2; k >= 0; k--) prof.push([-prof[k][0], prof[k][1]]);
+    for (let k = 0; k + 1 < prof.length; k++) {
+      const l: number[][] = [], r: number[][] = [];
+      for (const j of run) {
+        l.push(at(j, prof[k][0], prof[k][1]));
+        r.push(at(j, prof[k + 1][0], prof[k + 1][1]));
+      }
+      // 腰壁（高さ 2.6m まで）は明るいタイル、その上は暗い。坑口から奥へ暗く
+      const c = prof[k + 1][1] <= 2.6 && prof[k][1] <= 2.6 ? C_TUNNEL_WALL : C_TUNNEL_ARCH;
+      b.strip(l, r, (i) => {
+        const k = dim[run[i]];
+        // 坑口（k = 1）は元の色、奥ほど照明の色に寄せる
+        const w = (1 - k) / (1 - TUNNEL_DARK);
+        return [0, 1, 2].map((q) => c[q] * k * (1 + (TUNNEL_TINT[q] - 1) * w));
+      });
+    }
+    // 照明: 天井の左右に 0.4m × 1.2m、12m ごと
+    const ds = run.length > 1 ? sOf(run[1]) - sOf(run[0]) : 2;
+    for (let q = 0; q + 1 < run.length; q++) {
+      const j = run[q];
+      const s = sOf(j);
+      if (Math.floor(s / 12) === Math.floor((s - ds) / 12)) continue;
+      const j2 = run[q + 1];
+      const t = Math.min(1, 1.2 / Math.max(0.5, sOf(j2) - s));
+      for (const o of [-side * 0.5, side * 0.5]) {
+        const y = 5.9;
+        const a1 = at(j, o - 0.2, y), a2 = at(j, o + 0.2, y);
+        const b1 = at(j2, o - 0.2, y), b2 = at(j2, o + 0.2, y);
+        const m = (p: number[], r: number[]) => [p[0] + (r[0] - p[0]) * t, p[1] + (r[1] - p[1]) * t, p[2] + (r[2] - p[2]) * t];
+        lamp.quad(a1, a2, m(a2, b2), m(a1, b1), C_LAMP, undefined, true);
+      }
+    }
+    // 坑口: 面壁（幅は内壁の外へ 3m、高さは天井の上 2.4m）
+    const ends: [number, number][] = [];
+    if (portalBefore(run[0])) ends.push([run[0], 1]);
+    if (portalAfter(run[run.length - 1])) ends.push([run[run.length - 1], -1]);
+    const W = side + 3;
+    const H = TUNNEL_CROWN + 2.4;
+    const C = 3;
+    // 断面の各点を、中心 (0, C) から外の長方形へ伸ばした点（下の端は地面）
+    const outer = prof.map(([x, y]) => {
+      const dy = y - C;
+      const tx = x === 0 ? Infinity : W / Math.abs(x);
+      const ty = dy <= 0 ? Infinity : (H - C) / dy;
+      const t = Math.min(tx, ty);
+      return [x * t, C + dy * t] as [number, number];
+    });
+    outer[0] = [-W, 0];
+    outer[outer.length - 1] = [W, 0];
+    for (const [j, inward] of ends) {
+      for (let k = 0; k + 1 < prof.length; k++) {
+        const p0 = at(j, prof[k][0], prof[k][1]);
+        const p1 = at(j, prof[k + 1][0], prof[k + 1][1]);
+        const q1 = at(j, outer[k + 1][0], outer[k + 1][1]);
+        const q0 = at(j, outer[k][0], outer[k][1]);
+        b.quad(p0, p1, q1, q0, C_PORTAL);
+      }
+      // 長方形の上の角（伸ばした点が角を通らない分）
+      for (let k = 0; k + 1 < outer.length; k++) {
+        const [ax, ay] = outer[k];
+        const [bx, by] = outer[k + 1];
+        const aSide = Math.abs(Math.abs(ax) - W) < 1e-6 && ay > C;
+        const bSide = Math.abs(Math.abs(bx) - W) < 1e-6 && by > C;
+        const aTop = Math.abs(ay - H) < 1e-6;
+        const bTop = Math.abs(by - H) < 1e-6;
+        if ((aSide && bTop && !aTop) || (aTop && bSide && !bTop)) {
+          const cx = aSide ? Math.sign(ax) * W : Math.sign(bx) * W;
+          b.quad(at(j, ax, ay), at(j, cx, H), at(j, bx, by), at(j, bx, by), C_PORTAL);
+        }
+      }
+      // 面壁の上の笠（奥へ 2 点分）
+      const back = run[Math.max(0, Math.min(run.length - 1, run.indexOf(j) + inward))];
+      if (back !== j) b.quad(at(j, -W, H), at(j, W, H), at(back, W, H), at(back, -W, H), C_PORTAL);
     }
   }
 
@@ -796,5 +1049,29 @@ export class RoadMeshes {
         lines.strip(l2, l1, C_LINE);
       }
     });
+  }
+}
+
+/** 頂点の色を、一番近い中心線の点の明るさ（dim）で掛ける（トンネルの中を暗くする） */
+function darkenNear(b: GeoBuilder, px: number[], pz: number[], dim: number[]) {
+  if (dim.every((d) => d === 1)) return;
+  const n = b.pos.length / 3;
+  for (let v = 0; v < n; v++) {
+    const x = b.pos[v * 3];
+    const z = b.pos[v * 3 + 2];
+    let best = 0;
+    let bd = Infinity;
+    for (let j = 0; j < px.length; j++) {
+      const d = (px[j] - x) * (px[j] - x) + (pz[j] - z) * (pz[j] - z);
+      if (d < bd) {
+        bd = d;
+        best = j;
+      }
+    }
+    const k = dim[best];
+    if (k === 1) continue;
+    b.col[v * 3] *= k;
+    b.col[v * 3 + 1] *= k;
+    b.col[v * 3 + 2] *= k;
   }
 }

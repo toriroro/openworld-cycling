@@ -39,6 +39,8 @@ export function generatedWorld(seed: number): WorldChoice {
 /** 北海道の世界（変換データを読む。読めなければ例外） */
 export async function hokkaidoWorld(seed: number, base = HOKKAIDO_BASE): Promise<WorldChoice> {
   const local = await loadHokkaidoWorld(base, seed, true);
+  // 起点の周りの頁を先に読む（続きからの位置は、描く側が動いた先で読む）
+  await local.ensureAround(240, 40);
   return {
     id: "hokkaido",
     seed,

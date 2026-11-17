@@ -2,6 +2,7 @@
 // 保存先は platform の storage（ここでは扱わない）。
 
 import { DEFAULT_OUTFIT, type Outfit, sanitizeOutfit } from "./outfit.ts";
+import { POWER_MAX, POWER_MIN } from "../sim/power.ts";
 
 export const SAVE_VERSION = 1;
 export const SAVE_KEY = "save";
@@ -24,6 +25,8 @@ export interface Stamp {
 
 export interface SaveSettings {
   power: number;
+  /** ペダリングで体がぶれ始める出力 (W) */
+  sway: number;
   quality: "standard" | "light" | null;
   /** 時刻: 世界の時計 / 画面だけ固定（固定の時は hour） */
   clock: "world" | "fixed";
@@ -60,6 +63,8 @@ export interface SaveData {
 
 export const DEFAULT_SETTINGS: SaveSettings = {
   power: 180,
+  // 体がぶれ始める出力 (W)。今までの既定（FTP 250W の 1.2 倍）と同じ
+  sway: 300,
   quality: null,
   clock: "world",
   hour: 14.5,
@@ -80,7 +85,8 @@ export function sanitizeSettings(value: unknown): SaveSettings {
   const s = rec(value);
   const d = DEFAULT_SETTINGS;
   return {
-    power: num(s.power, d.power, 50, 400),
+    power: num(s.power, d.power, POWER_MIN, POWER_MAX),
+    sway: num(s.sway, d.sway, 100, POWER_MAX),
     quality: s.quality === "standard" || s.quality === "light" ? s.quality : null,
     clock: s.clock === "fixed" ? "fixed" : "world",
     hour: num(s.hour, d.hour, 0, 24),

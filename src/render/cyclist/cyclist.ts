@@ -34,11 +34,10 @@ const HEADING_WINDOW = 0.25;
 /** 向きの追従の速さ（ばねの固有角振動数、1/秒） */
 const HEADING_OMEGA = 5;
 /**
- * 力み（0..1）の始まりと最大を FTP（1時間の最大出力）に対する割合で【初期値】。
- * 力むほど腰・肩・車体の左右の振れが大きくなる。値は追って決める。
+ * 力み（0..1）: swayFrom W で始まり、その EFFORT_FULL_RATIO 倍で最大。力むほど腰・肩・車体の左右の振れが大きくなる。
+ * swayFrom は設定で変えられる（既定 300W。2026-11-17 ユーザーの指定）。
  */
-export const EFFORT_FROM_FTP = 1.2;
-export const EFFORT_FULL_FTP = 2.4;
+export const EFFORT_FULL_RATIO = 2;
 
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -59,7 +58,8 @@ export class CyclistModel {
   private yaw = NaN;
   private yawRate = 0;
   /** FTP（W）。力みの始まりを決める。設定ができるまでの【初期値】 */
-  ftp = 250;
+  /** 体がぶれ始める出力 (W)。設定の「体がぶれ始める出力」 */
+  swayFrom = 300;
   private headYaw = 0;
   private lookSide = 0;
   private lookTime = Infinity;
@@ -171,10 +171,10 @@ export class CyclistModel {
     this.pose(dt, { phase: this.phase, speed, watts, distance, steer: this.steer + wobble, lean: this.lean, firstPerson, headYaw: this.headYaw, look: this.lookAmount() });
   }
 
-  /** 力み（0..1）。FTP に対する出力の割合から */
+  /** 力み（0..1）。swayFrom から swayFrom × EFFORT_FULL_RATIO まで */
   private effort(watts: number) {
-    const r = watts / Math.max(1, this.ftp);
-    return Math.max(0, Math.min(1, (r - EFFORT_FROM_FTP) / (EFFORT_FULL_FTP - EFFORT_FROM_FTP)));
+    const a = Math.max(1, this.swayFrom);
+    return Math.max(0, Math.min(1, (watts - a) / (a * (EFFORT_FULL_RATIO - 1))));
   }
 
   /** 後方を見る（side: 1 で左の肩越し、-1 で右の肩越し）。見ている途中なら向きだけ変える */

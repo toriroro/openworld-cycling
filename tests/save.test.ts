@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_OUTFIT } from "../src/shared/outfit.ts";
 import { DEFAULT_SETTINGS, parseSave, SAVE_VERSION, type SaveData } from "../src/shared/save.ts";
 import { RiddenLog } from "../src/sim/ridden.ts";
+import { POWER_MAX } from "../src/sim/power.ts";
 
 describe("保存データ（モック仕様 7.3）", () => {
   const data: SaveData = {
@@ -30,7 +31,8 @@ describe("保存データ（モック仕様 7.3）", () => {
     const p = parseSave(JSON.stringify({ version: 1, settings: { power: 9999, quality: "ultra" }, stamps: [{ poi: 1 }, data.stamps[0]] }))!;
     expect(p.pos).toBeNull();
     expect(p.odometer).toBe(0);
-    expect(p.settings.power).toBe(400);
+    expect(p.settings.power).toBe(POWER_MAX);
+    expect(p.settings.sway).toBe(300);
     expect(p.settings.quality).toBeNull();
     expect(p.stamps).toHaveLength(1);
     expect(p.outfit).toEqual(DEFAULT_OUTFIT);

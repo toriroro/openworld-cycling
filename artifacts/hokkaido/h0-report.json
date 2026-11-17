@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-11-17T05:40:48.564Z",
+  "builtAt": "2026-11-17T08:12:05.732Z",
   "area": {
     "x0": -10160,
     "x1": 10330,
@@ -93,16 +93,16 @@
     "roadMinusGround": {
       "p50": 0.02,
       "p90": 0.11,
-      "p99": 0.5,
-      "max": 3.65
+      "p99": 0.55,
+      "max": 7.2
     },
     "bridges": {
       "count": 658,
       "km": 38.19
     },
     "tunnels": {
-      "count": 52,
-      "km": 6.21
+      "count": 7,
+      "km": 2.22
     },
     "onewayMainKm": 56.3,
     "build": {
@@ -115,6 +115,7 @@
         "lostNodes": 11,
         "colorConflicts": 0
       },
+      "shallowTunnels": 45,
       "selectedWays": 9807,
       "pieces": 22396,
       "segments": 20409,
@@ -200,17 +201,17 @@
     },
     "roadMinusGround": {
       "p50": 0.02,
-      "p90": 0.08,
-      "p99": 0.66,
-      "max": 3.56
+      "p90": 0.09,
+      "p99": 0.85,
+      "max": 6.04
     },
     "bridges": {
       "count": 395,
       "km": 32.52
     },
     "tunnels": {
-      "count": 31,
-      "km": 5.45
+      "count": 5,
+      "km": 2.12
     },
     "onewayMainKm": 56.3,
     "build": {
@@ -223,6 +224,7 @@
         "lostNodes": 7,
         "colorConflicts": 0
       },
+      "shallowTunnels": 26,
       "selectedWays": 3160,
       "pieces": 4761,
       "segments": 3577,
@@ -231,13 +233,13 @@
     }
   },
   "water": {
-    "riverKm2": 5.55,
+    "riverKm2": 7.61,
     "lakeKm2": 0.85
   },
   "landuseShare": {
     "urban": 0.025,
     "farm": 0.032,
-    "forest": 0.246,
+    "forest": 0.247,
     "open": 0.006
   },
   "places": {
@@ -269,18 +271,18 @@
     "withLevels": 10095
   },
   "streets": {
-    "ways": 115979,
+    "ways": 115978,
     "km": [
-      5225.8,
+      5225.6,
       5561.1
     ],
-    "pieces": 151102,
-    "clippedPoints": 335950
+    "pieces": 151103,
+    "clippedPoints": 335878
   },
   "sidewalks": {
-    "km": 1715.8,
-    "trees": 64402,
-    "runs": 16510
+    "km": 1717.6,
+    "trees": 64449,
+    "runs": 16532
   },
   "coverage": {
     "over06": 0.531,
@@ -288,9 +290,14 @@
     "commercialOver15": 0.152
   },
   "files": {
-    "streetsMB": 3.2,
+    "terrainPagesMB": 29.3,
+    "overviewMB": 1,
+    "terrainPages": 121,
     "buildingsMB": 26.1,
-    "terrainMB": 25.1,
-    "roadsMB": 7.1
+    "buildingPages": 112,
+    "streetsMB": 5.4,
+    "sidewalksMB": 10.7,
+    "roadsMB": 7.1,
+    "worldJsonMB": 1.5
   }
 }

@@ -31,6 +31,9 @@ import type { Cafe } from "./render/town-layout.ts";
 import { Minimap } from "./ui/minimap.ts";
 import type { RoadClient } from "./workers/road-client.ts";
 
+/** カメラの近い面の既定 (m)。一人称だけ手前にする（camera-rig.ts） */
+const NEAR_DEFAULT = 0.8;
+
 export class Game {
   readonly input = new Input();
   readonly hud: Hud;
@@ -69,8 +72,6 @@ export class Game {
   private saveT = 0;
   /** 最後に保存した時刻（確認用） */
   lastSaved = "";
-  /** 眺める乗り方: 次に視点を切り替える時刻 */
-  private watchCamAt = 0;
   /** 眺める乗り方で自動で切り替えた視点の記録（確認用） */
   readonly watchCameraLog: { t: number; camera: CameraMode }[] = [];
   /** 最後に描いた時刻（フレームレートの上限用） */
@@ -122,7 +123,7 @@ export class Game {
     this.traffic = new Traffic(roads.net, (Date.now() & 0x7fffffff) | 1, (x, z) => view.heights.height(x, z));
     this.traffic.options = view.quality === "light" ? TRAFFIC_LIGHT : TRAFFIC_STANDARD;
     const st = this.settings;
-    const settings: Settings = { power: this.manual.setting, quality: view.quality, clock: st.clock, hour: st.hour, weather: st.weather, camera: this.camera };
+    const settings: Settings = { power: this.manual.setting, sway: st.sway, quality: view.quality, clock: st.clock, hour: st.hour, weather: st.weather, camera: this.camera };
     this.hud = new Hud(this.input, settings);
     this.hud.onSettings = (s) => this.applySettings(s, true);
     // 小地図と世界地図（モック仕様 7.4）
@@ -270,6 +271,11 @@ export class Game {
       this.auto.setting = s.power;
       this.settings.power = s.power;
     }
+    if (s.sway !== undefined) {
+      this.settings.sway = s.sway;
+      this.player.swayFrom = s.sway;
+      if (fromUser) void this.save();
+    }
     if (s.quality) {
       view.setQuality(s.quality);
       this.traffic.options = s.quality === "light" ? TRAFFIC_LIGHT : TRAFFIC_STANDARD;
@@ -289,6 +295,8 @@ export class Game {
     if (s.clock || s.weather) this.skySnap = true;
     if (fromUser && (s.clock || s.hour !== undefined || s.weather)) void this.save();
     if (s.camera) {
+      // 視点を選び直したら、ドラッグで回した向きを元に戻す
+      if (s.camera !== this.camera) this.orbit.reset();
       this.camera = s.camera;
       this.settings.camera = s.camera;
     }
@@ -299,7 +307,7 @@ export class Game {
     this.settings = { ...d.settings };
     const cam = (CAMERA_MODES as readonly string[]).includes(d.settings.camera) ? (d.settings.camera as CameraMode) : undefined;
     this.applySettings(
-      { power: d.settings.power, clock: d.settings.clock, hour: d.settings.hour, weather: d.settings.weather, camera: cam, quality: (d.settings.quality ?? undefined) as Quality | undefined },
+      { power: d.settings.power, sway: d.settings.sway, clock: d.settings.clock, hour: d.settings.hour, weather: d.settings.weather, camera: cam, quality: (d.settings.quality ?? undefined) as Quality | undefined },
       false,
     );
     this.settings.quality = d.settings.quality;
@@ -458,12 +466,11 @@ export class Game {
     this.skySnap = true;
   }
 
-  /** 眺める乗り方の開始・終了: 自動の入力元、視点の自動切替、画面の常時点灯 */
+  /** 眺める乗り方の開始・終了: 自動の入力元、画面の常時点灯（視点は選んだままにする。2026-11-17 ユーザー） */
   setWatching(on: boolean) {
     this.watching = on;
     if (this.ride) this.ride.power = on ? this.auto : this.manual;
     platform.keepAwake(on);
-    this.watchCamAt = performance.now() + this.watchInterval();
     // 終わったら、選んでいた視点に戻す
     if (!on && (CAMERA_MODES as readonly string[]).includes(this.settings.camera)) {
       this.camera = this.settings.camera as CameraMode;
@@ -471,12 +478,7 @@ export class Game {
     }
   }
 
-  /** 視点を切り替える間隔 20〜40 秒 */
-  private watchInterval() {
-    return 20000 + Math.random() * 20000;
-  }
-
-  /** 眺める乗り方の毎フレームの処理: 進路を選び、時々視点を変える */
+  /** 眺める乗り方の毎フレームの処理: 進路を選ぶ */
   private updateWatching(t: number) {
     const ride = this.ride;
     if (!this.watching || !ride) return;
@@ -484,14 +486,6 @@ export class Game {
     if (u && u.selected === null && !ride.plan) {
       const i = watchChoice(u, this.settings.watchRoute, this.ridden, this.roads.net);
       if (i !== u.defaultIndex) ride.choose(i);
-    }
-    if (t >= this.watchCamAt && !this.orbit.active) {
-      const others = CAMERA_MODES.filter((m) => m !== this.camera);
-      this.camera = others[Math.floor(Math.random() * others.length)];
-      this.smoothEye = null;
-      this.watchCameraLog.push({ t, camera: this.camera });
-      if (this.watchCameraLog.length > 200) this.watchCameraLog.shift();
-      this.watchCamAt = t + this.watchInterval();
     }
   }
 
@@ -632,6 +626,7 @@ export class Game {
           break;
         case "camera":
           this.camera = CAMERA_MODES[(CAMERA_MODES.indexOf(this.camera) + 1) % CAMERA_MODES.length];
+          this.orbit.reset();
           this.smoothEye = null;
           this.hud.syncSettings({ camera: this.camera });
           break;
@@ -722,6 +717,7 @@ export class Game {
     let eye = { x: this.anchor.x, y: this.view.heights.height(this.anchor.x, this.anchor.z) + 40, z: this.anchor.z };
     let target = { x: this.anchor.x + 10, y: eye.y - 5, z: this.anchor.z };
     let fov = 55;
+    this.view.nearPlane = NEAR_DEFAULT;
     let pose: ReturnType<Ride["pose"]> | null = null;
     if (ride?.road) {
       pose = ride.pose();
@@ -742,6 +738,7 @@ export class Game {
       if (this.camera !== "rider") eye.y = Math.max(eye.y, this.view.surfaceHeight(eye.x, eye.z) + 1.2);
       target = c.target;
       fov = c.fov;
+      this.view.nearPlane = c.near ?? NEAR_DEFAULT;
       this.anchor = { x: pose.x, z: pose.z };
       if (this.outfitPanel.isOpen) {
         const r = this.outfitPanel.root.getBoundingClientRect();
@@ -751,6 +748,7 @@ export class Game {
         eye = { x: s.eye.x + this.view.originX, y: s.eye.y, z: s.eye.z + this.view.originZ };
         target = { x: s.target.x + this.view.originX, y: s.target.y, z: s.target.z + this.view.originZ };
         fov = s.fov;
+        this.view.nearPlane = NEAR_DEFAULT;
       }
     }
     // 立ち寄り中は店の外観を回る視点
@@ -765,6 +763,7 @@ export class Game {
       eye = { x: ex, y: Math.max(c.top + 6, this.view.surfaceHeight(ex, ez) + 3), z: ez };
       target = { x: c.x, y: c.top + 2.2, z: c.z };
       fov = 50;
+      this.view.nearPlane = NEAR_DEFAULT;
       this.smoothEye = null;
     }
     this.updateSky(dt);

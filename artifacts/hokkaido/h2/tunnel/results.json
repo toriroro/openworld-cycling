@@ -1,0 +1,38 @@
+{
+  "tunnels": {
+    "hakkenzan": {
+      "inside": {
+        "pos": {
+          "x": -8824,
+          "y": 200,
+          "z": 10848
+        },
+        "poke": 0,
+        "rays": 39,
+        "missed": 0,
+        "triangles": 917573,
+        "calls": 184
+      },
+      "portal": {
+        "x": -8457,
+        "z": 10890,
+        "y": 196.4
+      }
+    },
+    "sosei": {
+      "inside": {
+        "pos": {
+          "x": 617,
+          "y": 21,
+          "z": 66
+        },
+        "poke": 1,
+        "rays": 4503,
+        "missed": 17,
+        "triangles": 1771664,
+        "calls": 284
+      }
+    }
+  },
+  "errors": []
+}

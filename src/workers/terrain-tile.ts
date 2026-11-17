@@ -33,6 +33,13 @@ export interface TileInput {
   lots?: Float32Array | null;
   /** 街区の造成した面（世界座標の格子）。地面をこの面の少し下に合わせ、色を土の色にし、植生を置かない */
   districts?: SurfaceGrid[] | null;
+  /** 川・湖の水面を作る（北海道の世界。北海道の草案 20 章。生成の世界は R2 で作る） */
+  waterSheet?: boolean;
+  /**
+   * 町の中では、地形を走る道へなじませる幅を狭める（北海道の世界）。建物・敷地・住宅街の道は元の標高の高さで描くので、
+   * 40m の幅で地形を道路の高さへ寄せると、斜面で建物が浮いて見えた（2026-11-17）
+   */
+  townBlend?: boolean;
 }
 
 export interface TileOutput {
@@ -48,11 +55,19 @@ export interface TileOutput {
   lowered: number;
   /** 植生（vegetation-place の形） */
   veg: Float32Array;
+  /** 川・湖の水面の三角形（頂点の並び。タイルの左上から）。waterSheet の時だけ */
+  water: Float32Array;
 }
+
+/** 川・湖の水面を地面からどれだけ上に置くか（水の格子の点の地面は、標高データの水面の高さ） */
+export const WATER_SHEET_LIFT = 0.3;
 
 /** 路面と同じ高さにする幅（道路端から）と、元の地形へ戻す幅 */
 export const ROAD_FLAT = 4;
 export const ROAD_BLEND = 40;
+/** 町の中（townBlend）の、路面と同じ高さにする幅と戻す幅。歩道（最大 3m）の下までは路面に合わせる */
+const TOWN_FLAT = 3.5;
+const TOWN_BLEND = 6;
 /** 路面の下の地面の深さ */
 export const ROAD_CLEAR = 0.25;
 /** 橋の床版の厚さ（橋の下の地面はこれより下げる） */
@@ -77,14 +92,27 @@ interface Nearest {
   e: number;
   y: number;
   bridge: boolean;
+  /** トンネルの中（両端の点が TUNNEL_FLAG）。地形を下げず、内壁の上まで地形を上げる */
+  tunnel: boolean;
   /** 見た目だけの道（北海道の世界の住宅街の道など。印 STREET_FLAG） */
   street: boolean;
 }
 
+/** PackedRoads の 5 つめの値がこれならトンネルの中（北海道の世界。北海道の草案 20 章） */
+export const TUNNEL_FLAG = 2;
+/** トンネルの内壁の天井の高さ（路面から。road-meshes.ts の断面と同じ） */
+export const TUNNEL_CROWN = 6.6;
+/** 内壁の上に残す地形の厚さ */
+const TUNNEL_COVER = 1.5;
+/** 道路の端からこの距離までは、地形を内壁の上まで上げる（内壁の外側 1m・側壁の外の厚み） */
+const TUNNEL_SIDE = 3;
+const TUNNEL_BLEND = 10;
+
 /** PackedRoads の 5 つめの値がこれなら見た目だけの道（render/real-streets.ts）。地形を下げる量と、すり付けの幅を小さくする */
 export const STREET_FLAG = 0.5;
 const STREET_FLAT = 1.5;
-const STREET_BLEND = 12;
+/** 見た目だけの道へなじませる幅。12m では急な斜面で広い切り込みになり、そばの建物が浮いた（2026-11-17、手稲で最大 2.8m）ので 3m */
+const STREET_BLEND = 3;
 const STREET_CLEAR = 0.05;
 
 class RoadQuery {
@@ -130,8 +158,11 @@ class RoadQuery {
       const hw = P[i * 5 + 3] + (P[i * 5 + 8] - P[i * 5 + 3]) * t;
       const e = d - hw;
       if (!best || e < best.e) {
-        const bridge = P[i * 5 + 4] >= 1 || P[i * 5 + 9] >= 1;
-        best = { e, y: P[i * 5 + 2] + (P[i * 5 + 7] - P[i * 5 + 2]) * t, bridge, street: P[i * 5 + 4] === STREET_FLAG };
+        const fa = P[i * 5 + 4];
+        const fb = P[i * 5 + 9];
+        const tunnel = fa === TUNNEL_FLAG && fb === TUNNEL_FLAG;
+        const bridge = !tunnel && ((fa >= 1 && fa !== TUNNEL_FLAG) || (fb >= 1 && fb !== TUNNEL_FLAG));
+        best = { e, y: P[i * 5 + 2] + (P[i * 5 + 7] - P[i * 5 + 2]) * t, bridge, tunnel, street: fa === STREET_FLAG };
       }
     }
     return best;
@@ -159,6 +190,18 @@ export function buildTile(terrain: TerrainLike, inp: TileInput): TileOutput {
   const ds = { h: 0, m: 0 };
   // 水面と川の河原（農地にしない）
   const wet = new Uint8Array(G * G);
+  // 建物の敷地の円の中か（タイルの左上からの相対）
+  const inLotAt = (lx: number, lz: number) => {
+    const L = inp.lots;
+    if (!L) return false;
+    for (let k = 0; k < L.length; k += 3) {
+      const dx = lx - L[k], dz = lz - L[k + 1];
+      if (dx * dx + dz * dz < L[k + 2] * L[k + 2]) return true;
+    }
+    return false;
+  };
+  // 川・湖の点（水面を作る。海は海面の平面で描く）
+  const lakeOrRiver = inp.waterSheet ? new Uint8Array(G * G) : null;
   for (let j = 0; j < G; j++)
     for (let i = 0; i < G; i++) {
       const lx = (i - 1) * step;
@@ -166,13 +209,32 @@ export function buildTile(terrain: TerrainLike, inp: TileInput): TileOutput {
       const smp = terrain.sample(x0 + lx, z0 + lz, true);
       let h = smp.height;
       if (smp.water || smp.floodplain) wet[j * G + i] = 1;
+      if (lakeOrRiver && (smp.water === 2 || smp.water === 3)) lakeOrRiver[j * G + i] = 1;
       if (q) {
         const n = q.nearest(lx, lz);
         if (n) {
           nearRoad[j * G + i] = n.e;
-          const flat = n.street ? STREET_FLAT : ROAD_FLAT;
-          const blend = n.street ? STREET_BLEND : ROAD_BLEND;
-          if (!n.bridge && n.e < flat + blend) {
+          let flat = n.street ? STREET_FLAT : ROAD_FLAT;
+          let blend = n.street ? STREET_BLEND : ROAD_BLEND;
+          if (inp.townBlend && !n.street && n.e < ROAD_FLAT + ROAD_BLEND) {
+            const town = terrain.landscape(x0 + lx, z0 + lz).town ?? 0;
+            if (town > 0) {
+              flat += (TOWN_FLAT - flat) * town;
+              blend += (TOWN_BLEND - blend) * town;
+            }
+          }
+          if (n.tunnel) {
+            // トンネル: 山を削らない。坑口の近くで地形が内壁より低ければ、内壁の上まで盛る
+            const top = n.y + TUNNEL_CROWN + TUNNEL_COVER;
+            if (h < top) {
+              const t = smooth(TUNNEL_SIDE, TUNNEL_SIDE + TUNNEL_BLEND, n.e);
+              h = top * (1 - t) + h * t;
+            }
+          } else if (n.street && inp.townBlend && inLotAt(lx, lz)) {
+            // 建物の敷地（建物と正面の駐車場の円）の中は、見た目だけの道へなじませない。
+            // 建物・敷地は元の標高の高さで描くので、急な斜面で道へ寄せると建物が浮いた（2026-11-17、手稲で最大 2.8m）。
+            // 道の路面の真下は clearUnderRoads で下げる
+          } else if (!n.bridge && n.e < flat + blend) {
             const target = n.y - (n.street ? STREET_CLEAR : ROAD_CLEAR);
             const t = smooth(flat, flat + blend, n.e);
             h = target * (1 - t) + h * t;
@@ -190,7 +252,7 @@ export function buildTile(terrain: TerrainLike, inp: TileInput): TileOutput {
 
   // 路面の下にかかる三角形の頂点を下げる
   let lowered = 0;
-  if (q && inp.roads) lowered = clearUnderRoads(hs, G, step, inp.roads, q);
+  if (q && inp.roads) lowered = clearUnderRoads(hs, G, step, inp.roads, q, inp.townBlend ? inLotAt : null);
 
   const vCount = N * N + 4 * N;
   const position = new Float32Array(vCount * 3);
@@ -416,6 +478,11 @@ export function buildTile(terrain: TerrainLike, inp: TileInput): TileOutput {
       out.kind = field[(j * N + i) * 4 + 3];
     },
     inLot: (lx, lz) => {
+      // 川・湖の上には置かない（水面を張る所）
+      if (lakeOrRiver) {
+        const i = Math.max(0, Math.min(G - 1, Math.round(lx / step) + 1)), j = Math.max(0, Math.min(G - 1, Math.round(lz / step) + 1));
+        if (lakeOrRiver[j * G + i]) return true;
+      }
       if (urban) {
         const i = Math.max(0, Math.min(G - 1, Math.round(lx / step) + 1)), j = Math.max(0, Math.min(G - 1, Math.round(lz / step) + 1));
         if (urban[j * G + i] > 0.35) return true;
@@ -429,14 +496,37 @@ export function buildTile(terrain: TerrainLike, inp: TileInput): TileOutput {
       return false;
     },
   });
-  return { position, normal, color, uv, field, index, minY, maxY: maxY, lowered, veg };
+  // 川・湖の水面: 3 つの角がどれも川・湖の三角形を、地面の少し上に張る（同じ対角線で地形と重ねる）
+  const water: number[] = [];
+  if (lakeOrRiver) {
+    // 細い水路（排水路・小川。格子 2 点以下の幅）には張らない: 縮めてから広げ直す（開く）
+    const shrink = new Uint8Array(G * G);
+    for (let j = 1; j < G - 1; j++)
+      for (let i = 1; i < G - 1; i++) {
+        const k = j * G + i;
+        shrink[k] = lakeOrRiver[k] & lakeOrRiver[k - 1] & lakeOrRiver[k + 1] & lakeOrRiver[k - G] & lakeOrRiver[k + G];
+      }
+    for (let j = 1; j < G - 1; j++)
+      for (let i = 1; i < G - 1; i++) {
+        const k = j * G + i;
+        lakeOrRiver[k] = lakeOrRiver[k] & (shrink[k] | shrink[k - 1] | shrink[k + 1] | shrink[k - G] | shrink[k + G]);
+      }
+    const P = (i: number, j: number) => [(i - 1) * step, hs[j * G + i] + WATER_SHEET_LIFT, (j - 1) * step];
+    for (let j = 1; j < N; j++)
+      for (let i = 1; i < N; i++) {
+        const a = j * G + i, b = a + 1, c = a + G, d = c + 1;
+        if (lakeOrRiver[a] && lakeOrRiver[c] && lakeOrRiver[b]) water.push(...P(i, j), ...P(i, j + 1), ...P(i + 1, j));
+        if (lakeOrRiver[b] && lakeOrRiver[c] && lakeOrRiver[d]) water.push(...P(i + 1, j), ...P(i, j + 1), ...P(i + 1, j + 1));
+      }
+  }
+  return { position, normal, color, uv, field, index, minY, maxY: maxY, lowered, veg, water: Float32Array.from(water) };
 }
 
 /**
  * 路面（点の間の四角形）に平面で重なる三角形の頂点を、その四角形の低い方の高さ − ROAD_CLEAR（橋なら床版の下）まで下げる。
  * 格子の三角形はタイル内の位置で決まるので、hs の格子で直接調べる。
  */
-function clearUnderRoads(hs: Float64Array, G: number, step: number, roads: PackedRoads, q: RoadQuery): number {
+function clearUnderRoads(hs: Float64Array, G: number, step: number, roads: PackedRoads, q: RoadQuery, inLot: ((lx: number, lz: number) => boolean) | null): number {
   const P = roads.pts;
   const ceil = new Float64Array(G * G).fill(Infinity);
   // 各道路の四角形について、重なり得る格子の範囲の三角形を調べる
@@ -458,8 +548,13 @@ function clearUnderRoads(hs: Float64Array, G: number, step: number, roads: Packe
       quad[2] = ax - ex + tz * hwA; quad[3] = az - ez - tx * hwA;
       quad[4] = bx + ex + tz * hwB; quad[5] = bz + ez - tx * hwB;
       quad[6] = bx + ex - tz * hwB; quad[7] = bz + ez + tx * hwB;
-      const bridge = P[i * 5 + 4] >= 1 || P[i * 5 + 9] >= 1;
-      const floor = Math.min(P[i * 5 + 2], P[i * 5 + 7]) - (bridge ? BRIDGE_DEPTH : P[i * 5 + 4] === STREET_FLAG ? 0.15 : ROAD_CLEAR);
+      const fa = P[i * 5 + 4];
+      const fb = P[i * 5 + 9];
+      // トンネルの中は地形を下げない（山の中を通る）
+      if (fa === TUNNEL_FLAG && fb === TUNNEL_FLAG) continue;
+      const bridge = (fa >= 1 && fa !== TUNNEL_FLAG) || (fb >= 1 && fb !== TUNNEL_FLAG);
+      const floor = Math.min(P[i * 5 + 2], P[i * 5 + 7]) - (bridge ? BRIDGE_DEPTH : fa === STREET_FLAG ? 0.15 : ROAD_CLEAR);
+      const street = fa === STREET_FLAG ? { hw: Math.max(P[i * 5 + 3], P[i * 5 + 8]), dx: bx - ax, dz: bz - az, l2: (bx - ax) * (bx - ax) + (bz - az) * (bz - az) || 1 } : null;
       let mnx = Infinity, mxx = -Infinity, mnz = Infinity, mxz = -Infinity;
       for (let c = 0; c < 4; c++) {
         mnx = Math.min(mnx, quad[c * 2]); mxx = Math.max(mxx, quad[c * 2]);
@@ -480,6 +575,22 @@ function clearUnderRoads(hs: Float64Array, G: number, step: number, roads: Packe
           tri[0] = x0; tri[1] = z0; tri[2] = x0; tri[3] = z1; tri[4] = x1; tri[5] = z1;
           const hit2 = convexOverlap(tri, 3, quad, 4);
           if (!hit1 && !hit2) continue;
+          if (street) {
+            // 見た目だけの道: マス目の 4 隅を全部は下げず、道の端から格子の間隔の 0.75 倍以内の頂点だけ下げる。
+            // 全部下げると、急な斜面で道から 8m 離れた頂点まで 3m 以上下がり、そばの建物が浮いた（2026-11-17、手稲）
+            // 建物の敷地の円の中は、道の路面の真下（端 + 0.4m）の頂点だけ下げる（敷地の面は元の標高の高さで描くので）
+            const reach = (street.hw + 0.4 + step * 0.75) ** 2;
+            const under = (street.hw + 0.4) ** 2;
+            for (const [v, vx, vz] of [[a, x0, z0], [b, x1, z0], [c, x0, z1], [d, x1, z1]] as const) {
+              const t = Math.max(0, Math.min(1, ((vx - ax) * street.dx + (vz - az) * street.dz) / street.l2));
+              const qx = ax + street.dx * t - vx, qz = az + street.dz * t - vz;
+              const d2 = qx * qx + qz * qz;
+              if (d2 > reach || floor >= ceil[v]) continue;
+              if (d2 > under && inLot?.(vx, vz)) continue;
+              ceil[v] = floor;
+            }
+            continue;
+          }
           for (const v of [a, b, c, d]) if (floor < ceil[v]) ceil[v] = floor;
         }
     }

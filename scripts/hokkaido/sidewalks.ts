@@ -5,7 +5,7 @@
 // - 街路樹: 市街地（込み具合 0.12 以上）の歩道に、縁石の近くに植える。幹線は 12m ごと、一般道は 6 割の道に 15m ごと
 // - 歩道の点は 4m ごと（道路の点の 2 つおき）
 
-import { BUILDING_REC, type HokkaidoSidewalkIndex } from "../../src/shared/world/hokkaido.ts";
+import { BUILDING_REC, type HokkaidoSidewalkIndex, type HokkaidoStreetIndex } from "../../src/shared/world/hokkaido.ts";
 import type { BuiltRoad } from "./roads.ts";
 
 export interface CoverageGrid {
@@ -118,6 +118,39 @@ class RideIndex {
   }
 }
 
+/** 車の通る走らない道（住宅街の道・敷地の道）の索引。歩道をその道の口で切る */
+class StreetIndex {
+  private cells = new Map<string, { ax: number; az: number; bx: number; bz: number; hw: number }[]>();
+  constructor(
+    streets: { pts: Float32Array; index: HokkaidoStreetIndex },
+    private cell = 40,
+  ) {
+    for (const list of Object.values(streets.index.pieces))
+      for (const [off, count, w10, kind] of list) {
+        if (kind !== 0) continue;
+        const P = streets.pts;
+        for (let i = 0; i + 1 < count; i++) {
+          const s = { ax: P[(off + i) * 2], az: P[(off + i) * 2 + 1], bx: P[(off + i + 1) * 2], bz: P[(off + i + 1) * 2 + 1], hw: w10 / 20 };
+          for (let cx = Math.floor((Math.min(s.ax, s.bx) - s.hw) / cell); cx <= Math.floor((Math.max(s.ax, s.bx) + s.hw) / cell); cx++)
+            for (let cz = Math.floor((Math.min(s.az, s.bz) - s.hw) / cell); cz <= Math.floor((Math.max(s.az, s.bz) + s.hw) / cell); cz++) {
+              const k = `${cx},${cz}`;
+              (this.cells.get(k) ?? this.cells.set(k, []).get(k)!).push(s);
+            }
+        }
+      }
+  }
+  /** (x, z) が道の路面 + margin の中か */
+  on(x: number, z: number, margin: number): boolean {
+    for (const s of this.cells.get(`${Math.floor(x / this.cell)},${Math.floor(z / this.cell)}`) ?? []) {
+      const dx = s.bx - s.ax, dz = s.bz - s.az;
+      const l2 = dx * dx + dz * dz || 1;
+      const t = Math.max(0, Math.min(1, ((x - s.ax) * dx + (z - s.az) * dz) / l2));
+      if (Math.hypot(s.ax + dx * t - x, s.az + dz * t - z) < s.hw + margin) return true;
+    }
+    return false;
+  }
+}
+
 const CURB = 0.15;
 
 function hashUnit(s: string): number {
@@ -126,9 +159,10 @@ function hashUnit(s: string): number {
   return (h >>> 0) / 4294967296;
 }
 
-export function buildSidewalks(roads: BuiltRoad[], buildings: Float32Array, cov: CoverageGrid, cell: number) {
+export function buildSidewalks(roads: BuiltRoad[], buildings: Float32Array, cov: CoverageGrid, cell: number, streets?: { pts: Float32Array; index: HokkaidoStreetIndex }) {
   const bidx = new BuildingIndex(buildings);
   const ridx = new RideIndex(roads);
+  const sidx = streets ? new StreetIndex(streets) : null;
   const pts: number[] = [];
   const trees: number[] = [];
   const index: HokkaidoSidewalkIndex = { cell, rec: 5, sidewalks: {}, trees: {} };
@@ -184,6 +218,8 @@ export function buildSidewalks(roads: BuiltRoad[], buildings: Float32Array, cov:
         if (w > 0 && inSpan(i * ds)) w = 0;
         // ほかの道の上（交差点の中）
         if (w > 0 && (ridx.onOther(x + nx * (hw + 0.3), z + nz * (hw + 0.3), ri, 0.5) || ridx.onOther(x + nx * (hw + w), z + nz * (hw + w), ri, 0.3))) w = 0;
+        // 住宅街の道・敷地の道の口（縁石で道を塞がない）
+        if (w > 0 && sidx && (sidx.on(x + nx * (hw + 0.6), z + nz * (hw + 0.6), 0.8) || sidx.on(x + nx * (hw + w * 0.5), z + nz * (hw + w * 0.5), 0.8))) w = 0;
         // 建物に当たる所は狭める
         while (w >= 1.2 && (bidx.inside(x + nx * (hw + w), z + nz * (hw + w), 0.15) || bidx.inside(x + nx * (hw + w * 0.5), z + nz * (hw + w * 0.5), 0.15))) w -= 0.4;
         if (w < 1.2) {

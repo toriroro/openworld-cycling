@@ -1,0 +1,119 @@
+{
+  "loadSec": 7.906,
+  "places": {
+    "h0-edge-east": {
+      "pos": {
+        "x": 10340,
+        "y": 6,
+        "z": -2032
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 1,
+        "mountain": 0,
+        "other": 0
+      },
+      "triangles": 611280,
+      "calls": 167,
+      "ray": {
+        "rays": 468,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    "ishikari-coast": {
+      "pos": {
+        "x": -2869,
+        "y": 3,
+        "z": -12303
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0.7,
+        "mountain": 0,
+        "other": 0.3,
+        "urban": 0,
+        "town": 1
+      },
+      "triangles": 956139,
+      "calls": 222,
+      "ray": {
+        "rays": 1260,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    "ebetsu": {
+      "pos": {
+        "x": 15126,
+        "y": 20,
+        "z": -4896
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0.7,
+        "mountain": 0,
+        "other": 0.3,
+        "urban": 0,
+        "town": 1
+      },
+      "triangles": 1460431,
+      "calls": 274,
+      "ray": {
+        "rays": 2493,
+        "poke": 0,
+        "missed": 13,
+        "worst": null
+      }
+    },
+    "otaru": {
+      "pos": {
+        "x": -28896,
+        "y": 19,
+        "z": -15407
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0,
+        "other": 0,
+        "urban": 1,
+        "town": 1
+      },
+      "triangles": 1293988,
+      "calls": 247,
+      "ray": {
+        "rays": 1416,
+        "poke": 0,
+        "missed": 5,
+        "worst": null
+      }
+    },
+    "nakayama-toge": {
+      "pos": {
+        "x": -20739,
+        "y": 828,
+        "z": 22600
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 1,
+        "other": 0
+      },
+      "triangles": 1121232,
+      "calls": 173,
+      "ray": {
+        "rays": 402,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    }
+  },
+  "ride": null,
+  "cafe": null,
+  "errors": []
+}

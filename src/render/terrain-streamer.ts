@@ -51,6 +51,8 @@ const keyOf = (l: number, tx: number, tz: number) => `${l}:${tx}:${tz}`;
 
 export class TerrainStreamer {
   readonly group = new THREE.Group();
+  /** 川・湖の水面（北海道の世界）。海面の平面（environment.ts）と同じ見た目 */
+  private readonly waterMaterial = new THREE.MeshStandardMaterial({ color: "#3f7f9f", roughness: 0.22, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   private tiles = new Map<string, Tile>();
   private workers: Worker[] = [];
   private busy: number[] = [];
@@ -291,6 +293,8 @@ export class TerrainStreamer {
       districts: t.level < 2 && this.towns ? this.towns.surfacesIn(this.tileRect(t, step)) : null,
       vegDetail: t.level === 0 ? 2 : t.level === 1 ? 1 : 0,
       vegDensity: this.vegDensity,
+      waterSheet: this.world?.id === "hokkaido",
+      townBlend: this.world?.id === "hokkaido",
     };
   }
 
@@ -333,6 +337,16 @@ export class TerrainStreamer {
       mesh.userData.veg = out.veg;
       mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false;
+      if (out.water?.length) {
+        // 川・湖の水面（北海道の世界）。地形のメッシュの子にして、出し入れ・破棄を一緒にする
+        const wg = new THREE.BufferGeometry();
+        wg.setAttribute("position", new THREE.BufferAttribute(out.water, 3));
+        wg.computeVertexNormals();
+        const wm = new THREE.Mesh(wg, this.waterMaterial);
+        wm.name = "terrain:water";
+        wm.receiveShadow = true;
+        mesh.add(wm);
+      }
       tile.mesh = mesh;
       this.place(tile);
       mesh.updateMatrix();
@@ -350,6 +364,7 @@ export class TerrainStreamer {
   private disposeMesh(m: THREE.Mesh) {
     this.group.remove(m);
     m.geometry.dispose();
+    for (const c of m.children) if (c instanceof THREE.Mesh) c.geometry.dispose();
   }
 
   /** 表示: 子がすべてそろっている所は子、そうでなければ親（親もなければそろっている子だけ） */

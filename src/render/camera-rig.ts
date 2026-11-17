@@ -22,7 +22,13 @@ export interface CameraPose {
   eye: Point;
   target: Point;
   fov: number;
+  /** カメラの近い面 (m)。一人称は手元（ハンドル・腕）が近いので手前にする */
+  near?: number;
 }
+
+/** 一人称の画角（縦）。手元のハンドルと腕が映る広角（2026-11-17 ユーザー。前は 64 度・縦長の画面 76 度）。縦長は腕の形の切り口が映らない 88 度 */
+export const RIDER_FOV = 92;
+export const RIDER_FOV_PORTRAIT = 88;
 
 type Ground = (x: number, z: number) => number;
 
@@ -45,8 +51,8 @@ export function cameraPose(mode: CameraMode, p: RiderPose, aspect: number, groun
   });
   if (mode === "rider") {
     const eye = at(-0.15, 0, 1.45);
-    const target = at(30, 0, 0.6);
-    return { eye, target, fov: portrait ? 76 : 64 };
+    const target = at(30, 0, 0.3);
+    return { eye, target, fov: portrait ? RIDER_FOV_PORTRAIT : RIDER_FOV, near: 0.12 };
   }
   if (mode === "drone") {
     const eye = at(portrait ? 15 : 12, portrait ? -9 : -14, 10);
