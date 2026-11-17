@@ -9,6 +9,15 @@ const q = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (q.has(k) ? Number(q.get(k)) : d);
 const seed = num("seed", WORLD_SEED);
 const mark = q.has("mark") ? q.get("mark")!.split(",").map(Number) : null;
+/** ?world=hokkaido で北海道の世界（北海道の草案 7 章 H0） */
+const hokkaido = q.get("world") === "hokkaido";
+if (hokkaido) {
+  const credit = document.getElementById("credit")!;
+  credit.classList.remove("hidden");
+  credit.innerHTML =
+    `地図データ <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>（ODbL）・` +
+    `標高 <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a> の標高タイルを加工`;
+}
 
 const canvas = document.getElementById("map") as HTMLCanvasElement;
 const statusEl = document.getElementById("status")!;
@@ -40,15 +49,16 @@ legend.innerHTML = [
 
 const map = new WorldMap(canvas, {
   seed,
-  x: num("x", ORIGIN.x),
-  z: num("z", ORIGIN.z),
+  world: hokkaido ? "hokkaido" : undefined,
+  x: num("x", hokkaido ? 0 : ORIGIN.x),
+  z: num("z", hokkaido ? 0 : ORIGIN.z),
   mpp: num("mpp", 20),
   mark: mark ? { x: mark[0], z: mark[1], r: mark[2] ?? 15000 } : undefined,
   onSelect: showRoad,
   onStatus: (s) => {
     const km = (s.mpp * 100) / 1000;
     statusEl.textContent =
-      `種 ${seed}  x ${Math.round(s.x)}  z ${Math.round(s.z)}  100px = ${km < 1 ? Math.round(km * 1000) + "m" : km.toFixed(1) + "km"}` +
+      `${hokkaido ? "北海道 H0" : `種 ${seed}`}  x ${Math.round(s.x)}  z ${Math.round(s.z)}  100px = ${km < 1 ? Math.round(km * 1000) + "m" : km.toFixed(1) + "km"}` +
       `  道路 ${s.roads}本  線路 ${s.rails ?? 0}本` +
       (s.pendingBlocks ? `  道路を生成中 残り${s.pendingBlocks}区画` : "") +
       (s.pendingTiles ? `  地形 残り${s.pendingTiles}` : "");

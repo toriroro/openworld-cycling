@@ -1,0 +1,82 @@
+{
+  "hokkaido-standard": {
+    "triangles": 1628968,
+    "calls": 279,
+    "roads": {
+      "chunks": 731,
+      "cells": 146,
+      "wanted": 0,
+      "releasing": 0
+    },
+    "ray": {
+      "rays": 4035,
+      "poke": 1,
+      "worst": {
+        "road": "h1473886801_0",
+        "s": 0,
+        "over": 0.16951923880681363
+      }
+    },
+    "buildMsP95": 2.300000000745058,
+    "buildMsMax": 7.700000001117587,
+    "errors": []
+  },
+  "hokkaido-light": {
+    "triangles": 683697,
+    "calls": 157,
+    "roads": {
+      "chunks": 345,
+      "cells": 54,
+      "wanted": 0,
+      "releasing": 0
+    },
+    "ray": {
+      "rays": 4038,
+      "poke": 1,
+      "worst": {
+        "road": "h1473886801_0",
+        "s": 0,
+        "over": 0.16951923880681363
+      }
+    },
+    "buildMsP95": 1.599999999627471,
+    "buildMsMax": 7.399999998509884,
+    "errors": []
+  },
+  "generated-standard": {
+    "triangles": 603549,
+    "calls": 154,
+    "roads": {
+      "chunks": 22,
+      "cells": 20,
+      "wanted": 0,
+      "releasing": 0
+    },
+    "ray": {
+      "rays": 609,
+      "poke": 0,
+      "worst": null
+    },
+    "buildMsP95": 9.300000000745058,
+    "buildMsMax": 9.900000000372529,
+    "errors": []
+  },
+  "generated-light": {
+    "triangles": 312526,
+    "calls": 99,
+    "roads": {
+      "chunks": 13,
+      "cells": 11,
+      "wanted": 0,
+      "releasing": 0
+    },
+    "ray": {
+      "rays": 609,
+      "poke": 0,
+      "worst": null
+    },
+    "buildMsP95": 10.300000000745058,
+    "buildMsMax": 35.40000000037253,
+    "errors": []
+  }
+}

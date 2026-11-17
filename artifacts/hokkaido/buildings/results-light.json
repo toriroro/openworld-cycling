@@ -1,0 +1,147 @@
+{
+  "quality": "light",
+  "places": {
+    "odori": {
+      "pos": {
+        "x": 188,
+        "z": 53
+      },
+      "triangles": 678355,
+      "calls": 153,
+      "real": {
+        "near": {
+          "buildings": 144,
+          "triangles": 80444,
+          "meshes": 11
+        },
+        "far": {
+          "buildings": 1775,
+          "triangles": 24754
+        },
+        "pending": 0
+      },
+      "buildMsP95": 0.2999999988824129,
+      "buildMsMax": 0.2999999988824129
+    },
+    "ekimae": {
+      "pos": {
+        "x": 48,
+        "z": -694
+      },
+      "triangles": 666215,
+      "calls": 152,
+      "real": {
+        "near": {
+          "buildings": 95,
+          "triangles": 68146,
+          "meshes": 10
+        },
+        "far": {
+          "buildings": 1028,
+          "triangles": 14276
+        },
+        "pending": 0
+      },
+      "buildMsP95": 0.30000000074505806,
+      "buildMsMax": 0.30000000074505806
+    },
+    "susukino": {
+      "pos": {
+        "x": 157,
+        "z": 914
+      },
+      "triangles": 633594,
+      "calls": 149,
+      "real": {
+        "near": {
+          "buildings": 312,
+          "triangles": 132566,
+          "meshes": 11
+        },
+        "far": {
+          "buildings": 2104,
+          "triangles": 29006
+        },
+        "pending": 0
+      },
+      "buildMsP95": 0.30000000074505806,
+      "buildMsMax": 0.30000000074505806
+    },
+    "maruyama": {
+      "pos": {
+        "x": -2615,
+        "z": 212
+      },
+      "triangles": 576425,
+      "calls": 126,
+      "real": {
+        "near": {
+          "buildings": 570,
+          "triangles": 160330,
+          "meshes": 11
+        },
+        "far": {
+          "buildings": 2308,
+          "triangles": 31962
+        },
+        "pending": 0
+      },
+      "buildMsP95": 0.30000000074505806,
+      "buildMsMax": 0.30000000074505806
+    },
+    "toyohira": {
+      "pos": {
+        "x": 2582,
+        "z": 2790
+      },
+      "triangles": 543176,
+      "calls": 137,
+      "real": {
+        "near": {
+          "buildings": 549,
+          "triangles": 107672,
+          "meshes": 11
+        },
+        "far": {
+          "buildings": 3851,
+          "triangles": 53136
+        },
+        "pending": 0
+      },
+      "buildMsP95": 0.30000000074505806,
+      "buildMsMax": 0.30000000074505806
+    },
+    "kotoni": {
+      "pos": {
+        "x": -4337,
+        "z": -2111
+      },
+      "triangles": 504200,
+      "calls": 115,
+      "real": {
+        "near": {
+          "buildings": 789,
+          "triangles": 147006,
+          "meshes": 11
+        },
+        "far": {
+          "buildings": 3411,
+          "triangles": 46784
+        },
+        "pending": 0
+      },
+      "buildMsP95": 0.30000000074505806,
+      "buildMsMax": 0.30000000074505806
+    }
+  },
+  "ride": {
+    "frames": 1799,
+    "frameP50": 33.30000000000291,
+    "frameP95": 33.40000000000873,
+    "frameMax": 33.59999999999127,
+    "buildMsP95": 0.30000000074505806,
+    "buildMsMax": 0.40000000037252903,
+    "heapMB": 234.33844470977783
+  },
+  "errors": []
+}

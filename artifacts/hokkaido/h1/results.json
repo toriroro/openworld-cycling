@@ -1,0 +1,171 @@
+{
+  "loadSec": 15.487,
+  "places": {
+    "start-odori": {
+      "pos": {
+        "x": 188,
+        "y": 21,
+        "z": 52
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0,
+        "other": 0,
+        "urban": 1
+      },
+      "triangles": 823992,
+      "calls": 543,
+      "ray": {
+        "rays": 4038,
+        "poke": 1,
+        "missed": 16,
+        "worst": {
+          "road": "h1473886801_0",
+          "s": 0,
+          "over": 0.16951923880681363
+        }
+      }
+    },
+    "sosei": {
+      "pos": {
+        "x": 268,
+        "y": 12,
+        "z": -2592
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0,
+        "other": 0,
+        "urban": 1
+      },
+      "triangles": 735241,
+      "calls": 401,
+      "ray": {
+        "rays": 2448,
+        "poke": 0,
+        "missed": 4,
+        "worst": null
+      }
+    },
+    "toyohira-cr": {
+      "pos": {
+        "x": 371,
+        "y": 48,
+        "z": 3858
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0,
+        "other": 0,
+        "urban": 1
+      },
+      "triangles": 730708,
+      "calls": 339,
+      "ray": {
+        "rays": 2037,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    "moiwa": {
+      "pos": {
+        "x": -2088,
+        "y": 456,
+        "z": 4304
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 1,
+        "other": 0
+      },
+      "triangles": 901555,
+      "calls": 164,
+      "ray": {
+        "rays": 447,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    "tunnel": {
+      "pos": {
+        "x": -3731,
+        "y": 177,
+        "z": 5181
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0,
+        "other": 1,
+        "urban": 0
+      },
+      "triangles": 881517,
+      "calls": 199,
+      "ray": {
+        "rays": 996,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    "tunnel-mid": {
+      "pos": {
+        "x": -4259,
+        "y": 210,
+        "z": 4341
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0.06667799192455275,
+        "other": 0.9333220080754473
+      },
+      "triangles": 936277,
+      "calls": 182,
+      "ray": {
+        "rays": 1155,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    "teine-side": {
+      "pos": {
+        "x": -7782,
+        "y": 11,
+        "z": -4361
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0,
+        "other": 0,
+        "urban": 1
+      },
+      "triangles": 607387,
+      "calls": 181,
+      "ray": {
+        "rays": 489,
+        "poke": 0,
+        "missed": 1,
+        "worst": null
+      }
+    }
+  },
+  "ride": {
+    "meters": 1268,
+    "frameP95ms": 66.80000000000291,
+    "frames": 1393
+  },
+  "cafe": {
+    "name": "喫茶店（北3条東3丁目）",
+    "nearCount": 39
+  },
+  "errors": []
+}

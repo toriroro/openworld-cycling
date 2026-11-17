@@ -4,7 +4,8 @@ import type { Junction, Poi, RailLine, Road, WorldNode } from "../shared/world/t
 import type { CrossingInfo, Rect } from "../shared/world/world.ts";
 
 export type WorldRequest =
-  | { type: "init"; seed: number }
+  /** world を省くと生成の世界。"hokkaido" なら base（例 /data/hokkaido/h0/）から変換データを読む（北海道の草案 2.2） */
+  | { type: "init"; seed: number; world?: "hokkaido"; base?: string }
   | { type: "tile"; id: number; x0: number; z0: number; mpp: number }
   | { type: "region"; id: number; rect: Rect }
   /** 鉄道（鉄道の草案 L1。地図だけ） */

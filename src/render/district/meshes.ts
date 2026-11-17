@@ -204,6 +204,17 @@ export class DistrictMeshes {
     this.treeGeo = mergeGeometries([a.clone(), a.clone().rotateY(Math.PI / 3), a.clone().rotateY((Math.PI * 2) / 3)])!;
   }
 
+  /** 北海道の世界の幹線の歩道と街路樹（real-streets.ts）も同じ材質・形を使う */
+  get walkMaterial(): THREE.Material {
+    return this.walk;
+  }
+  get treeGeometry(): THREE.BufferGeometry {
+    return this.treeGeo;
+  }
+  get treeMaterial(): THREE.Material {
+    return this.treeMat;
+  }
+
   get materials(): THREE.Material[] {
     return [this.asphalt, this.ground, this.walk, this.props];
   }

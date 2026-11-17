@@ -1,6 +1,6 @@
 // 2D 地図のタイル画像（標高の陰影、景観タイプの色、海）。DOM を使わず RGBA の配列を作る。
 
-import type { Terrain } from "../shared/world/terrain.ts";
+import type { TerrainLike } from "../shared/world/terrain.ts";
 
 export const TILE_PX = 256;
 
@@ -16,9 +16,11 @@ const C_SEA_DEEP: RGB = [62, 108, 160];
 const C_RIVER: RGB = [70, 128, 196];
 const C_LAKE: RGB = [96, 150, 204];
 const C_FLOODPLAIN: RGB = [206, 210, 176];
+/** 市街地（北海道の世界の土地利用） */
+const C_URBAN: RGB = [214, 206, 200];
 
 /** タイル（左上 x0, z0、1画素 mpp m）の RGBA */
-export function renderTile(terrain: Terrain, x0: number, z0: number, mpp: number): Uint8ClampedArray {
+export function renderTile(terrain: TerrainLike, x0: number, z0: number, mpp: number): Uint8ClampedArray {
   const N = TILE_PX;
   const G = N + 2;
   const hs = new Float64Array(G * G);
@@ -39,15 +41,16 @@ export function renderTile(terrain: Terrain, x0: number, z0: number, mpp: number
   // 景観の重みは粗い格子で求めて補間する
   const L = 17;
   const step = N / (L - 1);
-  const lw = new Float64Array(L * L * 4);
+  const lw = new Float64Array(L * L * 5);
   for (let j = 0; j < L; j++)
     for (let i = 0; i < L; i++) {
       const w = terrain.landscape(x0 + i * step * mpp, z0 + j * step * mpp);
-      const k = (j * L + i) * 4;
+      const k = (j * L + i) * 5;
       lw[k] = w.coast;
       lw[k + 1] = w.plain;
       lw[k + 2] = w.mountain;
       lw[k + 3] = w.other;
+      lw[k + 4] = w.urban ?? 0;
     }
 
   const out = new Uint8ClampedArray(N * N * 4);
@@ -77,12 +80,12 @@ export function renderTile(terrain: Terrain, x0: number, z0: number, mpp: number
       const jj = Math.min(L - 2, Math.floor(fj));
       const u = fi - ii;
       const v = fj - jj;
-      const wv = [0, 0, 0, 0];
-      for (let k = 0; k < 4; k++) {
-        const a = lw[(jj * L + ii) * 4 + k];
-        const b = lw[(jj * L + ii + 1) * 4 + k];
-        const cc = lw[((jj + 1) * L + ii) * 4 + k];
-        const d = lw[((jj + 1) * L + ii + 1) * 4 + k];
+      const wv = [0, 0, 0, 0, 0];
+      for (let k = 0; k < 5; k++) {
+        const a = lw[(jj * L + ii) * 5 + k];
+        const b = lw[(jj * L + ii + 1) * 5 + k];
+        const cc = lw[((jj + 1) * L + ii) * 5 + k];
+        const d = lw[((jj + 1) * L + ii + 1) * 5 + k];
         wv[k] = (a * (1 - u) + b * u) * (1 - v) + (cc * (1 - u) + d * u) * v;
       }
       if (water === 1 || water === 2) {
@@ -95,9 +98,9 @@ export function renderTile(terrain: Terrain, x0: number, z0: number, mpp: number
       }
       const mtn = h > 900 ? mix(C_MOUNTAIN, C_HIGH, Math.min(1, (h - 900) / 600)) : C_MOUNTAIN;
       c = [
-        C_COAST[0] * wv[0] + C_PLAIN[0] * wv[1] + mtn[0] * wv[2] + C_OTHER[0] * wv[3],
-        C_COAST[1] * wv[0] + C_PLAIN[1] * wv[1] + mtn[1] * wv[2] + C_OTHER[1] * wv[3],
-        C_COAST[2] * wv[0] + C_PLAIN[2] * wv[1] + mtn[2] * wv[2] + C_OTHER[2] * wv[3],
+        C_COAST[0] * wv[0] + C_PLAIN[0] * wv[1] + mtn[0] * wv[2] + C_OTHER[0] * wv[3] + C_URBAN[0] * wv[4],
+        C_COAST[1] * wv[0] + C_PLAIN[1] * wv[1] + mtn[1] * wv[2] + C_OTHER[1] * wv[3] + C_URBAN[1] * wv[4],
+        C_COAST[2] * wv[0] + C_PLAIN[2] * wv[1] + mtn[2] * wv[2] + C_OTHER[2] * wv[3] + C_URBAN[2] * wv[4],
       ];
       if (water === 3) c = mix(c, C_FLOODPLAIN, 0.7);
       // 陰影

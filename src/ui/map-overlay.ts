@@ -1,6 +1,8 @@
 // ゲーム内の世界地図（モック仕様 7.4）。M1 の 2D 地図に、走った道・現在地・行き先・立ち寄った店を重ねる。
 // 地図を押すと行き先を指定する。開いている間だけ地図用の Worker を動かす。
 
+import type { WorldChoice } from "../world-choice.ts";
+import { creditLine } from "./credit.ts";
 import { type GameMapLayer, WorldMap } from "./world-map.ts";
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = "", parent?: HTMLElement) => {
@@ -20,10 +22,15 @@ export class MapOverlay {
   onClose: () => void = () => {};
   onClearGoal: () => void = () => {};
 
-  constructor(private seed: number) {
+  constructor(
+    private seed: number,
+    private world?: WorldChoice,
+  ) {
     this.root = h("div", "map-overlay hidden");
     document.body.appendChild(this.root);
     this.canvas = h("canvas", "map-canvas", "", this.root);
+    // 出典（北海道の世界。地図を出している間は見える所に置く。北海道の草案 3.1・3.2）
+    if (world?.attribution.length) this.root.appendChild(creditLine(world, "map-credit"));
     const bar = h("div", "map-bar", "", this.root);
     this.info = h("div", "map-info", "", bar);
     this.clearBtn = h("button", "btn", "行き先を消す", bar);
@@ -49,7 +56,7 @@ export class MapOverlay {
   open(x: number, z: number, layer: GameMapLayer) {
     if (this.map) return;
     this.root.classList.remove("hidden");
-    this.map = new WorldMap(this.canvas, { seed: this.seed, x, z, mpp: 10, game: layer });
+    this.map = new WorldMap(this.canvas, { seed: this.seed, world: this.world?.id === "hokkaido" ? "hokkaido" : undefined, x, z, mpp: 10, game: layer });
   }
 
   close() {

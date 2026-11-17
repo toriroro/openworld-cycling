@@ -1,7 +1,7 @@
 // 建物の部品: 壁、屋根（切妻・寄棟・片流れ・無落雪）、窓、ベランダ、庇、看板、灯油タンク、煙突、玄関フード、室外機、外階段。
 // 建物ごとの座標は Fr（中心 c、間口の向き U、道路の向き F）。面（Face）の上では、左端からの距離 a と高さ y で位置を言う。
 
-import type { Atlas } from "./atlas.ts";
+import type { AtlasLayout } from "./atlas-layout.ts";
 import { add, hex, type Mesher, neg, type Rect, type Rgb, UP, type V3, v3, WHITE } from "./mesher.ts";
 
 export type WallKind = "siding" | "plaster" | "cedar" | "metal" | "mortar" | "tilewall" | "lap";
@@ -14,7 +14,7 @@ export interface Kit {
   out: Out;
   /** 素材 1 枚が覆う長さ (m) */
   tex: Record<SurfaceKind, number>;
-  atlas: Atlas;
+  atlas: AtlasLayout;
 }
 
 export const C_SLAB = hex("#b4b2ad");

@@ -11,3 +11,12 @@ playwright-report/
 # Blender の作業ファイル（scripts/build-cyclist.py で作り直せる）
 assets-source/rider/cyclist-v2/*.blend
 assets-source/rider/cyclist-v2/*.blend1
+
+# 北海道の元データ（大きいので入れない。取得の記録 manifest.json だけ入れる。北海道の草案 4 章）
+assets-source/hokkaido/**/*.png
+assets-source/hokkaido/**/osm/*.json
+!assets-source/hokkaido/**/manifest.json
+# 北海道の変換データ（scripts/hokkaido/build-h0.ts で作り直せる。配信の方法は北海道の草案 5.1）
+public/data/hokkaido/
+assets-source/hokkaido/pbf/*.osm.pbf
+assets-source/hokkaido/**/buildings.json

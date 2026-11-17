@@ -4,8 +4,7 @@
 
 import { SoundSystem } from "./audio/sound.ts";
 import { platform } from "./platform/index.ts";
-import { DEFAULT_SETTINGS, parseSave, SAVE_KEY, SAVE_VERSION, type SaveData, type SaveSettings, type Stamp } from "./shared/save.ts";
-import { GENERATOR_VERSION, ORIGIN } from "./shared/world/constants.ts";
+import { DEFAULT_SETTINGS, parseSave, SAVE_VERSION, type SaveData, type SaveSettings, type Stamp } from "./shared/save.ts";
 import { FIXED_WEATHER, type Weather, type WeatherKind, WEATHER_LABELS, weatherAt, worldHour } from "./shared/world/weather.ts";
 import { RiddenLog } from "./sim/ridden.ts";
 import { watchChoice } from "./sim/watch.ts";
@@ -26,6 +25,7 @@ import { Hud, type Settings } from "./ui/hud.ts";
 import { Input } from "./ui/input.ts";
 import { MapOverlay } from "./ui/map-overlay.ts";
 import { StampBook, StopPanel } from "./ui/cafe-panel.ts";
+import { creditLine } from "./ui/credit.ts";
 import { ControlsHelp, TitleScreen } from "./ui/title.ts";
 import type { Cafe } from "./render/town-layout.ts";
 import { Minimap } from "./ui/minimap.ts";
@@ -103,7 +103,7 @@ export class Game {
   forceSky: { hour?: number; weather?: WeatherKind } | null = null;
   /** 保存データを読み終えた時（保存がなければ null） */
   readonly ready: Promise<SaveData | null>;
-  readonly title = new TitleScreen();
+  readonly title: TitleScreen;
   readonly help = new ControlsHelp();
   private muteSel: HTMLSelectElement;
   private stampBook = new StampBook();
@@ -112,10 +112,13 @@ export class Game {
   constructor(
     private view: WorldView,
     private roads: RoadClient,
-    start: { x: number; z: number } = { x: ORIGIN.x, z: ORIGIN.z },
+    start: { x: number; z: number } = view.world.origin,
     opts: { resume?: boolean; title?: boolean } = {},
   ) {
     this.anchor = { ...start };
+    this.title = new TitleScreen(view.world);
+    // 出典（北海道の世界は走っている間も見える所に出す。北海道の草案 3.1・3.2）
+    if (view.world.attribution.length) document.body.appendChild(creditLine(view.world, "ride-credit"));
     this.traffic = new Traffic(roads.net, (Date.now() & 0x7fffffff) | 1, (x, z) => view.heights.height(x, z));
     this.traffic.options = view.quality === "light" ? TRAFFIC_LIGHT : TRAFFIC_STANDARD;
     const st = this.settings;
@@ -124,7 +127,7 @@ export class Game {
     this.hud.onSettings = (s) => this.applySettings(s, true);
     // 小地図と世界地図（モック仕様 7.4）
     this.minimap = new Minimap(this.hud.root, () => this.toggleMap());
-    this.mapOverlay = new MapOverlay(roads.seed);
+    this.mapOverlay = new MapOverlay(roads.seed, view.world);
     this.mapOverlay.onClearGoal = () => this.ride?.setGoal(null);
     // 音量と消音
     this.volumeSel = this.hud.addSelect(
@@ -235,7 +238,7 @@ export class Game {
     this.ready =
       opts.resume === false
         ? Promise.resolve(null)
-        : platform.storage.load(SAVE_KEY).then((text) => {
+        : platform.storage.load(this.view.world.saveKey).then((text) => {
             const data = parseSave(text);
             if (data) this.applySave(data);
             return data;
@@ -329,7 +332,7 @@ export class Game {
     const p = r?.road ? r.pose() : null;
     return {
       version: SAVE_VERSION,
-      generator: GENERATOR_VERSION,
+      generator: this.view.world.generator,
       savedAt: new Date().toISOString(),
       pos: r && p ? { road: r.pos.road, s: r.pos.s, dir: r.pos.dir, x: p.x, z: p.z } : this.resume?.pos ?? null,
       odometer: r?.odometer ?? this.resume?.odometer ?? 0,
@@ -346,7 +349,7 @@ export class Game {
   async save() {
     if (!this.loaded) return;
     const d = this.snapshot();
-    await platform.storage.save(SAVE_KEY, JSON.stringify(d));
+    await platform.storage.save(this.view.world.saveKey, JSON.stringify(d));
     this.lastSaved = d.savedAt;
   }
 
@@ -357,7 +360,7 @@ export class Game {
     if (!this.roads.ready({ x0: a.x - 600, z0: a.z - 600, x1: a.x + 600, z1: a.z + 600 })) return false;
     // 続きから: 保存した道路がそのままあれば、その位置と向きに乗せる
     const res = this.resume;
-    if (res?.pos && res.generator === GENERATOR_VERSION) {
+    if (res?.pos && res.generator === this.view.world.generator) {
       const road = this.roads.net.roads.get(res.pos.road);
       if (road && res.pos.s >= 0 && res.pos.s <= road.length) {
         this.startRide({ road: road.id, s: res.pos.s, dir: res.pos.dir });
@@ -533,8 +536,8 @@ export class Game {
     this.stamps = [];
     this.stampSet = new Set();
     this.lastCafe = null;
-    this.resume = { pos: null, odometer: 0, climb: 0, time: 0, generator: GENERATOR_VERSION };
-    this.anchor = { x: ORIGIN.x, z: ORIGIN.z };
+    this.resume = { pos: null, odometer: 0, climb: 0, time: 0, generator: this.view.world.generator };
+    this.anchor = { ...this.view.world.origin };
     this.ride = null;
     this.smoothEye = null;
     void this.save();
@@ -600,7 +603,7 @@ export class Game {
       odometer: r?.odometer ?? 0,
       climb: r?.climb ?? 0,
       time: r?.time ?? 0,
-      generator: GENERATOR_VERSION,
+      generator: this.view.world.generator,
     };
     this.lastCafe = { id: st.poi, x: st.x, z: st.z };
     this.anchor = { x: st.x, z: st.z };
@@ -612,7 +615,7 @@ export class Game {
   teleport(x: number, z: number) {
     // 記録は引き継ぐ
     const r = this.ride;
-    if (r) this.resume = { pos: null, odometer: r.odometer, climb: r.climb, time: r.time, generator: GENERATOR_VERSION };
+    if (r) this.resume = { pos: null, odometer: r.odometer, climb: r.climb, time: r.time, generator: this.view.world.generator };
     this.anchor = { x, z };
     this.ride = null;
     this.smoothEye = null;

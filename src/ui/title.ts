@@ -2,6 +2,8 @@
 // 起動画面: 続きから（保存があれば）・はじめから（記録を消す時は 2 回押す）・眺める。保存の事実（総距離・スタンプ・最後に走った日）を出す。
 
 import type { SaveData } from "../shared/save.ts";
+import { WORLD_LABELS, type WorldChoice, type WorldId } from "../world-choice.ts";
+import { creditLine } from "./credit.ts";
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = "", parent?: HTMLElement) => {
   const e = document.createElement(tag);
@@ -25,14 +27,25 @@ export class TitleScreen {
   private buttons: HTMLElement;
   onChoose: (c: TitleChoice) => void = () => {};
   onHelp: () => void = () => {};
+  /** 世界を選び直した（読み込み直しが要る） */
+  onWorld: (id: WorldId) => void = () => {};
 
-  constructor() {
+  constructor(world?: WorldChoice) {
     this.root = h("div", "title-screen hidden");
     document.body.appendChild(this.root);
     const panel = h("div", "title-panel", "", this.root);
     h("h1", "title-name", "openworld-cycling", panel);
+    // 世界の選択（北海道の草案 2.1）。保存は世界ごとに分かれる
+    const current = world?.id ?? "generated";
+    const ws = h("div", "title-world", "", panel);
+    for (const id of ["generated", "hokkaido"] as WorldId[]) {
+      const b = btn(WORLD_LABELS[id], ws, id === current ? "current" : "");
+      b.setAttribute("aria-pressed", String(id === current));
+      if (id !== current) b.addEventListener("click", () => this.onWorld(id));
+    }
     this.info = h("div", "title-info", "", panel);
     this.buttons = h("div", "title-buttons", "", panel);
+    if (world?.attribution.length) panel.appendChild(creditLine(world, "title-credit"));
   }
 
   get visible() {

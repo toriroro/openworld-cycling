@@ -5,7 +5,7 @@
 // - 縁を下へ伸ばした面（スカート）で段の継ぎ目を隠す
 
 import { gradNoise } from "../shared/world/noise.ts";
-import type { Terrain } from "../shared/world/terrain.ts";
+import type { TerrainLike } from "../shared/world/terrain.ts";
 import { DISTRICT_CLEAR, sampleSurface, type SurfaceGrid } from "../render/district/surface.ts";
 import { fieldCoord, fieldSeed, openAt } from "../render/farm/fields.ts";
 import { placeVegetation } from "./vegetation-place.ts";
@@ -70,12 +70,22 @@ const DRY = [0.62, 0.6, 0.38];
 const COAST_GRASS = [0.58, 0.6, 0.38];
 /** 街区の中の、何も載っていない地面（砂利まじりの土） */
 const URBAN = [0.55, 0.56, 0.44];
+/** 市街地の、建物・道の無い地面（北海道の世界。駐車場・空き地の舗装。景観の urban） */
+const LOT_GROUND = [0.47, 0.47, 0.455];
 
 interface Nearest {
   e: number;
   y: number;
   bridge: boolean;
+  /** 見た目だけの道（北海道の世界の住宅街の道など。印 STREET_FLAG） */
+  street: boolean;
 }
+
+/** PackedRoads の 5 つめの値がこれなら見た目だけの道（render/real-streets.ts）。地形を下げる量と、すり付けの幅を小さくする */
+export const STREET_FLAG = 0.5;
+const STREET_FLAT = 1.5;
+const STREET_BLEND = 12;
+const STREET_CLEAR = 0.05;
 
 class RoadQuery {
   private cells = new Map<number, number[]>();
@@ -121,7 +131,7 @@ class RoadQuery {
       const e = d - hw;
       if (!best || e < best.e) {
         const bridge = P[i * 5 + 4] >= 1 || P[i * 5 + 9] >= 1;
-        best = { e, y: P[i * 5 + 2] + (P[i * 5 + 7] - P[i * 5 + 2]) * t, bridge };
+        best = { e, y: P[i * 5 + 2] + (P[i * 5 + 7] - P[i * 5 + 2]) * t, bridge, street: P[i * 5 + 4] === STREET_FLAG };
       }
     }
     return best;
@@ -134,7 +144,7 @@ function smooth(e0: number, e1: number, x: number) {
   return t * t * (3 - 2 * t);
 }
 
-export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
+export function buildTile(terrain: TerrainLike, inp: TileInput): TileOutput {
   const { x0, z0, size, cells, skirt } = inp;
   const step = size / cells;
   const N = cells + 1;
@@ -143,7 +153,9 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
   const q = inp.roads && inp.roads.pts.length ? new RoadQuery(inp.roads, ROAD_FLAT + ROAD_BLEND + step) : null;
   const nearRoad = new Float32Array(G * G).fill(1e9);
   const districts = inp.districts && inp.districts.length ? inp.districts : null;
-  const urban = districts ? new Float32Array(G * G) : null;
+  // 市街地の重み: 街区の造成した面と、景観の urban（北海道の世界の土地利用）の大きい方
+  const urban = new Float32Array(G * G);
+  const lotW = new Float32Array(G * G);
   const ds = { h: 0, m: 0 };
   // 水面と川の河原（農地にしない）
   const wet = new Uint8Array(G * G);
@@ -158,9 +170,11 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
         const n = q.nearest(lx, lz);
         if (n) {
           nearRoad[j * G + i] = n.e;
-          if (!n.bridge && n.e < ROAD_FLAT + ROAD_BLEND) {
-            const target = n.y - ROAD_CLEAR;
-            const t = smooth(ROAD_FLAT, ROAD_FLAT + ROAD_BLEND, n.e);
+          const flat = n.street ? STREET_FLAT : ROAD_FLAT;
+          const blend = n.street ? STREET_BLEND : ROAD_BLEND;
+          if (!n.bridge && n.e < flat + blend) {
+            const target = n.y - (n.street ? STREET_CLEAR : ROAD_CLEAR);
+            const t = smooth(flat, flat + blend, n.e);
             h = target * (1 - t) + h * t;
           }
         }
@@ -169,7 +183,7 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
         for (const d of districts) {
           if (!sampleSurface(d, x0 + lx, z0 + lz, ds) || ds.m <= 0) continue;
           h = h * (1 - ds.m) + (ds.h - DISTRICT_CLEAR) * ds.m;
-          if (ds.m > urban![j * G + i]) urban![j * G + i] = ds.m;
+          if (ds.m > urban[j * G + i]) urban[j * G + i] = ds.m;
         }
       hs[j * G + i] = h;
     }
@@ -190,6 +204,7 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
   // 景観の重みは粗い格子で求めて補間する
   const L = 9;
   const lw = new Float64Array(L * L * 4);
+  const lu = new Float64Array(L * L);
   // 農地の大きな分布（重みと、田・畑・牧草地の寄り）も同じ粗い格子で求める
   const fm = new Float64Array(L * L * 2);
   const seedK = terrain.seed * 31 + 911;
@@ -202,9 +217,11 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
       lw[k + 1] = w.plain;
       lw[k + 2] = w.mountain;
       lw[k + 3] = w.other;
+      lu[j * L + i] = w.urban ?? 0;
       const sl = terrain.slope(px, pz);
       const e = terrain.routeHeight(px, pz);
-      const land = Math.min(1, w.plain * 1.25 + w.other * 0.5);
+      // 町の中・郊外（北海道の世界）は農地にしない
+      const land = Math.min(1, w.plain * 1.25 + w.other * 0.5) * (1 - (w.town ?? 0));
       fm[(j * L + i) * 2] = land * (1 - smooth(0.07, 0.13, sl)) * (1 - smooth(260, 380, e));
       const paddy = (1 - smooth(0.012, 0.03, sl)) * (1 - smooth(70, 130, e));
       const pasture = Math.max(smooth(0.045, 0.08, sl), w.other * 0.8);
@@ -250,6 +267,11 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
         w4[k] = (a * (1 - u) + b * u) * (1 - vv) + (c * (1 - u) + d * u) * vv;
       }
       const slope = Math.sqrt(nx * nx + nz * nz);
+      {
+        const lv = (lu[jj * L + ii] * (1 - u) + lu[jj * L + ii + 1] * u) * (1 - vv) + (lu[(jj + 1) * L + ii] * (1 - u) + lu[(jj + 1) * L + ii + 1] * u) * vv;
+        if (lv > urban[g]) urban[g] = lv;
+        lotW[g] = lv;
+      }
       // 農地の重み: 大きな分布 × 林の切れ目 × 低すぎない × 道路・街・敷地・水から離れている
       {
         const a = fm[(jj * L + ii) * 2], b = fm[(jj * L + ii + 1) * 2], c = fm[((jj + 1) * L + ii) * 2], d = fm[((jj + 1) * L + ii + 1) * 2];
@@ -289,9 +311,12 @@ export function buildTile(terrain: Terrain, inp: TileInput): TileOutput {
         else c = c * (1 - sand) + SAND[k] * sand;
         const e = nearRoad[g];
         if (e < 2.5) c = SHOULDER[k] * (1 - smooth(0.5, 2.5, e)) + c * smooth(0.5, 2.5, e);
+        if (lotW[g] > 0 && h >= 0) c = c * (1 - lotW[g]) + LOT_GROUND[k] * bright * lotW[g];
         if (urban && h >= 0) {
           // 外周の外のすり付けの帯には色を広げない（重みの 4 乗）
-          const um = urban[g] * urban[g] * urban[g] * urban[g];
+          // 街区（生成の世界）の重みだけ。景観の urban（北海道）は上の LOT_GROUND で塗る
+          const ud = urban[g] > lotW[g] ? urban[g] : 0;
+          const um = ud * ud * ud * ud;
           c = c * (1 - um) + URBAN[k] * bright * um;
         }
         color[v * 3 + k] = c;
@@ -434,7 +459,7 @@ function clearUnderRoads(hs: Float64Array, G: number, step: number, roads: Packe
       quad[4] = bx + ex + tz * hwB; quad[5] = bz + ez - tx * hwB;
       quad[6] = bx + ex - tz * hwB; quad[7] = bz + ez + tx * hwB;
       const bridge = P[i * 5 + 4] >= 1 || P[i * 5 + 9] >= 1;
-      const floor = Math.min(P[i * 5 + 2], P[i * 5 + 7]) - (bridge ? BRIDGE_DEPTH : ROAD_CLEAR);
+      const floor = Math.min(P[i * 5 + 2], P[i * 5 + 7]) - (bridge ? BRIDGE_DEPTH : P[i * 5 + 4] === STREET_FLAG ? 0.15 : ROAD_CLEAR);
       let mnx = Infinity, mxx = -Infinity, mnz = Infinity, mxz = -Infinity;
       for (let c = 0; c < 4; c++) {
         mnx = Math.min(mnx, quad[c * 2]); mxx = Math.max(mxx, quad[c * 2]);

@@ -54,6 +54,21 @@ export interface LandscapeWeights {
   plain: number;
   mountain: number;
   other: number;
+  /** 市街地（北海道の世界だけ）。地面を舗装の色にし、植生を置かない */
+  urban?: number;
+  /** 町の中・郊外（北海道の世界だけ）。農地にしない */
+  town?: number;
+}
+
+/** 2D 地図のタイルと地形が使う窓口（生成の世界の Terrain と北海道の世界の HokkaidoTerrain） */
+export interface TerrainLike {
+  /** 植生・地面の模様の乱数 */
+  readonly seed: number;
+  slope(x: number, z: number, r?: number): number;
+  sample(x: number, z: number, withDetail: boolean): TerrainSample;
+  landscape(x: number, z: number): LandscapeWeights;
+  height(x: number, z: number): number;
+  routeHeight(x: number, z: number): number;
 }
 
 export class Terrain {

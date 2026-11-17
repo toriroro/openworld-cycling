@@ -3,6 +3,8 @@
 
 import type { Poi, Road } from "../shared/world/types.ts";
 import { type Rect, World } from "../shared/world/world.ts";
+import type { HokkaidoWorld } from "../shared/world/hokkaido.ts";
+import { type WorldChoice, workerInit } from "../world-choice.ts";
 import { RoadNetwork } from "../sim/road-network.ts";
 import type { PackedRoads } from "./terrain-tile.ts";
 import type { RegionPayload, WorldRequest, WorldResponse } from "./world-protocol.ts";
@@ -25,7 +27,7 @@ export class RoadClient {
   private queue: string[] = [];
   private inFlight: string | null = null;
   private worker: Worker | null = null;
-  private fallback: World | null = null;
+  private fallback: World | HokkaidoWorld | null = null;
   private reqId = 1;
   /** 読み込んだ区画で変わった範囲（地形タイルの作り直しには使わない。読み込み前のタイルは作らないため） */
   version = 0;
@@ -33,7 +35,12 @@ export class RoadClient {
   workerError: string | null = null;
   radius: number;
 
-  constructor(readonly seed: number, radius = 10000) {
+  constructor(
+    readonly seed: number,
+    radius = 10000,
+    /** 北海道の世界（省くと生成の世界） */
+    readonly world?: WorldChoice,
+  ) {
     this.radius = radius;
     try {
       this.worker = new Worker(new URL("./world.worker.ts", import.meta.url), { type: "module" });
@@ -42,7 +49,7 @@ export class RoadClient {
         e.preventDefault();
         this.failWorker(e.message);
       };
-      this.worker.postMessage({ type: "init", seed } satisfies WorldRequest);
+      this.worker.postMessage({ type: "init", seed, ...workerInit(world) } satisfies WorldRequest);
     } catch (e) {
       this.failWorker(String(e));
     }
@@ -52,7 +59,7 @@ export class RoadClient {
     this.workerError = message;
     this.worker?.terminate();
     this.worker = null;
-    this.fallback = new World(this.seed);
+    this.fallback = this.world?.local ?? new World(this.seed);
     if (this.inFlight) {
       this.queue.unshift(this.inFlight);
       this.inFlight = null;
@@ -169,7 +176,11 @@ export class RoadClient {
       const n = r.points.length / 3;
       const ds = r.length / (n - 1);
       const bridge = new Uint8Array(n);
-      for (const sp of r.spans) for (let i = Math.floor(sp.from / ds); i <= Math.min(n - 1, Math.ceil(sp.to / ds)); i++) bridge[i] = 1;
+      // トンネル（北海道の世界）は H2 で坑口と内壁を作るまで、地形を路面に合わせた切り通しとして描く（橋にしない）
+      for (const sp of r.spans) {
+        if (sp.kind === "tunnel") continue;
+        for (let i = Math.floor(sp.from / ds); i <= Math.min(n - 1, Math.ceil(sp.to / ds)); i++) bridge[i] = 1;
+      }
       this.entries.set(r.id, { road: r, bounds: roadBounds(r), blocks: new Set([block]), bridge });
       this.net.addRoad(r);
     }
@@ -186,6 +197,38 @@ export class RoadClient {
 
   bridgeFlags(id: string): Uint8Array | undefined {
     return this.entries.get(id)?.bridge;
+  }
+
+  /**
+   * (x, z) の路面の高さ（路面の上でなければ null）。道路の中心線と幅から求める（描いたメッシュに光線を当てない。
+   * 交差点の多い市街地では、メッシュへの光線が 1 フレームに数十 ms かかったため）。
+   */
+  surfaceAt(x: number, z: number): number | null {
+    let best: number | null = null;
+    for (const e of this.entries.values()) {
+      const b = e.bounds;
+      const road = e.road;
+      const hw = road.width / 2 + 0.3;
+      if (x < b.x0 - hw || x > b.x1 + hw || z < b.z0 - hw || z > b.z1 + hw) continue;
+      const P = road.points;
+      const n = P.length / 3;
+      const ox = road.origin[0];
+      const oz = road.origin[1];
+      for (let i = 0; i + 1 < n; i++) {
+        const ax = P[i * 3] + ox, az = P[i * 3 + 2] + oz;
+        const bx = P[i * 3 + 3] + ox, bz = P[i * 3 + 5] + oz;
+        // 粗い除外（点の間隔は 2m 以下）
+        if (Math.abs(ax - x) > hw + 3 || Math.abs(az - z) > hw + 3) continue;
+        const dx = bx - ax, dz = bz - az;
+        const l2 = dx * dx + dz * dz || 1;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
+        const ex = ax + dx * t - x, ez = az + dz * t - z;
+        if (ex * ex + ez * ez > hw * hw) continue;
+        const y = P[i * 3 + 1] + (P[i * 3 + 4] - P[i * 3 + 1]) * t;
+        if (best === null || y > best) best = y;
+      }
+    }
+    return best;
   }
 
   /** rect（とその外 margin）にかかる道路の点列を、rect の左上からの相対で詰める。stride 点ごとに間引く */

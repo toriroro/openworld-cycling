@@ -1,7 +1,7 @@
 // 町・集落の建物と喫茶店の配置を、周りの道路が読み込まれてから一度だけ求めて覚える（モック仕様 5.4）。
 // 地形の Worker には、植生を置かない敷地（円）を渡す。
 
-import type { Terrain } from "../shared/world/terrain.ts";
+import type { TerrainLike } from "../shared/world/terrain.ts";
 import type { Rect } from "../shared/world/world.ts";
 import type { RoadClient } from "../workers/road-client.ts";
 import { now } from "../shared/world/clock.ts";
@@ -48,11 +48,18 @@ export class Towns {
   readonly districtMs: number[] = [];
   /** 町や店が増えるたびに増える */
   version = 0;
+  /** ほかの建物の敷地（北海道の世界の建物）。矩形の左上からの相対で [x, z, r, ...] */
+  extraLots: ((r: Rect) => number[]) | null = null;
 
   constructor(
     private seed: number,
     private roads: RoadClient,
-    private terrain: Terrain,
+    private terrain: TerrainLike,
+    /**
+     * 結節点に町・集落の建物と街区を生成するか。北海道の世界では作らない（実在の道路の上に生成の街区の道が重なるため。
+     * 実在の建物の外形を使う段階で置き換える。北海道の草案 6 章 #5）。喫茶店は両方で置く
+     */
+    private generateTowns = true,
   ) {}
 
   /** 周りの道路が読み込み済みか（敷地が決められるか） */
@@ -74,7 +81,7 @@ export class Towns {
 
   /** 町の街区の計画と造成した面（周りの道路が読み込まれていなければ null） */
   private ground(node: WorldNode): Ground | null {
-    if (node.kind !== "town") return null;
+    if (node.kind !== "town" || !this.generateTowns) return null;
     const hit = this.grounds.get(node.id);
     if (hit) return hit;
     const rect = { x0: node.x - TOWN_REACH, z0: node.z - TOWN_REACH, x1: node.x + TOWN_REACH, z1: node.z + TOWN_REACH };
@@ -140,6 +147,7 @@ export class Towns {
 
   /** 結節点の町・集落の建物（求められなければ null） */
   town(nodeId: string): TownEntry | null {
+    if (!this.generateTowns) return null;
     const hit = this.towns.get(nodeId);
     if (hit) return hit;
     const node = this.roads.net.nodes.get(nodeId);
@@ -208,6 +216,7 @@ export class Towns {
     };
     for (const t of this.townsNear(cx, cz, half)) add(t.lots);
     for (const c of this.cafesNear(cx, cz, half + 40)) add(this.cafes.get(c.poi.id)?.lots ?? []);
+    if (this.extraLots) for (const v of this.extraLots(r)) out.push(v);
     return Float32Array.from(out);
   }
 

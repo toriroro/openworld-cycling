@@ -1,0 +1,60 @@
+{
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors",
+  "bbox": {
+    "south": 42.968,
+    "west": 141.225,
+    "north": 43.152,
+    "east": 141.477
+  },
+  "files": [
+    {
+      "name": "roads",
+      "what": "道路・鉄道（高速道路も含めて取り、変換で除く）",
+      "path": "assets-source/hokkaido/h0/osm/roads.json",
+      "endpoint": "https://overpass-api.de/api/interpreter",
+      "query": "[out:json][timeout:180];(way[\"highway\"](42.968,141.225,43.152,141.477); way[\"railway\"](42.968,141.225,43.152,141.477);); out body; >; out skel qt;",
+      "fetchedAt": "2026-11-17T02:45:06.790Z",
+      "osmBase": "2026-11-17T02:43:57Z",
+      "elements": 417875,
+      "bytes": 53470479,
+      "sha256": "2324f8eee1cec44561b474595f67e45aaa539284dda2a57d7dea7b02bccd740f"
+    },
+    {
+      "name": "water",
+      "what": "海岸線・川・湖",
+      "path": "assets-source/hokkaido/h0/osm/water.json",
+      "endpoint": "https://overpass-api.de/api/interpreter",
+      "query": "[out:json][timeout:180];(way[\"natural\"~\"^(coastline|water)$\"](42.968,141.225,43.152,141.477); relation[\"natural\"=\"water\"](42.968,141.225,43.152,141.477); way[\"waterway\"](42.968,141.225,43.152,141.477); relation[\"waterway\"](42.968,141.225,43.152,141.477);); out body; >; out skel qt;",
+      "fetchedAt": "2026-11-17T02:46:26.605Z",
+      "osmBase": "2026-11-17T02:44:54Z",
+      "elements": 41900,
+      "bytes": 4700113,
+      "sha256": "36104e33c9791b3a590ed77d1cc60ae6a8474b320e7324d1a296a88b878f382d"
+    },
+    {
+      "name": "landuse",
+      "what": "土地利用・森",
+      "path": "assets-source/hokkaido/h0/osm/landuse.json",
+      "endpoint": "https://overpass-api.de/api/interpreter",
+      "query": "[out:json][timeout:180];(way[\"landuse\"](42.968,141.225,43.152,141.477); relation[\"landuse\"](42.968,141.225,43.152,141.477); way[\"natural\"~\"^(wood|scrub|grassland|heath|bare_rock)$\"](42.968,141.225,43.152,141.477); relation[\"natural\"=\"wood\"](42.968,141.225,43.152,141.477);); out body; >; out skel qt;",
+      "fetchedAt": "2026-11-17T02:47:23.504Z",
+      "osmBase": "2026-11-17T02:46:05Z",
+      "elements": 42782,
+      "bytes": 4502411,
+      "sha256": "dbd009986fd486ce7a0b93066ac0e767d47b7bffb835762bfe01e5c0d92055b1"
+    },
+    {
+      "name": "places",
+      "what": "地名・立ち寄り地点の位置（喫茶店・展望地・峠）",
+      "path": "assets-source/hokkaido/h0/osm/places.json",
+      "endpoint": "https://overpass-api.de/api/interpreter",
+      "query": "[out:json][timeout:180];(node[\"place\"](42.968,141.225,43.152,141.477); nwr[\"amenity\"=\"cafe\"](42.968,141.225,43.152,141.477); nwr[\"tourism\"=\"viewpoint\"](42.968,141.225,43.152,141.477); node[\"mountain_pass\"=\"yes\"](42.968,141.225,43.152,141.477); node[\"natural\"=\"peak\"](42.968,141.225,43.152,141.477);); out body; >; out skel qt;",
+      "fetchedAt": "2026-11-17T02:50:21.860Z",
+      "osmBase": "2026-11-17T02:49:06Z",
+      "elements": 6127,
+      "bytes": 2472833,
+      "sha256": "88d5c13ab72b2356bb33b8959318ef924bf7ca8ff49d898096e18891b6e833dd"
+    }
+  ]
+}

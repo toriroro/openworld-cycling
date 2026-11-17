@@ -32,6 +32,8 @@ interface TileEntry {
 
 export interface MapOptions {
   seed: number;
+  /** 北海道の世界（北海道の草案 2.2）。省くと生成の世界 */
+  world?: "hokkaido";
   x: number;
   z: number;
   mpp: number;
@@ -94,6 +96,8 @@ export class WorldMap {
   private blockInFlight: string | null = null;
   private paths: { cls: number; bucket: number; path: Path2D }[] = [];
   private bridgePath = new Path2D();
+  /** トンネル（北海道の世界の道路だけ） */
+  private tunnelPath = new Path2D();
   private pathsDirty = false;
   private anchorX: number;
   private anchorZ: number;
@@ -144,7 +148,7 @@ export class WorldMap {
   private spawn(): Worker {
     const w = new Worker(new URL("../workers/world.worker.ts", import.meta.url), { type: "module" });
     w.onmessage = (ev: MessageEvent<WorldResponse>) => this.onWorker(ev.data);
-    w.postMessage({ type: "init", seed: this.seed } satisfies WorldRequest);
+    w.postMessage({ type: "init", seed: this.seed, world: this.opts.world } satisfies WorldRequest);
     return w;
   }
 
@@ -437,6 +441,7 @@ export class WorldMap {
     this.riddenPath = null;
     const groups = new Map<number, Path2D>();
     const bridge = new Path2D();
+    const tunnel = new Path2D();
     const ax = this.anchorX;
     const az = this.anchorZ;
     for (const { road } of this.roads.values()) {
@@ -458,14 +463,16 @@ export class WorldMap {
       for (const sp of road.spans) {
         const i0 = Math.floor(sp.from / ds);
         const i1 = Math.min(n - 1, Math.ceil(sp.to / ds));
-        bridge.moveTo(P[i0 * 3] + road.origin[0] - ax, P[i0 * 3 + 2] + road.origin[1] - az);
-        for (let k = i0 + 1; k <= i1; k++) bridge.lineTo(P[k * 3] + road.origin[0] - ax, P[k * 3 + 2] + road.origin[1] - az);
+        const path = sp.kind === "tunnel" ? tunnel : bridge;
+        path.moveTo(P[i0 * 3] + road.origin[0] - ax, P[i0 * 3 + 2] + road.origin[1] - az);
+        for (let k = i0 + 1; k <= i1; k++) path.lineTo(P[k * 3] + road.origin[0] - ax, P[k * 3 + 2] + road.origin[1] - az);
       }
     }
     this.paths = [...groups.entries()]
       .map(([k, path]) => ({ cls: Math.floor(k / 10), bucket: k % 10, path }))
       .sort((a, b) => b.cls - a.cls);
     this.bridgePath = bridge;
+    this.tunnelPath = tunnel;
     this.pathsDirty = false;
   }
 
@@ -599,6 +606,11 @@ export class WorldMap {
       ctx.lineWidth = 2 * this.mpp;
       ctx.setLineDash([3 * this.mpp, 2 * this.mpp]);
       ctx.stroke(this.bridgePath);
+      // トンネルは灰色の破線
+      ctx.strokeStyle = "#6a6a6a";
+      ctx.lineWidth = 3 * this.mpp;
+      ctx.setLineDash([4 * this.mpp, 3 * this.mpp]);
+      ctx.stroke(this.tunnelPath);
       ctx.setLineDash([]);
       ctx.restore();
     }

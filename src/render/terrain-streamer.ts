@@ -4,9 +4,10 @@
 
 import type { Towns } from "./towns.ts";
 import * as THREE from "three";
-import { Terrain } from "../shared/world/terrain.ts";
+import { Terrain, type TerrainLike } from "../shared/world/terrain.ts";
+import { type WorldChoice, workerInit } from "../world-choice.ts";
 import { rectDist, type RoadClient } from "../workers/road-client.ts";
-import { buildTile, ROAD_BLEND, ROAD_FLAT, type TileInput, type TileOutput } from "../workers/terrain-tile.ts";
+import { buildTile, type PackedRoads, ROAD_BLEND, ROAD_FLAT, type TileInput, type TileOutput } from "../workers/terrain-tile.ts";
 import type { TerrainRequest, TerrainResponse } from "../workers/terrain.worker.ts";
 
 export interface LevelSpec {
@@ -58,12 +59,14 @@ export class TerrainStreamer {
   private releaseQueue: THREE.Mesh[] = [];
   private reqSeq = 1;
   private reqTile = new Map<number, Tile>();
-  private fallback: Terrain | null = null;
+  private fallback: TerrainLike | null = null;
   ranges: TerrainRanges = RANGES_STANDARD;
   /** 植生の密度の倍率（軽量で半分） */
   vegDensity = 1;
   /** 町・喫茶店の敷地（あれば植生を避ける） */
   towns: Towns | null = null;
+  /** 見た目だけの道（北海道の世界。real-streets.ts）。地形をこれにも合わせる */
+  extraRoads: ((r: { x0: number; z0: number; x1: number; z1: number }, margin: number, stride: number) => PackedRoads | null) | null = null;
   /** 1フレームに取り付ける数・破棄する数 */
   attachPerFrame = 4;
   releasePerFrame = 6;
@@ -79,6 +82,8 @@ export class TerrainStreamer {
     private seed: number,
     private material: THREE.Material,
     private roads: RoadClient,
+    /** 北海道の世界（省くと生成の世界） */
+    private world?: WorldChoice,
   ) {
     const n = Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 4) - 2));
     try {
@@ -89,14 +94,14 @@ export class TerrainStreamer {
           e.preventDefault();
           this.failWorkers(e.message);
         };
-        w.postMessage({ type: "init", seed } satisfies TerrainRequest);
+        w.postMessage({ type: "init", seed, ...workerInit(this.world) } satisfies TerrainRequest);
         this.workers.push(w);
         this.busy.push(0);
       }
     } catch (e) {
       this.failWorkers(String(e));
     }
-    if (!this.workers.length) this.fallback = new Terrain(seed);
+    if (!this.workers.length) this.fallback = this.world?.local?.terrain ?? new Terrain(seed);
   }
 
   private failWorkers(message: string) {
@@ -104,7 +109,7 @@ export class TerrainStreamer {
     for (const w of this.workers) w.terminate();
     this.workers = [];
     this.busy = [];
-    this.fallback = new Terrain(this.seed);
+    this.fallback = this.world?.local?.terrain ?? new Terrain(this.seed);
     this.lastCx = NaN;
     // 依頼中のものは依頼し直す
     for (const t of this.reqTile.values()) {
@@ -254,6 +259,23 @@ export class TerrainStreamer {
     return { x0: t.tx * s - margin, z0: t.tz * s - margin, x1: (t.tx + 1) * s + margin, z1: (t.tz + 1) * s + margin };
   }
 
+  /** 走る道と、見た目だけの道（あれば）を 1 つに詰める */
+  private packRoads(t: Tile, step: number): PackedRoads {
+    const r = this.tileRect(t);
+    const stride = t.level === 0 ? 1 : 2;
+    const a = this.roads.pack(r, ROAD_FLAT + ROAD_BLEND + step + 8, stride);
+    const b = this.extraRoads?.(r, 20 + step, stride);
+    if (!b) return a;
+    const pts = new Float32Array(a.pts.length + b.pts.length);
+    pts.set(a.pts);
+    pts.set(b.pts, a.pts.length);
+    const na = a.starts[a.starts.length - 1];
+    const starts = new Int32Array(a.starts.length + b.starts.length - 1);
+    starts.set(a.starts.subarray(0, a.starts.length - 1));
+    for (let i = 0; i < b.starts.length; i++) starts[a.starts.length - 1 + i] = b.starts[i] + na;
+    return { pts, starts };
+  }
+
   private input(t: Tile): TileInput {
     const spec = LEVELS[t.level];
     const step = spec.size / spec.cells;
@@ -263,7 +285,7 @@ export class TerrainStreamer {
       size: spec.size,
       cells: spec.cells,
       skirt: spec.skirt,
-      roads: spec.conform ? this.roads.pack(this.tileRect(t), ROAD_FLAT + ROAD_BLEND + step + 8, t.level === 0 ? 1 : 2) : null,
+      roads: spec.conform ? this.packRoads(t, step) : null,
       uvRepeat: 16,
       lots: t.level < 2 && this.towns ? this.towns.lotsIn(this.tileRect(t)) : null,
       districts: t.level < 2 && this.towns ? this.towns.surfacesIn(this.tileRect(t, step)) : null,

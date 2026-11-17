@@ -1,0 +1,120 @@
+// city.worker.ts の窓口（メインスレッド側）。種類（近くの建物・遠くの建物・走らない道）ごとに依頼は 1 つだけ送り、
+// 返ってくる間に欲しい組が変わったら、返事は捨てて新しい組を頼み直す（古い組を作り続けて待たせないため）。
+// Worker が使えない時は、同じ関数をメインスレッドで動かす（止まるが、絵は出る）。
+
+import type { HokkaidoBuildings, HokkaidoStreets, HokkaidoTerrain } from "../shared/world/hokkaido.ts";
+import type { CityRequest, CityResponse } from "../workers/city.worker.ts";
+import { buildFar, buildNear, buildStreets } from "./city-build.ts";
+
+type Kind = "near" | "far" | "streets";
+export type CityResult<K extends Kind> = Extract<CityResponse, { type: K }>;
+
+interface Slot {
+  /** 送った依頼（番号と組の鍵） */
+  inFlight: { id: number; key: string; ox: number; oz: number } | null;
+  /** 欲しい組 */
+  want: { key: string; cells: string[]; walkCells?: string[]; ox: number; oz: number } | null;
+  onDone: (key: string, r: CityResponse, ox: number, oz: number) => void;
+}
+
+export class CityClient {
+  private worker: Worker | null = null;
+  private slots = new Map<Kind, Slot>();
+  private nextId = 1;
+  workerError: string | null = null;
+
+  constructor(
+    base: string,
+    seed: number,
+    /** Worker が使えない時の、メインスレッドのデータ */
+    private local: { buildings: HokkaidoBuildings | null; streets: HokkaidoStreets | null; terrain: HokkaidoTerrain },
+  ) {
+    try {
+      this.worker = new Worker(new URL("../workers/city.worker.ts", import.meta.url), { type: "module" });
+      this.worker.onmessage = (ev: MessageEvent<CityResponse>) => this.onMessage(ev.data);
+      this.worker.onerror = (e) => {
+        e.preventDefault();
+        this.workerError = e.message;
+        this.worker?.terminate();
+        this.worker = null;
+      };
+      this.worker.postMessage({ type: "init", base, seed } satisfies CityRequest);
+    } catch (e) {
+      this.workerError = String(e);
+      this.worker = null;
+    }
+  }
+
+  /** 種類ごとの受け取り口 */
+  on(kind: Kind, onDone: (key: string, r: CityResponse, ox: number, oz: number) => void) {
+    this.slots.set(kind, { inFlight: null, want: null, onDone });
+  }
+
+  /** 作業中か（依頼を送っている・送る予定がある） */
+  busy(kind: Kind): boolean {
+    const s = this.slots.get(kind);
+    return !!s && (!!s.inFlight || !!s.want);
+  }
+
+  request(kind: Kind, key: string, cells: string[], ox: number, oz: number, walkCells?: string[]) {
+    const s = this.slots.get(kind)!;
+    s.want = { key, cells, walkCells, ox, oz };
+    if (!s.inFlight) this.send(kind, s);
+  }
+
+  private send(kind: Kind, s: Slot) {
+    const w = s.want;
+    if (!w) return;
+    s.want = null;
+    const id = this.nextId++;
+    s.inFlight = { id, key: w.key, ox: w.ox, oz: w.oz };
+    if (this.worker) {
+      this.worker.postMessage({ type: kind, id, cells: w.cells, walkCells: w.walkCells, ox: w.ox, oz: w.oz } satisfies CityRequest);
+      return;
+    }
+    // Worker なし: その場で作る
+    const r = this.buildLocal(kind, id, w.cells, w.ox, w.oz);
+    queueMicrotask(() => this.onMessage(r));
+  }
+
+  private buildLocal(kind: Kind, id: number, cells: string[], ox: number, oz: number): CityResponse {
+    const t0 = performance.now();
+    const { buildings, streets, terrain } = this.local;
+    if (kind === "streets") {
+      const pieces: [number, number, number, number][] = [];
+      for (const k of cells) for (const p of streets?.index.pieces[k] ?? []) pieces.push(p);
+      const r = buildStreets(streets!, terrain, pieces, ox, oz);
+      return { type: "streets", id, ...r, pieces: pieces.length, ms: performance.now() - t0 };
+    }
+    const list: number[] = [];
+    for (const k of cells) {
+      const c = buildings?.index.cells[k];
+      if (c) for (let i = c[0]; i < c[0] + c[1]; i++) list.push(i);
+    }
+    if (kind === "near") return { type: "near", id, ...buildNear(buildings!, terrain, list, ox, oz), buildings: list.length, ms: performance.now() - t0 };
+    return { type: "far", id, ...buildFar(buildings!, terrain, list, ox, oz), buildings: list.length, ms: performance.now() - t0 };
+  }
+
+  private onMessage(r: CityResponse) {
+    if (r.type === "error") {
+      console.error("city worker", r.message);
+      for (const s of this.slots.values()) if (s.inFlight?.id === r.id) s.inFlight = null;
+      return;
+    }
+    const s = this.slots.get(r.type);
+    if (!s || s.inFlight?.id !== r.id) return;
+    const { key, ox, oz } = s.inFlight;
+    s.inFlight = null;
+    // 返事を待つ間に欲しい組が変わっていたら、この返事は使わずに頼み直す
+    if (s.want && s.want.key !== key) {
+      this.send(r.type, s);
+      return;
+    }
+    s.want = null;
+    s.onDone(key, r, ox, oz);
+  }
+
+  destroy() {
+    this.worker?.terminate();
+  }
+}

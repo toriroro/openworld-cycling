@@ -2,7 +2,8 @@
 // sim の状態は読むだけで書き換えない。
 
 import * as THREE from "three";
-import { Terrain } from "../shared/world/terrain.ts";
+import { Terrain, type TerrainLike } from "../shared/world/terrain.ts";
+import { generatedWorld, type WorldChoice } from "../world-choice.ts";
 import type { RoadClient } from "../workers/road-client.ts";
 import { Environment, loadTexture, terrainMaterial } from "./environment.ts";
 import { createGravelTexture } from "./gravel-texture.ts";
@@ -13,6 +14,9 @@ import { BuildingMeshes } from "./buildings.ts";
 import { DistrictMeshes } from "./district/meshes.ts";
 import { Towns } from "./towns.ts";
 import { TrafficView } from "./traffic/traffic-view.ts";
+import { RealBuildings } from "./real-buildings.ts";
+import { RealStreets } from "./real-streets.ts";
+import { CityClient } from "./city-client.ts";
 
 export type Quality = "standard" | "light";
 
@@ -28,12 +32,18 @@ export class WorldView {
   readonly terrain: TerrainStreamer;
   readonly roadMeshes: RoadMeshes;
   readonly vegetation: Vegetation;
-  readonly heights: Terrain;
+  readonly heights: TerrainLike;
+  /** どちらの世界か（北海道の草案 2.2） */
+  readonly world: WorldChoice;
   /** 町・集落の建物と喫茶店の配置 */
   readonly towns: Towns;
   readonly buildings: BuildingMeshes;
   /** 町の街区（区画道路・歩道・敷地・電柱・街路樹） */
   readonly districts: DistrictMeshes;
+  /** 北海道の世界の建物（OSM の外形。無ければ null） */
+  readonly realBuildings: RealBuildings | null = null;
+  /** 北海道の世界の走らない道（見た目だけ。無ければ null） */
+  readonly realStreets: RealStreets | null = null;
   /** 車とバス停（sim/traffic を読んで描く） */
   readonly trafficView = new TrafficView();
   private pruneT = 0;
@@ -48,13 +58,15 @@ export class WorldView {
     readonly canvas: HTMLCanvasElement,
     seed: number,
     readonly roads: RoadClient,
+    world?: WorldChoice,
   ) {
+    this.world = world ?? generatedWorld(seed);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.8, 30000);
-    this.heights = new Terrain(seed);
+    this.heights = this.world.local?.terrain ?? new Terrain(seed);
     this.env = new Environment(this.scene);
 
     const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
@@ -97,14 +109,39 @@ export class WorldView {
     patch.polygonOffsetUnits = -4;
     this.materials.push(terrainMat, paved, gravel, structure, patch);
 
-    this.terrain = new TerrainStreamer(seed, terrainMat, roads);
+    this.terrain = new TerrainStreamer(seed, terrainMat, roads, world);
     this.roadMeshes = new RoadMeshes(roads, this.heights, { paved, gravel, structure, patch });
     this.vegetation = new Vegetation(this.terrain);
-    this.towns = new Towns(seed, roads, this.heights);
+    this.towns = new Towns(seed, roads, this.heights, this.world.id === "generated");
     this.terrain.towns = this.towns;
     this.buildings = new BuildingMeshes(this.towns, aniso);
     this.districts = new DistrictMeshes(this.towns, paved, structure, aniso);
     this.materials.push(...this.districts.materials);
+    const hs = this.world.local?.streets;
+    const hbData = this.world.local?.buildings ?? null;
+    // 建物・走らない道の形は Worker で作る（北海道の草案 18 章）
+    const city = this.world.local && (hs || hbData) ? new CityClient(this.world.base, seed, { buildings: hbData, streets: hs ?? null, terrain: this.world.local.terrain }) : null;
+    if (hs && city) {
+      const pathMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+      this.materials.push(pathMat);
+      const rs = new RealStreets(
+        hs,
+        this.heights,
+        { paved, path: pathMat, walk: this.districts.walkMaterial, tree: this.districts.treeMaterial, treeGeo: this.districts.treeGeometry },
+        city,
+        this.world.local?.sidewalks ?? null,
+      );
+      this.realStreets = rs;
+      this.terrain.extraRoads = (r, margin, stride) => rs.pack(r, margin, stride);
+      this.scene.add(rs.group);
+    }
+    const hb = hbData;
+    if (hb && city) {
+      const rb = new RealBuildings(hb, this.buildings, city);
+      this.realBuildings = rb;
+      this.towns.extraLots = (r) => rb.lotsIn(r);
+      this.scene.add(rb.group);
+    }
     this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group, this.districts.group, this.trafficView.group);
     this.setQuality(matchMedia("(pointer: coarse)").matches ? "light" : "standard");
   }
@@ -123,6 +160,8 @@ export class WorldView {
     this.buildings?.setQuality(light);
     this.districts?.setQuality(light);
     this.trafficView?.setQuality(light);
+    this.realBuildings?.setQuality(light);
+    this.realStreets?.setQuality(light);
     this.roadMeshes.range = light ? 900 : 1600;
     const far = this.terrain.ranges.far;
     this.env.setFar(far);
@@ -151,6 +190,8 @@ export class WorldView {
       this.vegetation.setOrigin(this.originX, this.originZ);
       this.buildings.setOrigin(this.originX, this.originZ);
       this.districts.setOrigin(this.originX, this.originZ);
+      this.realBuildings?.setOrigin(this.originX, this.originZ);
+      this.realStreets?.setOrigin(this.originX, this.originZ);
       this.rebases++;
     }
     this.camera.position.set(eye.x - this.originX, eye.y, eye.z - this.originZ);
@@ -165,6 +206,8 @@ export class WorldView {
     this.vegetation.update(eye.x, eye.z);
     this.buildings.update(eye.x, eye.z);
     this.districts.update(eye.x, eye.z);
+    this.realBuildings?.update(eye.x, eye.z);
+    this.realStreets?.update(eye.x, eye.z);
     // 遠くの町の配置を忘れる（道路の保持範囲 10km より少し広く）
     const now = performance.now();
     if (now - this.pruneT > 5000) {
@@ -184,6 +227,8 @@ export class WorldView {
   /**
    * 描いている面（地形と道路）の高さ。視点を地面より上に保つのに使う。描いていない所は高さ関数の値。
    * 道路の近くは地形を路面に合わせているので、高さ関数では切土の所で高く出すぎるため。
+   * 光線は地形（近景）にだけ当て、路面は道路の中心線と幅から求めて高い方を使う（交差点の多い札幌で、
+   * 道路のメッシュへの光線が 1 フレームに 40ms を超えたため。北海道の草案 18 章）。
    */
   surfaceHeight(x: number, z: number): number {
     const now = performance.now();
@@ -193,14 +238,13 @@ export class WorldView {
       this.terrain.group.traverse((o) => {
         if (o instanceof THREE.Mesh && o.visible && o.userData.level === 0) this.groundTargets.push(o);
       });
-      this.roadMeshes.group.traverse((o) => {
-        if (o instanceof THREE.Mesh) this.groundTargets.push(o);
-      });
     }
     this.groundRay.set(new THREE.Vector3(x - this.originX, 4000, z - this.originZ), new THREE.Vector3(0, -1, 0));
     this.groundRay.far = 6000;
     const hit = this.groundRay.intersectObjects(this.groundTargets, false)[0];
-    return hit ? hit.point.y : this.heights.height(x, z);
+    const ground = hit ? hit.point.y : this.heights.height(x, z);
+    const road = this.roads.surfaceAt(x, z);
+    return road === null ? ground : Math.max(ground, road);
   }
 
   /** 世界座標の点が描画座標でどこになるか */
@@ -209,7 +253,7 @@ export class WorldView {
   }
 
   settled(): boolean {
-    return this.roads.pending === 0 && this.terrain.settled() && this.roadMeshes.pendingBuild === 0;
+    return this.roads.pending === 0 && this.terrain.settled() && this.roadMeshes.pendingBuild === 0 && (this.realBuildings?.pending ?? 0) === 0 && (this.realStreets?.pending ?? 0) === 0;
   }
 
   stats() {
@@ -227,6 +271,8 @@ export class WorldView {
       buildings: { ...this.buildings.stats },
       districts: { ...this.districts.stats, layoutMs: this.towns.districtMs.slice(-4) },
       traffic: { ...this.trafficView.stats },
+      realBuildings: this.realBuildings?.stats() ?? null,
+      realStreets: this.realStreets ? { ...this.realStreets.stats } : null,
       roads: this.roadMeshes.stats(),
       roadsLoaded: this.roads.net.roads.size,
       roadBlocksPending: this.roads.pending,

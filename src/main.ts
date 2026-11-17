@@ -1,4 +1,5 @@
 // 入口。起動画面から走るゲームを始める。
+// 世界: ?world=hokkaido|generated（省くと最後に選んだ世界。北海道の草案 2.1）。
 // 開発・検証用: ?mode=m2（M2 の道路に沿って進むカメラ）、?notitle=1（起動画面を出さない）、?fresh=1（保存を使わない）、?x=&z=（場所を指定）、?time=&weather=（時刻・天候を決める）。
 // 計測・検証用の窓口 window.__dev は、開発サーバー・?dev=1・自動操作のブラウザ（navigator.webdriver）の時だけ置く。
 
@@ -8,18 +9,43 @@ import { Game } from "./game.ts";
 import { platform } from "./platform/index.ts";
 import { rayCheck } from "./render/raycheck.ts";
 import { type Quality, WorldView } from "./render/world-view.ts";
-import { ORIGIN, WORLD_SEED } from "./shared/world/constants.ts";
+import { WORLD_SEED } from "./shared/world/constants.ts";
 import { RoadClient } from "./workers/road-client.ts";
+import { generatedWorld, hokkaidoWorld, WORLD_KEY, type WorldChoice, type WorldId } from "./world-choice.ts";
 
 const q = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (q.has(k) ? Number(q.get(k)) : d);
 const seed = num("seed", WORLD_SEED);
-const startX = num("x", ORIGIN.x);
-const startZ = num("z", ORIGIN.z);
+
+async function chooseWorld(): Promise<WorldChoice> {
+  const qw = q.get("world");
+  const id = qw === "hokkaido" || qw === "generated" ? qw : await platform.storage.load(WORLD_KEY);
+  if (id === "hokkaido") {
+    try {
+      return await hokkaidoWorld(seed);
+    } catch (e) {
+      // 変換データが無い（scripts/hokkaido/build-h0.ts を実行していない）時は生成の世界で始める
+      console.error("北海道の世界を読めない", e);
+    }
+  }
+  return generatedWorld(seed);
+}
+
+/** 世界を選び直す: 覚えて読み込み直す（URL の ?world= は外す） */
+async function switchWorld(id: WorldId) {
+  await platform.storage.save(WORLD_KEY, id);
+  const u = new URL(location.href);
+  u.searchParams.delete("world");
+  location.href = u.toString();
+}
+
+const world = await chooseWorld();
+const startX = num("x", world.origin.x);
+const startZ = num("z", world.origin.z);
 
 const canvas = document.getElementById("view") as HTMLCanvasElement;
-const roads = new RoadClient(seed, 10000);
-const view = new WorldView(canvas, seed, roads);
+const roads = new RoadClient(seed, 10000, world);
+const view = new WorldView(canvas, seed, roads, world);
 if (q.get("quality") === "light" || q.get("quality") === "standard") view.setQuality(q.get("quality") as Quality);
 view.env.setHour(num("time", 14.5));
 const skyWeather = q.get("weather");
@@ -40,8 +66,10 @@ if (q.get("mode") === "m2" && devTools) {
   // 保存データがあれば続きから（?x= ?z= で場所を指定した時と ?fresh=1 の時は使わない。検証用）
   const resume = !q.has("x") && !q.has("z") && q.get("fresh") !== "1";
   // 自動操作のブラウザ（検証スクリプト）と場所を指定した時は起動画面を出さない
-  const title = !navigator.webdriver && q.get("notitle") !== "1" && resume;
+  // ?title=1 は自動操作のブラウザでも起動画面を出す（確認用）
+  const title = (q.get("title") === "1" || !navigator.webdriver) && q.get("notitle") !== "1" && resume;
   const game = new Game(view, roads, { x: startX, z: startZ }, { resume, title });
+  game.title.onWorld = (id) => void switchWorld(id);
   // 検証用: ?time= と ?weather=clear|cloudy|fog で時刻・天候を決める（保存しない）
   if (q.has("time") || skyWeather) {
     const w = skyWeather === "clear" || skyWeather === "cloudy" || skyWeather === "fog" ? skyWeather : undefined;

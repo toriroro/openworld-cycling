@@ -6,7 +6,8 @@ export type RoadClass = 0 | 1 | 2 | 3 | 4;
 export interface Span {
   from: number;
   to: number;
-  kind: "bridge";
+  /** トンネルは北海道の世界の道路だけ（北海道の草案 4.2。描画は H2 で作る） */
+  kind: "bridge" | "tunnel";
 }
 
 export interface Road {

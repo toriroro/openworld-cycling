@@ -3,7 +3,7 @@
 // 接続点: 道路は接続点の口で止め、口の内側を舗装面で埋める。隣り合う腕の路肩は曲線（隅切り）でつなぎ、外側線も曲線に沿って引く。
 
 import * as THREE from "three";
-import type { Terrain } from "../shared/world/terrain.ts";
+import type { TerrainLike } from "../shared/world/terrain.ts";
 import type { Road } from "../shared/world/types.ts";
 import { hashString } from "../shared/world/hash.ts";
 import { junctionShape, type JunctionShape, roadFrame, type Vec3 } from "../sim/junction-shape.ts";
@@ -25,11 +25,31 @@ interface Chunk {
   key: string;
   road: string;
   k: number;
-  mesh: THREE.Mesh;
+  /** この区間の形（画面には出さず、区画ごとにまとめてから出す） */
+  geo: THREE.BufferGeometry;
+  /** 路面の材質: 0 = 舗装、1 = 砂利 */
+  surface: 0 | 1;
   ox: number;
   oz: number;
+  /** まとめる区画 */
+  cell: string;
   /** 作った時の、この区間にかかる接続点の切れ目 */
   gapKey: string;
+}
+
+/**
+ * 道路の区間を区画（CELL m 四方）ごとに 1 つのメッシュにまとめる。区間ごとにメッシュを作ると、
+ * 交差点の多い市街地（北海道の世界の札幌）で描画命令が 500 を超えたため（北海道の草案 14.1 #10）。
+ */
+const CELL = 250;
+
+interface Cell {
+  key: string;
+  ox: number;
+  oz: number;
+  chunks: Set<string>;
+  mesh: THREE.Mesh | null;
+  dirty: boolean;
 }
 
 /** 道路の上で、接続点の舗装面に任せて路面を作らない区間 */
@@ -109,6 +129,9 @@ class GeoBuilder {
 export class RoadMeshes {
   readonly group = new THREE.Group();
   private chunks = new Map<string, Chunk>();
+  private cells = new Map<string, Cell>();
+  /** 1 フレームにまとめ直す区画の数 */
+  mergePerFrame = 2;
   private releaseQueue: THREE.Mesh[] = [];
   private discs: THREE.Mesh | null = null;
   private discKey = "";
@@ -126,14 +149,15 @@ export class RoadMeshes {
 
   constructor(
     private roads: RoadClient,
-    private terrain: Terrain,
+    private terrain: TerrainLike,
     private mats: RoadMaterials,
   ) {}
 
   setOrigin(x: number, z: number) {
     this.originX = x;
     this.originZ = z;
-    for (const c of this.chunks.values()) {
+    for (const c of this.cells.values()) {
+      if (!c.mesh) continue;
       c.mesh.position.set(c.ox - x, 0, c.oz - z);
       c.mesh.updateMatrix();
     }
@@ -171,8 +195,7 @@ export class RoadMeshes {
           const have = this.chunks.get(key);
           if (have && have.gapKey !== this.gapKey(road, k)) {
             // 接続点の形が変わった（腕の道路が読み込まれた）ので作り直す
-            this.chunks.delete(key);
-            this.releaseQueue.push(have.mesh);
+            this.removeChunk(have);
           }
           keep.add(key);
           if (!this.chunks.has(key)) wanted.push({ key, road, k, d });
@@ -180,11 +203,7 @@ export class RoadMeshes {
       }
       wanted.sort((a, b) => a.d - b.d);
       this.wanted = wanted;
-      for (const [key, c] of this.chunks)
-        if (!keep.has(key)) {
-          this.chunks.delete(key);
-          this.releaseQueue.push(c.mesh);
-        }
+      for (const [key, c] of this.chunks) if (!keep.has(key)) this.removeChunk(c);
       this.updateDiscs(cx, cz);
     }
     for (let i = 0; i < this.buildPerFrame && this.wanted.length; i++) {
@@ -195,7 +214,19 @@ export class RoadMeshes {
       this.buildMs.push(performance.now() - t0);
       if (this.buildMs.length > 2000) this.buildMs.splice(0, 1000);
       this.chunks.set(w.key, c);
-      this.group.add(c.mesh);
+      const cell = this.cellOf(c.cell, c.ox, c.oz);
+      cell.chunks.add(c.key);
+      cell.dirty = true;
+    }
+    // まとめ直す（近い区画から）
+    const dirty = [...this.cells.values()].filter((c) => c.dirty);
+    if (dirty.length) {
+      dirty.sort((a, b) => Math.hypot(a.ox - cx, a.oz - cz) - Math.hypot(b.ox - cx, b.oz - cz));
+      for (let i = 0; i < this.mergePerFrame && i < dirty.length; i++) {
+        const t0 = performance.now();
+        this.merge(dirty[i]);
+        this.buildMs.push(performance.now() - t0);
+      }
     }
     for (let i = 0; i < 6 && this.releaseQueue.length; i++) {
       const m = this.releaseQueue.shift()!;
@@ -205,11 +236,108 @@ export class RoadMeshes {
   }
 
   get pendingBuild() {
-    return this.wanted.length;
+    let dirty = 0;
+    for (const c of this.cells.values()) if (c.dirty) dirty++;
+    return this.wanted.length + dirty;
   }
 
   stats() {
-    return { chunks: this.chunks.size, wanted: this.wanted.length, releasing: this.releaseQueue.length };
+    let meshes = 0;
+    for (const c of this.cells.values()) if (c.mesh) meshes++;
+    return { chunks: this.chunks.size, cells: meshes, wanted: this.wanted.length, releasing: this.releaseQueue.length };
+  }
+
+  private cellOf(key: string, x: number, z: number): Cell {
+    let c = this.cells.get(key);
+    if (!c) {
+      c = { key, ox: Math.floor(x / CELL) * CELL, oz: Math.floor(z / CELL) * CELL, chunks: new Set(), mesh: null, dirty: false };
+      this.cells.set(key, c);
+    }
+    return c;
+  }
+
+  private removeChunk(c: Chunk) {
+    this.chunks.delete(c.key);
+    c.geo.dispose();
+    const cell = this.cells.get(c.cell);
+    if (!cell) return;
+    cell.chunks.delete(c.key);
+    cell.dirty = true;
+  }
+
+  /** 区画の区間を 1 つのメッシュにまとめる（材質ごとに 1 つの描画命令: 舗装・砂利・構造物・補修跡） */
+  private merge(cell: Cell) {
+    cell.dirty = false;
+    if (cell.mesh) {
+      this.releaseQueue.push(cell.mesh);
+      cell.mesh = null;
+    }
+    const list: Chunk[] = [];
+    for (const k of cell.chunks) {
+      const c = this.chunks.get(k);
+      if (c) list.push(c);
+    }
+    if (!list.length) {
+      this.cells.delete(cell.key);
+      return;
+    }
+    let V = 0;
+    const slotLen = [0, 0, 0, 0];
+    const slotOf = (c: Chunk, mi: number) => (mi === 0 ? c.surface : mi + 1);
+    for (const c of list) {
+      V += c.geo.getAttribute("position").count;
+      for (const g of c.geo.groups) slotLen[slotOf(c, g.materialIndex ?? 0)] += g.count;
+    }
+    const pos = new Float32Array(V * 3);
+    const nor = new Float32Array(V * 3);
+    const col = new Float32Array(V * 3);
+    const uv = new Float32Array(V * 2);
+    const total = slotLen[0] + slotLen[1] + slotLen[2] + slotLen[3];
+    const index = V > 65535 ? new Uint32Array(total) : new Uint16Array(total);
+    const slotAt = [0, slotLen[0], slotLen[0] + slotLen[1], slotLen[0] + slotLen[1] + slotLen[2]];
+    const fill = slotAt.slice();
+    let vbase = 0;
+    for (const c of list) {
+      const g = c.geo;
+      const p = g.getAttribute("position").array as Float32Array;
+      const n = g.getAttribute("normal").array as Float32Array;
+      const co = g.getAttribute("color").array as Float32Array;
+      const u = g.getAttribute("uv").array as Float32Array;
+      const cnt = p.length / 3;
+      const dx = c.ox - cell.ox;
+      const dz = c.oz - cell.oz;
+      for (let i = 0; i < cnt; i++) {
+        pos[(vbase + i) * 3] = p[i * 3] + dx;
+        pos[(vbase + i) * 3 + 1] = p[i * 3 + 1];
+        pos[(vbase + i) * 3 + 2] = p[i * 3 + 2] + dz;
+      }
+      nor.set(n, vbase * 3);
+      col.set(co, vbase * 3);
+      uv.set(u, vbase * 2);
+      const idx = g.index!.array;
+      for (const gr of g.groups) {
+        const slot = slotOf(c, gr.materialIndex ?? 0);
+        for (let i = gr.start; i < gr.start + gr.count; i++) index[fill[slot]++] = idx[i] + vbase;
+      }
+      vbase += cnt;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+    geo.setIndex(new THREE.BufferAttribute(index, 1));
+    for (let k = 0; k < 4; k++) if (slotLen[k]) geo.addGroup(slotAt[k], slotLen[k], k);
+    geo.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geo, [this.mats.paved, this.mats.gravel, this.mats.structure, this.mats.patch]);
+    mesh.name = "road";
+    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.matrixAutoUpdate = false;
+    mesh.position.set(cell.ox - this.originX, 0, cell.oz - this.originZ);
+    mesh.updateMatrix();
+    cell.mesh = mesh;
+    this.group.add(mesh);
   }
 
   private build(road: Road, k: number): Chunk {
@@ -370,16 +498,8 @@ export class RoadMeshes {
     g.addGroup(surf.idx.length, str.idx.length, 1);
     if (pat.idx.length) g.addGroup(surf.idx.length + str.idx.length, pat.idx.length, 2);
     g.computeVertexNormals();
-    g.computeBoundingSphere();
-    const mesh = new THREE.Mesh(g, [road.surface === "paved" ? this.mats.paved : this.mats.gravel, this.mats.structure, this.mats.patch]);
-    mesh.name = "road";
-    mesh.userData.road = road.id;
-    mesh.receiveShadow = true;
-    mesh.castShadow = false;
-    mesh.matrixAutoUpdate = false;
-    mesh.position.set(ox - this.originX, 0, oz - this.originZ);
-    mesh.updateMatrix();
-    return { key: `${road.id}#${k}`, road: road.id, k, mesh, ox, oz, gapKey: this.gapKey(road, k) };
+    const cell = `${Math.floor(ox / CELL)},${Math.floor(oz / CELL)}`;
+    return { key: `${road.id}#${k}`, road: road.id, k, geo: g, surface: road.surface === "paved" ? 0 : 1, ox, oz, cell, gapKey: this.gapKey(road, k) };
   }
 
   private rail(
@@ -548,9 +668,10 @@ export class RoadMeshes {
     let start = 0;
     let vbase = 0;
     parts.forEach((p, mi) => {
-      all.pos.push(...p.pos);
-      all.col.push(...p.col);
-      all.uv.push(...p.uv);
+      // 交差点の多い市街地（北海道の世界）では配列が大きく、push(...) は引数の数の上限を超える
+      for (const v of p.pos) all.pos.push(v);
+      for (const v of p.col) all.col.push(v);
+      for (const v of p.uv) all.uv.push(v);
       for (const v of p.idx) all.idx.push(v + vbase);
       if (p.idx.length) g.addGroup(start, p.idx.length, mi);
       start += p.idx.length;

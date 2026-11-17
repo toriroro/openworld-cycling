@@ -1,14 +1,18 @@
 // 建物の形を組み立てる時の道具: 頂点の集まり（材質ごとに 1 つ）と、ベクトル・色・乱数の小さな関数。
 
-import * as THREE from "three";
 
 export type Rgb = [number, number, number];
 /** 絵の表（atlas）の中の四角: u0, v0, u1, v1（v0 が下） */
 export type Rect = [number, number, number, number];
 
+/** "#rrggbb"（sRGB）→ 線形の色。THREE.Color（色の管理が有効な時）と同じ値（Worker でも使えるよう Three.js を使わない） */
 export const hex = (h: string): Rgb => {
-  const c = new THREE.Color(h);
-  return [c.r, c.g, c.b];
+  const n = Number.parseInt(h.slice(1), 16);
+  const lin = (v: number) => {
+    const c = v / 255;
+    return c <= 0.04045 ? c * 0.0773993808 : Math.pow(c * 0.9478672986 + 0.0521327014, 2.4);
+  };
+  return [lin((n >> 16) & 255), lin((n >> 8) & 255), lin(n & 255)];
 };
 export const WHITE: Rgb = [1, 1, 1];
 export const shade = (c: Rgb, k: number): Rgb => [c[0] * k, c[1] * k, c[2] * k];
@@ -30,6 +34,39 @@ export const unit = (seed: number, k: number) => {
   x = Math.imul(x ^ (x >>> 12), 0x297a2d39) >>> 0;
   return ((x ^ (x >>> 15)) >>> 0) / 4294967296;
 };
+
+/** 頂点の配列（位置・法線・uv・頂点色・添字） */
+export interface MeshArrays {
+  pos: Float32Array;
+  nor: Float32Array;
+  uv: Float32Array;
+  col: Float32Array;
+  idx: Uint16Array | Uint32Array;
+  /** 包む球（中心と半径）。Worker で求めておくと、メインスレッドで頂点をなめずに済む */
+  sphere?: [number, number, number, number];
+}
+
+/** 頂点を包む球（箱の中心と、そこから一番遠い頂点まで） */
+export function boundingSphere(pos: Float32Array): [number, number, number, number] {
+  let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+  for (let i = 0; i < pos.length; i += 3) {
+    const x = pos[i], y = pos[i + 1], z = pos[i + 2];
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+    if (y < y0) y0 = y;
+    if (y > y1) y1 = y;
+    if (z < z0) z0 = z;
+    if (z > z1) z1 = z;
+  }
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
+  let r2 = 0;
+  for (let i = 0; i < pos.length; i += 3) {
+    const dx = pos[i] - cx, dy = pos[i + 1] - cy, dz = pos[i + 2] - cz;
+    const d = dx * dx + dy * dy + dz * dz;
+    if (d > r2) r2 = d;
+  }
+  return [cx, cy, cz, Math.sqrt(r2)];
+}
 
 /** 材質ごとの頂点の集まり */
 export class Mesher {
@@ -102,15 +139,18 @@ export class Mesher {
   get triangles() {
     return this.idx.length / 3;
   }
-  geometry(): THREE.BufferGeometry | null {
+  /** 型付きの配列にする（Worker から転送できる形。描画の形は to-geometry.ts の toGeometry） */
+  arrays(): MeshArrays | null {
     if (!this.idx.length) return null;
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(this.pos, 3));
-    g.setAttribute("normal", new THREE.Float32BufferAttribute(this.nor, 3));
-    g.setAttribute("uv", new THREE.Float32BufferAttribute(this.uv, 2));
-    g.setAttribute("color", new THREE.Float32BufferAttribute(this.col, 3));
-    g.setIndex(this.pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(this.idx, 1) : new THREE.Uint16BufferAttribute(this.idx, 1));
-    g.computeBoundingSphere();
-    return g;
+    const V = this.pos.length / 3;
+    const pos = Float32Array.from(this.pos);
+    return {
+      pos,
+      sphere: boundingSphere(pos),
+      nor: Float32Array.from(this.nor),
+      uv: Float32Array.from(this.uv),
+      col: Float32Array.from(this.col),
+      idx: V > 65535 ? Uint32Array.from(this.idx) : Uint16Array.from(this.idx),
+    };
   }
 }

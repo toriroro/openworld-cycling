@@ -4,7 +4,7 @@
 
 - 全体の仕様: [docs/history/specs/2026-11-13-openworld-cycling-overview.md](docs/history/specs/2026-11-13-openworld-cycling-overview.md)
 - モックの仕様: [docs/history/specs/2026-11-13-mock.md](docs/history/specs/2026-11-13-mock.md)
-- 次の段階の草案: [河川](docs/history/specs/2026-11-13-rivers-draft.md)、[都市と交通](docs/history/specs/2026-11-13-urban-and-traffic-draft.md)、[鉄道](docs/history/specs/2026-11-14-railway-draft.md)
+- 次の段階の草案: [河川](docs/history/specs/2026-11-13-rivers-draft.md)、[都市と交通](docs/history/specs/2026-11-13-urban-and-traffic-draft.md)、[鉄道](docs/history/specs/2026-11-14-railway-draft.md)、[北海道（実在の地図）](docs/history/specs/2026-11-17-hokkaido-draft.md)
 
 ## 起動
 
@@ -116,6 +116,8 @@ npm run deploy
 | 入口 | 用途 |
 |---|---|
 | `map.html` | 2D 地図（移動・拡大、道路を選ぶと縦断図） |
+| `/?world=hokkaido` | 北海道の世界（H1: 札幌の中心を走る）。起動画面の「北海道（札幌）」でも選べる。保存は世界ごとに別。先に変換データを作る（次の行） |
+| `map.html?world=hokkaido` | 北海道の世界の 2D 地図（H0: 札幌の中心 約 20km 四方）。先に `npx tsx scripts/hokkaido/build-h0.ts` で変換データを作る（元データの取得は `scripts/hokkaido/fetch-*.ts`。[北海道の草案](docs/history/specs/2026-11-17-hokkaido-draft.md)） |
 | `garage.html` | 自転車とライダーの確認（開発サーバーだけ） |
 | `/?mode=m2` | M2 の確認（道路に沿って自動で進むカメラ） |
 | `/?notitle=1` | 起動画面を出さない |

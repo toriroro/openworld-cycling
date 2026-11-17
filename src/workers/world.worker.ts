@@ -1,22 +1,38 @@
 // 道路生成と地図タイルの Worker。World を1つ持ち、生成済みの道路を覚えておく。
 
 import { now } from "../shared/world/clock.ts";
+import { HOKKAIDO_BASE, type HokkaidoWorld } from "../shared/world/hokkaido.ts";
 import { World } from "../shared/world/world.ts";
+import { loadHokkaidoWorld } from "./hokkaido-load.ts";
 import { renderTile } from "./map-tile.ts";
 import type { WorldRequest, WorldResponse } from "./world-protocol.ts";
 
-let world: World | null = null;
+let world: World | HokkaidoWorld | null = null;
+/** 北海道の変換データを読み終えるまで、後の依頼を待たせる */
+let ready: Promise<void> = Promise.resolve();
+
 
 const post = (msg: WorldResponse, transfer: Transferable[] = []) =>
   (self as unknown as Worker).postMessage(msg, transfer);
 
 self.onmessage = (ev: MessageEvent<WorldRequest>) => {
   const req = ev.data;
+  if (req.type === "init") {
+    if (req.world === "hokkaido") {
+      ready = loadHokkaidoWorld(req.base ?? HOKKAIDO_BASE, req.seed).then(
+        (w) => {
+          world = w;
+        },
+        (e) => post({ type: "error", id: -1, message: String(e) }),
+      );
+    } else world = new World(req.seed);
+    return;
+  }
+  void ready.then(() => handle(req));
+};
+
+function handle(req: Exclude<WorldRequest, { type: "init" }>) {
   try {
-    if (req.type === "init") {
-      world = new World(req.seed);
-      return;
-    }
     if (!world) throw new Error("world not initialized");
     if (req.type === "prune") {
       world.prune(req.keep);
@@ -49,4 +65,4 @@ self.onmessage = (ev: MessageEvent<WorldRequest>) => {
   } catch (e) {
     post({ type: "error", id: "id" in req ? req.id : -1, message: String(e) });
   }
-};
+}

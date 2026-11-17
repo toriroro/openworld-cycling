@@ -10,6 +10,8 @@ import { makeAtlas, patternTexture } from "./building/atlas.ts";
 import type { Kit, Out, SurfaceKind } from "./building/kit.ts";
 import { add, hex, Mesher, type Rgb, unit, type V3, v3 } from "./building/mesher.ts";
 import { buildBuilding } from "./building/styles.ts";
+import { toGeometry } from "./building/to-geometry.ts";
+import { type BuildingKind, SURFACE_TEX } from "./city-build.ts";
 import type { Building, Cafe } from "./town-layout.ts";
 import type { Towns } from "./towns.ts";
 
@@ -114,16 +116,18 @@ export class BuildingMeshes {
   constructor(private towns: Towns, aniso = 4) {
     this.group.name = "buildings";
     const loader = new THREE.TextureLoader();
+    const T = SURFACE_TEX;
     this.surfaces = {
-      siding: surface(loader, "exterior_wall_cladding_03", 1.96, 0.85, { normalize: true }),
-      plaster: surface(loader, "white_plaster_02", 1.6, 0.92, { normalize: true, contrast: 0.6 }),
-      cedar: surface(loader, "japanese_cedar_planks", 1.85, 0.8),
-      metal: surface(loader, "corrugated_iron", 1.12, 0.6, { metalness: 0.2, doubleSide: true, normalize: true, contrast: 0.8 }),
-      tile: surface(loader, "grey_roof_tiles", 3.0, 0.8, { doubleSide: true }),
-      seam: pattern("seam", 1.6, 0.5, aniso, 0.25, true),
-      mortar: pattern("mortar", 3.2, 0.92, aniso),
-      tilewall: pattern("tile", 1.1, 0.6, aniso),
-      lap: pattern("lap", 1.2, 0.85, aniso),
+      // 1 枚が覆う長さは city-build.ts の SURFACE_TEX（Worker で形を作る時と同じ値）
+      siding: surface(loader, "exterior_wall_cladding_03", T.siding, 0.85, { normalize: true }),
+      plaster: surface(loader, "white_plaster_02", T.plaster, 0.92, { normalize: true, contrast: 0.6 }),
+      cedar: surface(loader, "japanese_cedar_planks", T.cedar, 0.8),
+      metal: surface(loader, "corrugated_iron", T.metal, 0.6, { metalness: 0.2, doubleSide: true, normalize: true, contrast: 0.8 }),
+      tile: surface(loader, "grey_roof_tiles", T.tile, 0.8, { doubleSide: true }),
+      seam: pattern("seam", T.seam, 0.5, aniso, 0.25, true),
+      mortar: pattern("mortar", T.mortar, 0.92, aniso),
+      tilewall: pattern("tile", T.tilewall, 0.6, aniso),
+      lap: pattern("lap", T.lap, 0.85, aniso),
     };
     this.atlas = makeAtlas(aniso);
     // 窓・扉・看板は壁から 3〜4cm 浮かせた四角形。遠くで壁と重なって見えないよう、奥行きを少し手前へずらす
@@ -184,7 +188,8 @@ export class BuildingMeshes {
     let tris = 0;
     for (const k of kinds) {
       const m = out[k];
-      const g = m.geometry();
+      const a = m.arrays();
+      const g = a ? toGeometry(a) : null;
       if (!g) continue;
       tris += m.triangles;
       const mesh = new THREE.Mesh(g, k === "trim" ? this.trimMat : k === "atlas" ? this.atlasMat : this.surfaces[k].material);
@@ -200,6 +205,21 @@ export class BuildingMeshes {
       this.meshes.push(s);
     }
     this.stats = { buildings: buildings.length, cafes: cafes.length, triangles: tris, buildMs: Math.round(performance.now() - t0) };
+  }
+
+  /** 北海道の世界の建物（real-buildings.ts）: Worker で作った形に、同じ材質を付けたメッシュ */
+  meshFor(kind: BuildingKind, g: THREE.BufferGeometry): THREE.Mesh {
+    const mesh = new THREE.Mesh(g, kind === "trim" ? this.trimMat : kind === "atlas" ? this.atlasMat : this.surfaces[kind].material);
+    mesh.name = `buildings:${kind}`;
+    mesh.castShadow = kind !== "atlas";
+    mesh.receiveShadow = true;
+    mesh.matrixAutoUpdate = false;
+    return mesh;
+  }
+
+  /** 遠くの建物（箱）の材質: 頂点色だけ */
+  get boxMaterial(): THREE.Material {
+    return this.trimMat;
   }
 
   /** 世界座標 → 描画座標 */
