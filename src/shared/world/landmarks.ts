@@ -130,15 +130,20 @@ export function polygonArea(p: ArrayLike<number>): number {
 }
 
 /**
- * 名所に着いたか: 止まっている所が区域から arrive m 以内。
- * 区域のそばに走る道が無い名所（山の上など）は、行き先から一番近い走る道までの距離 + 25m まで広げる（呼ぶ側が roadGap を渡す）。
+ * 名所に着いたか: 止まっている所 (x, y, z) が区域から LANDMARK_ARRIVE m 以内か、行き先の点から
+ * 「行き先から一番近い走る道までの距離 + 25m」以内（区域のそばに走る道が無い山の上などの名所のため）。
+ * near は行き先から一番近い走る道の点（距離 d と高さ y。呼ぶ側が求める）。その点より LANDMARK_BELOW m 以上低い所では着かない
+ * （山の名所の区域の縁を通る麓の道で着いてしまったため。旭山記念公園）。
  */
-export function arrivedAt(lm: LandmarkData, x: number, z: number, roadGap = 0): boolean {
-  const reach = Math.max(LANDMARK_ARRIVE, roadGap + 25);
-  if (distanceToPolygon(lm.zone, x, z) <= reach) return true;
+export function arrivedAt(lm: LandmarkData, x: number, y: number, z: number, near: { d: number; y: number } | null = null): boolean {
+  if (near && y < near.y - LANDMARK_BELOW) return false;
+  if (distanceToPolygon(lm.zone, x, z) <= LANDMARK_ARRIVE) return true;
+  const reach = Math.max(LANDMARK_ARRIVE, (near?.d ?? 0) + 25);
   const dx = lm.x - x, dz = lm.z - z;
   return dx * dx + dz * dz <= reach * reach;
 }
 
 /** 区域からこの距離 (m) 以内で止まると着いたことにする */
 export const LANDMARK_ARRIVE = 45;
+/** 行き先から一番近い走る道の点よりこの高さ (m) 以上低い所では着いたことにしない */
+export const LANDMARK_BELOW = 15;

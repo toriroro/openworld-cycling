@@ -108,8 +108,8 @@ export class Game {
   goalLandmark: LandmarkData | null = null;
   /** 直前に立ち寄った名所。150m 離れるまで同じ名所に立ち寄りにしない（"*" は走り始めた所） */
   private lastLandmark: { id: string; x: number; z: number } | null = null;
-  /** 名所の行き先から一番近い走る道までの距離（山の上の名所で着いたとみなす範囲を広げる） */
-  private landmarkGap = new Map<string, number>();
+  /** 名所の行き先から一番近い走る道の点の距離と高さ（山の上の名所で着いたとみなす範囲を広げ、麓では着かないようにする） */
+  private landmarkNear = new Map<string, { d: number; y: number } | null>();
   private landmarkBook = new LandmarkBook();
   /** 出発した店（60m 離れるまで、また止まっても立ち寄りにしない） */
   private lastCafe: { id: string; x: number; z: number } | null = null;
@@ -670,12 +670,14 @@ export class Game {
     for (const lm of list) {
       if (this.lastLandmark?.id === landmarkStampId(lm.id)) continue;
       if (Math.abs(lm.x - p.x) > 3000 || Math.abs(lm.z - p.z) > 3000) continue;
-      let gap = this.landmarkGap.get(lm.id);
-      if (gap === undefined) {
-        gap = nearestOnNetwork(this.roads.net, lm.x, lm.z)?.d ?? 0;
-        this.landmarkGap.set(lm.id, gap);
+      let near = this.landmarkNear.get(lm.id);
+      if (near === undefined) {
+        const q = nearestOnNetwork(this.roads.net, lm.x, lm.z);
+        const road = q && this.roads.net.roads.get(q.road);
+        near = q && road ? { d: q.d, y: sampleRoad(road, q.s).y } : null;
+        this.landmarkNear.set(lm.id, near);
       }
-      if (!arrivedAt(lm, p.x, p.z, gap)) continue;
+      if (!arrivedAt(lm, p.x, p.y, p.z, near)) continue;
       const d = lm === this.goalLandmark ? -1 : Math.hypot(lm.x - p.x, lm.z - p.z);
       if (d < bestD) {
         best = lm;
