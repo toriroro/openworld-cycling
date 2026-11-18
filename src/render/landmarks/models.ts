@@ -96,6 +96,9 @@ const FLOWERS = [
   "#e8823a",
 ].map(hex);
 
+/** 芝の縁と道路（走る道は歩道を含む）の間をあける幅 (m) */
+const LAWN_ROAD_GAP = 0.2;
+
 /** 木の種類ごとの大きさと色（札の species、名前から） */
 function treeKind(
   f: LandmarkFeature | null,
@@ -282,13 +285,22 @@ class Builder {
    * 芝・木を置かない所の引き当て（呼んだ時の keepOut・keepOutPolys の写し）。
    * 多角形は 16m の格子に外接矩形で登録して、点の近くの多角形だけ調べる（北大で建物 426 棟 × 芝 2 万マスを総当たりして 1 秒かかったため）
    */
-  private blockedCache: { n: number; m: number; fn: (x: number, z: number) => boolean } | null = null;
+  private blockedCache: {
+    n: number;
+    m: number;
+    fn: (x: number, z: number) => boolean;
+  } | null = null;
   private blocked(): (x: number, z: number) => boolean {
     // keepOut・keepOutPolys は足すだけなので、数が同じなら前の引き当てを使う
     const bc = this.blockedCache;
-    if (bc && bc.n === this.keepOut.length && bc.m === this.keepOutPolys.length) return bc.fn;
+    if (bc && bc.n === this.keepOut.length && bc.m === this.keepOutPolys.length)
+      return bc.fn;
     const fn = this.makeBlocked();
-    this.blockedCache = { n: this.keepOut.length, m: this.keepOutPolys.length, fn };
+    this.blockedCache = {
+      n: this.keepOut.length,
+      m: this.keepOutPolys.length,
+      fn,
+    };
     return fn;
   }
   private makeBlocked(): (x: number, z: number) => boolean {
@@ -389,36 +401,152 @@ class Builder {
     };
     const m = this.P.ground;
     const blocked = this.blocked();
+    /** 芝を張る点か（区域の中、道路から LAWN_ROAD_GAP より外、建物・keepOut の外） */
+    const inside = (x: number, z: number) =>
+      insidePolygon(flat, x, z) &&
+      !this.ctx.onRoad(x + this.ox, z + this.oz, LAWN_ROAD_GAP) &&
+      !blocked(x, z) &&
+      !extraSkip?.(x, z);
+    // 半マスの格子の点の判定（隣のマスと共有する）
+    const half = cell / 2;
+    const pin = new Map<number, boolean>();
+    const In = (u: number, v: number) => {
+      const key = u * 400009 + v;
+      let r = pin.get(key);
+      if (r === undefined) {
+        r = inside(x0 + u * half, z0 + v * half);
+        pin.set(key, r);
+      }
+      return r;
+    };
+    // 辺（半マス 1 つ分か 2 つ分）の上で、芝の内と外が入れ替わる所（二分探索で半マスの 1/64 まで）。
+    // 隣のマスと同じ点になるよう、辺は番号の小さい端から探す
+    const xing = new Map<number, P2>();
+    const cross = (u0: number, v0: number, u1: number, v1: number): P2 => {
+      if (u1 < u0 || v1 < v0) [u0, v0, u1, v1] = [u1, v1, u0, v0];
+      const len = u1 - u0 + v1 - v0;
+      const key = ((u0 * 400009 + v0) * 2 + (u1 > u0 ? 0 : 1)) * 2 + (len - 1);
+      let p = xing.get(key);
+      if (p) return p;
+      const ax = x0 + u0 * half,
+        az = z0 + v0 * half,
+        dx = (u1 - u0) * half,
+        dz = (v1 - v0) * half;
+      const inA = In(u0, v0);
+      let a = 0,
+        b = 1;
+      for (let k = 0; k < 5 + len; k++) {
+        const t = (a + b) / 2;
+        if (inside(ax + dx * t, az + dz * t) === inA) a = t;
+        else b = t;
+      }
+      const t = (a + b) / 2;
+      p = [ax + dx * t, az + dz * t];
+      xing.set(key, p);
+      return p;
+    };
     // 8 列ずつ後の仕事にする
     for (let i0 = 0; i0 < nx; i0 += 8)
       this.P.jobs.push(() => {
         for (let i = i0; i < Math.min(nx, i0 + 8); i++)
           for (let j = 0; j < nz; j++) {
-            const cx = x0 + (i + 0.5) * cell,
-              cz = z0 + (j + 0.5) * cell;
-            if (!insidePolygon(flat, cx, cz)) continue;
-            if (this.ctx.onRoad(cx + this.ox, cz + this.oz, cell * 0.5 + 0.3))
-              continue;
-            if (blocked(cx, cz)) continue;
-            if (extraSkip?.(cx, cz)) continue;
             const ax = x0 + i * cell,
               az = z0 + j * cell;
-            const c = col(cx, cz);
-            m.quad(
-              [
-                v3(ax, H(i, j + 1), az + cell),
-                v3(ax + cell, H(i + 1, j + 1), az + cell),
-                v3(ax + cell, H(i + 1, j), az),
-                v3(ax, H(i, j), az),
-              ],
-              [
-                [ax / 4, (az + cell) / 4],
-                [(ax + cell) / 4, (az + cell) / 4],
-                [(ax + cell) / 4, az / 4],
-                [ax / 4, az / 4],
-              ],
-              c,
-            );
+            // マスの中の高さ（4 隅の双一次。辺の上では隣のマスの四角形の辺と一致する）
+            const h00 = H(i, j),
+              h10 = H(i + 1, j),
+              h01 = H(i, j + 1),
+              h11 = H(i + 1, j + 1);
+            const hAt = (x: number, z: number) => {
+              const fx = (x - ax) / cell,
+                fz = (z - az) / cell;
+              return (
+                (h00 * (1 - fx) + h10 * fx) * (1 - fz) +
+                (h01 * (1 - fx) + h11 * fx) * fz
+              );
+            };
+            const u = i * 2,
+              v = j * 2;
+            const corners = [
+              In(u, v),
+              In(u + 2, v),
+              In(u, v + 2),
+              In(u + 2, v + 2),
+            ];
+            const mid = In(u + 1, v + 1);
+            const all = corners.every((c) => c === mid);
+            if (all && !mid) continue;
+            const c = col(ax + half, az + half);
+            if (all) {
+              m.quad(
+                [
+                  v3(ax, h01, az + cell),
+                  v3(ax + cell, h11, az + cell),
+                  v3(ax + cell, h10, az),
+                  v3(ax, h00, az),
+                ],
+                [
+                  [ax / 4, (az + cell) / 4],
+                  [(ax + cell) / 4, (az + cell) / 4],
+                  [(ax + cell) / 4, az / 4],
+                  [ax / 4, az / 4],
+                ],
+                c,
+              );
+              continue;
+            }
+            // 縁のマス: 内と外の境を、辺の上の入れ替わる点でつないで切る（凸の多角形になる）
+            const emit = (pts: P2[]) =>
+              m.quad(
+                pts.map(([x, z]) => v3(x, hAt(x, z), z)),
+                pts.map(([x, z]): [number, number] => [x / 4, z / 4]),
+                c,
+              );
+            /** 一辺 s 半マスの四角 (su, sv) を切った形。外から見て反時計回り（上から見て (0,1)→(1,1)→(1,0)→(0,0)） */
+            const cut = (su: number, sv: number, s: number) => {
+              const ring: [number, number][] = [
+                [su, sv + s],
+                [su + s, sv + s],
+                [su + s, sv],
+                [su, sv],
+              ];
+              const pts: P2[] = [];
+              for (let k = 0; k < 4; k++) {
+                const [pu, pv] = ring[k],
+                  [qu, qv] = ring[(k + 1) % 4];
+                const ip = In(pu, pv);
+                if (ip) pts.push([x0 + pu * half, z0 + pv * half]);
+                if (ip !== In(qu, qv)) pts.push(cross(pu, pv, qu, qv));
+              }
+              return pts;
+            };
+            // 境が 1 本の線で横切るだけなら（4 辺の中点と真ん中が切った形と合う）、マスのまま切る
+            const edgesOk =
+              (corners[0] !== corners[1] || In(u + 1, v) === corners[0]) &&
+              (corners[1] !== corners[3] || In(u + 2, v + 1) === corners[1]) &&
+              (corners[3] !== corners[2] || In(u + 1, v + 2) === corners[3]) &&
+              (corners[2] !== corners[0] || In(u, v + 1) === corners[2]);
+            if (edgesOk) {
+              const pts = cut(u, v, 2);
+              const ok =
+                pts.length >= 3 &&
+                insidePolygon(pts.flat(), ax + half, az + half) === mid;
+              if (ok) {
+                emit(pts);
+                continue;
+              }
+            }
+            // 入り組んだマスは半マス 4 つに分けて切る。軽量画質では分けず、真ん中が外なら張らない（三角形を増やさない）
+            if (this.ctx.light) {
+              const pts = mid ? cut(u, v, 2) : [];
+              if (pts.length >= 3) emit(pts);
+              continue;
+            }
+            for (let a = 0; a < 2; a++)
+              for (let b = 0; b < 2; b++) {
+                const pts = cut(u + a, v + b, 1);
+                if (pts.length >= 3) emit(pts);
+              }
           }
       });
   }
