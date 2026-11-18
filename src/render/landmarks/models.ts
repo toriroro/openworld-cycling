@@ -87,14 +87,26 @@ const C = {
   lampOn: hex("#fff2cf"),
 };
 
-const FLOWERS = [
-  "#c8323c",
-  "#e8c13a",
-  "#7a4fa8",
-  "#f2efe6",
-  "#e57aa2",
-  "#e8823a",
-].map(hex);
+/** 広い庭の縁の花の帯の幅 (m)。外の列と内の列で半分ずつ */
+const BED_W = 1.6;
+/**
+ * 花壇の色の組（広い庭は外の列と内の列、小さい花壇は縞を交互に）。赤と白、黄と紫、桃と白、橙と紫。
+ * 葉の緑を 3 割混ぜる（花の色だけだと、遠くから塗った線に見えた）
+ */
+const FLOWER_PAIRS: [Rgb, Rgb][] = [
+  ["#b8303a", "#ece8dc"],
+  ["#d9b335", "#6e4a9a"],
+  ["#d7739a", "#ece8dc"],
+  ["#d7782f", "#6e4a9a"],
+].map(([a, b]) => [leafy(hex(a)), leafy(hex(b))]);
+function leafy(c: Rgb): Rgb {
+  const g = hex("#4f6f38");
+  return [
+    c[0] * 0.7 + g[0] * 0.3,
+    c[1] * 0.7 + g[1] * 0.3,
+    c[2] * 0.7 + g[2] * 0.3,
+  ];
+}
 
 /** 芝の縁と道路（走る道は歩道を含む）の間をあける幅 (m) */
 const LAWN_ROAD_GAP = 0.2;
@@ -571,52 +583,81 @@ class Builder {
       return [base[0] * k, base[1] * k, base[2] * k];
     };
 
-  /** 花壇: 縁石の上に花の色の斑。広い庭（120m² を超える）は芝にして、縁 1.3m だけ花 */
+  /**
+   * 花壇: 縁石の内側に花の縞。広い庭（120m² を超える）は芝にして、縁に花の帯（外の列と内の列、列ごとに 1 色）。
+   * 帯の境は芝の縁と同じく線に沿って切る（マスごとに色を変えると斑に見えた）
+   */
   flowerbed(poly: P2[]) {
     const flatP = poly.flat();
     if (polygonArea(flatP) > 120) {
-      const lawn = this.lawnColor(C.lawn);
-      // 縁の花は 3m ごとに色を変える（1 マスごとに変えると紙吹雪に見えた）
-      this.lawn(poly, this.ctx.light ? 2 : 1.3, (x, z) => {
-        if (distanceToPolyline(flatP, x, z, true) > 1.3) return lawn(x, z);
-        const k = unit(
-          this.seed,
-          Math.floor((x + this.ox) / 3) * 7919 +
-            Math.floor((z + this.oz) / 3) * 104729,
+      // 軽量の画質でも 1.3m（2m だと帯の真ん中を外すマスが飛んで、帯が途切れた）
+      const cell = 1.3;
+      const d = (x: number, z: number) => distanceToPolyline(flatP, x, z, true);
+      const [outer, inner] = this.flowerPair(poly);
+      this.lawn(
+        poly,
+        cell,
+        this.lawnColor(C.lawn),
+        0.07,
+        (x, z) => d(x, z) <= BED_W,
+      );
+      if (this.ctx.light) {
+        // 軽量の画質は 1 列（細い列はマスの間に落ちるため）
+        this.lawn(
+          poly,
+          cell,
+          this.lawnColor(outer),
+          0.1,
+          (x, z) => d(x, z) > BED_W,
         );
-        return k < 0.2
-          ? lawn(x, z)
-          : shade(FLOWERS[Math.floor(k * 977) % FLOWERS.length], 0.8);
-      });
+      } else {
+        this.lawn(
+          poly,
+          cell,
+          this.lawnColor(outer),
+          0.1,
+          (x, z) => d(x, z) > BED_W / 2,
+        );
+        this.lawn(poly, cell, this.lawnColor(inner), 0.1, (x, z) => {
+          const v = d(x, z);
+          return v <= BED_W / 2 || v > BED_W;
+        });
+      }
       this.keepOutPolys.push(poly);
       return;
     }
+    // 小さい花壇: 縁石の内側に、長い向きの縞（1 本 1 色、2 色を交互に）。縞の境は芝の縁と同じく線に沿って切る
     const y0 = this.base(poly);
     prism(this.P.solid, poly, y0 - 0.3, y0 + 0.22, C.granite, null);
-    const flat = poly.flat();
-    const xs = poly.map((p) => p[0]),
-      zs = poly.map((p) => p[1]);
-    const cell = 0.9;
-    for (let x = Math.min(...xs); x < Math.max(...xs); x += cell)
-      for (let z = Math.min(...zs); z < Math.max(...zs); z += cell) {
-        if (!insidePolygon(flat, x + cell / 2, z + cell / 2)) continue;
-        const r = this.rnd();
-        const c =
-          r < 0.45
-            ? shade(C.lawn, 0.8)
-            : shade(FLOWERS[Math.floor(this.rnd() * FLOWERS.length)], 0.85);
-        const h = y0 + 0.24 + this.rnd() * 0.12;
-        block(
-          this.P.solid,
-          v3(x + cell / 2, y0 + 0.2, z + cell / 2),
-          v3(1, 0, 0),
-          cell,
-          h - y0 - 0.2,
-          cell,
-          c,
-        );
-      }
+    const r = minRect(poly);
+    const nx = -r.X.z,
+      nz = r.X.x;
+    const S = this.ctx.light ? 1.4 : 1;
+    const stripe = (x: number, z: number) =>
+      Math.floor(((x - r.cx) * nx + (z - r.cz) * nz) / S + 0.5) & 1;
+    const rim = (x: number, z: number) =>
+      distanceToPolyline(flatP, x, z, true) < 0.3;
+    const pair = this.flowerPair(poly);
+    const cell = this.ctx.light ? 0.9 : 0.6;
+    for (const k of [0, 1])
+      this.lawn(
+        poly,
+        cell,
+        this.lawnColor(pair[k]),
+        0.3,
+        (x, z) => rim(x, z) || stripe(x, z) !== k,
+      );
     this.keepOutPolys.push(poly);
+  }
+
+  /** 花壇の色の組（花壇ごとに選ぶ） */
+  private flowerPair(poly: P2[]): [Rgb, Rgb] {
+    const k = unit(
+      this.seed,
+      Math.floor(poly[0][0] + this.ox) * 7919 +
+        Math.floor(poly[0][1] + this.oz) * 104729,
+    );
+    return FLOWER_PAIRS[Math.floor(k * FLOWER_PAIRS.length)];
   }
 
   /** 噴水: 石の縁、水面、中央の噴き上げ */
