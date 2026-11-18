@@ -1,5 +1,5 @@
-// 地形タイルの出し入れ（モック仕様 5.1）。近景 256m・中景 1,024m・遠景 4,096m の3段。
-// 4 分木のように、近いタイルを 4×4 の子に分ける。子がそろうまでは親を表示して穴を作らない。
+// 地形タイルの出し入れ（モック仕様 5.1）。近景 256m・中景 1,024m・遠景 4,096m・最遠景 8,192m の4段。
+// 4 分木のように、近いタイルを子（4×4。最遠景は 2×2）に分ける。子がそろうまでは親を表示して穴を作らない。
 // 頂点計算は Worker。1フレームに取り付ける数・破棄する数に上限を置き、古い依頼の結果は捨てる。
 
 import type { Towns } from "./towns.ts";
@@ -22,19 +22,24 @@ export const LEVELS: LevelSpec[] = [
   { size: 256, cells: 32, skirt: 6, conform: true },
   { size: 1024, cells: 32, skirt: 30, conform: true },
   { size: 4096, cells: 32, skirt: 120, conform: false },
+  // 最遠景（256m 格子）。遠景の 128m 格子を 24km 先まで描くと、地形の三角形の半分を占めたため（北海道の草案 25 章）
+  { size: 8192, cells: 32, skirt: 240, conform: false },
 ];
+const TOP = LEVELS.length - 1;
 
 export interface TerrainRanges {
-  /** 遠景を描く範囲 */
+  /** 地形を描く範囲 */
   far: number;
+  /** 最遠景タイルを遠景に分ける距離 */
+  splitTop: number;
   /** 遠景タイルを中景に分ける距離 */
   splitFar: number;
   /** 中景タイルを近景に分ける距離 */
   splitMid: number;
 }
 
-export const RANGES_STANDARD: TerrainRanges = { far: 24000, splitFar: 2600, splitMid: 600 };
-export const RANGES_LIGHT: TerrainRanges = { far: 12000, splitFar: 1800, splitMid: 380 };
+export const RANGES_STANDARD: TerrainRanges = { far: 24000, splitTop: 6000, splitFar: 2600, splitMid: 600 };
+export const RANGES_LIGHT: TerrainRanges = { far: 12000, splitTop: 3500, splitFar: 1800, splitMid: 380 };
 
 interface Tile {
   key: string;
@@ -138,41 +143,32 @@ export class TerrainStreamer {
     t.mesh!.updateMatrix();
   }
 
+  /** 段 l のタイルを子に分ける距離（近景は分けない） */
+  private splitAt(l: number): number {
+    const r = this.ranges;
+    return l === 3 ? r.splitTop : l === 2 ? r.splitFar : l === 1 ? r.splitMid : -1;
+  }
+
   /** 表示するタイルの葉と、その祖先（予備として読み込む）を決める */
   private desired(cx: number, cz: number): { leaves: string[]; all: Map<string, number> } {
-    const r = this.ranges;
     const leaves: string[] = [];
     const all = new Map<string, number>();
-    const F = LEVELS[2].size;
-    const M = LEVELS[1].size;
-    const Nn = LEVELS[0].size;
-    for (let tz = Math.floor((cz - r.far) / F); tz <= Math.floor((cz + r.far) / F); tz++)
-      for (let tx = Math.floor((cx - r.far) / F); tx <= Math.floor((cx + r.far) / F); tx++) {
-        const rect = { x0: tx * F, z0: tz * F, x1: (tx + 1) * F, z1: (tz + 1) * F };
-        const d = rectDist(rect, cx, cz);
-        if (d > r.far) continue;
-        all.set(keyOf(2, tx, tz), d);
-        if (d > r.splitFar) {
-          leaves.push(keyOf(2, tx, tz));
-          continue;
-        }
-        for (let mz = tz * 4; mz < tz * 4 + 4; mz++)
-          for (let mx = tx * 4; mx < tx * 4 + 4; mx++) {
-            const mr = { x0: mx * M, z0: mz * M, x1: (mx + 1) * M, z1: (mz + 1) * M };
-            const md = rectDist(mr, cx, cz);
-            all.set(keyOf(1, mx, mz), md);
-            if (md > r.splitMid) {
-              leaves.push(keyOf(1, mx, mz));
-              continue;
-            }
-            for (let nz = mz * 4; nz < mz * 4 + 4; nz++)
-              for (let nx = mx * 4; nx < mx * 4 + 4; nx++) {
-                const nd = rectDist({ x0: nx * Nn, z0: nz * Nn, x1: (nx + 1) * Nn, z1: (nz + 1) * Nn }, cx, cz);
-                all.set(keyOf(0, nx, nz), nd);
-                leaves.push(keyOf(0, nx, nz));
-              }
-          }
+    const visit = (l: number, tx: number, tz: number) => {
+      const s = LEVELS[l].size;
+      const d = rectDist({ x0: tx * s, z0: tz * s, x1: (tx + 1) * s, z1: (tz + 1) * s }, cx, cz);
+      if (l === TOP && d > this.ranges.far) return;
+      all.set(keyOf(l, tx, tz), d);
+      if (d > this.splitAt(l)) {
+        leaves.push(keyOf(l, tx, tz));
+        return;
       }
+      const f = s / LEVELS[l - 1].size;
+      for (let z = tz * f; z < tz * f + f; z++) for (let x = tx * f; x < tx * f + f; x++) visit(l - 1, x, z);
+    };
+    const T = LEVELS[TOP].size;
+    const far = this.ranges.far;
+    for (let tz = Math.floor((cz - far) / T); tz <= Math.floor((cz + far) / T); tz++)
+      for (let tx = Math.floor((cx - far) / T); tx <= Math.floor((cx + far) / T); tx++) visit(TOP, tx, tz);
     return { leaves, all };
   }
 
@@ -335,6 +331,7 @@ export class TerrainStreamer {
       mesh.userData.tile = tile.key;
       mesh.userData.level = tile.level;
       mesh.userData.veg = out.veg;
+      mesh.userData.empty = out.index.length === 0 && !out.water?.length;
       mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false;
       if (out.water?.length) {
@@ -402,13 +399,12 @@ export class TerrainStreamer {
     const leafSet = new Set(leaves);
     const show = new Set<string>();
     const readyMesh = (k: string) => !!this.tiles.get(k)?.mesh;
-    // 遠景タイルごとに決める
-    const farKeys = new Set<string>();
+    // 最遠景タイルごとに決める
+    const topKeys = new Set<string>();
     for (const k of leaves) {
       const [l, tx, tz] = k.split(":").map(Number);
-      const fx = Math.floor(tx / 4 ** (2 - l));
-      const fz = Math.floor(tz / 4 ** (2 - l));
-      farKeys.add(keyOf(2, fx, fz));
+      const f = LEVELS[TOP].size / LEVELS[l].size;
+      topKeys.add(keyOf(TOP, Math.floor(tx / f), Math.floor(tz / f)));
     }
     const cover = (l: number, tx: number, tz: number): string[] | null => {
       const k = keyOf(l, tx, tz);
@@ -416,8 +412,9 @@ export class TerrainStreamer {
       if (l === 0) return null;
       const out: string[] = [];
       let complete = true;
-      for (let z = tz * 4; z < tz * 4 + 4; z++)
-        for (let x = tx * 4; x < tx * 4 + 4; x++) {
+      const f = LEVELS[l].size / LEVELS[l - 1].size;
+      for (let z = tz * f; z < tz * f + f; z++)
+        for (let x = tx * f; x < tx * f + f; x++) {
           const c = cover(l - 1, x, z);
           if (c) out.push(...c);
           else complete = false;
@@ -427,11 +424,12 @@ export class TerrainStreamer {
       // 親もない時は、そろっている子だけを出す（起動直後）
       return out.length ? out : null;
     };
-    for (const fk of farKeys) {
+    for (const fk of topKeys) {
       const [, fx, fz] = fk.split(":").map(Number);
-      cover(2, fx, fz)?.forEach((k) => show.add(k));
+      cover(TOP, fx, fz)?.forEach((k) => show.add(k));
     }
-    for (const t of this.tiles.values()) if (t.mesh) t.mesh.visible = show.has(t.key);
+    // 全部が海面の下のタイル（描く三角形が無い）は出さない
+    for (const t of this.tiles.values()) if (t.mesh) t.mesh.visible = show.has(t.key) && !t.mesh.userData.empty;
     this.visibleKeys = show;
   }
 
@@ -467,7 +465,7 @@ export class TerrainStreamer {
       waitingRoads,
       ready: this.ready.length,
       releasing: this.releaseQueue.length,
-      byLevel: [0, 1, 2].map((l) => [...this.visibleKeys].filter((k) => k.startsWith(`${l}:`)).length),
+      byLevel: LEVELS.map((_, l) => l).map((l) => [...this.visibleKeys].filter((k) => k.startsWith(`${l}:`)).length),
     };
   }
 

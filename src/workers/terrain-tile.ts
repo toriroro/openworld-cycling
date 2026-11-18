@@ -65,6 +65,8 @@ export const WATER_SHEET_LIFT = 0.3;
 /** 路面と同じ高さにする幅（道路端から）と、元の地形へ戻す幅 */
 export const ROAD_FLAT = 4;
 export const ROAD_BLEND = 40;
+/** これより低い頂点は海面の下（海は y=0 の不透明な面。北海道の海底は -1m 以下） */
+export const UNDER_SEA = -0.5;
 /** 町の中（townBlend）の、路面と同じ高さにする幅と戻す幅。歩道（最大 3m）の下までは路面に合わせる */
 const TOWN_FLAT = 3.5;
 const TOWN_BLEND = 6;
@@ -412,9 +414,12 @@ export function buildTile(terrain: TerrainLike, inp: TileInput): TileOutput {
   const triCount = cells * cells * 2 + 4 * cells * 2;
   const index = vCount > 65535 ? new Uint32Array(triCount * 3) : new Uint16Array(triCount * 3);
   let o = 0;
+  // 海面（y=0 の不透明な面）の下に隠れる所は三角形を張らない
+  const under = (v: number) => position[v * 3 + 1] < UNDER_SEA;
   for (let j = 0; j < cells; j++)
     for (let i = 0; i < cells; i++) {
       const a = j * N + i, b = a + 1, c = a + N, d = c + 1;
+      if (under(a) && under(b) && under(c) && under(d)) continue;
       // 対角線の向きを交互にして、縞の模様を減らす
       if ((i + j) & 1) {
         index[o++] = a; index[o++] = c; index[o++] = b;
@@ -431,6 +436,7 @@ export function buildTile(terrain: TerrainLike, inp: TileInput): TileOutput {
     const flip = k === 0 || k === 3;
     for (let i = 0; i < cells; i++) {
       const a = e[i], b = e[i + 1], c = s0 + i, d = s0 + i + 1;
+      if (under(a) && under(b)) continue;
       if (flip) {
         index[o++] = a; index[o++] = b; index[o++] = c;
         index[o++] = b; index[o++] = d; index[o++] = c;
@@ -519,7 +525,7 @@ export function buildTile(terrain: TerrainLike, inp: TileInput): TileOutput {
         if (lakeOrRiver[b] && lakeOrRiver[c] && lakeOrRiver[d]) water.push(...P(i + 1, j), ...P(i, j + 1), ...P(i + 1, j + 1));
       }
   }
-  return { position, normal, color, uv, field, index, minY, maxY: maxY, lowered, veg, water: Float32Array.from(water) };
+  return { position, normal, color, uv, field, index: o === index.length ? index : index.slice(0, o), minY, maxY: maxY, lowered, veg, water: Float32Array.from(water) };
 }
 
 /**

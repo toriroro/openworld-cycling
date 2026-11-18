@@ -38,7 +38,8 @@ for (const [name, world, x, z] of PLACES.filter(([n]) => !only || only.has(n))) 
       // 場面のすぐ下の組の名前 / 物の名前
       let top = o;
       while (top.parent && top.parent.type !== "Scene") top = top.parent;
-      const own = o.name || o.type;
+      // 地形のタイルは段ごとに分ける
+      const own = (o.name || o.type) + (o.name === "terrain" && o.userData.level !== undefined ? `@L${o.userData.level}` : "");
       return top === o ? own : `${top.name || top.type}/${own}`;
     };
     R.renderBufferDirect = (camera, scene, geometry, material, object, group) => {
