@@ -110,6 +110,13 @@ export class RealBuildings {
     };
   }
 
+  /** 描かない建物が変わった時: 次の update で近く・遠くの組を頼み直す */
+  refresh() {
+    this.nearKey = "";
+    this.farKey = "";
+    this.lastT = 0;
+  }
+
   /** 区画の組（中心からの距離が range 以内の区画）。exclude の区画は除く */
   private cellsWithin(cx: number, cz: number, range: number, exclude?: Set<string>): string[] {
     const C = this.cell;

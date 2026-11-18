@@ -2,12 +2,14 @@
 // メインスレッドで作ると 1 フレームに 10〜50ms かかったため。結果は転送できる配列で返す（概要仕様 9.5 #3）。
 
 import { HOKKAIDO_BASE, type HokkaidoBuildings, type HokkaidoSidewalks, type HokkaidoStreets, type HokkaidoTerrain, rectOfCells } from "../shared/world/hokkaido.ts";
-import { buildFar, buildNear, buildStreets } from "../render/city-build.ts";
+import { buildFar, buildNear, buildStreets, withoutExcluded } from "../render/city-build.ts";
 import type { MeshArrays } from "../render/building/mesher.ts";
 import { cityStores, loadHokkaidoTerrain, loadTerrainMeta, pageLoader } from "./hokkaido-load.ts";
 
 export type CityRequest =
   | { type: "init"; base?: string; seed: number }
+  /** 描かない建物（名所の模型で置き換える外形。世界座標の [x, z, ...]） */
+  | { type: "exclude"; polys: number[][] }
   /** walkCells: 幹線の歩道を描く区画（走らない道より狭い範囲） */
   | { type: "near" | "far" | "streets"; id: number; cells: string[]; walkCells?: string[]; ox: number; oz: number };
 
@@ -22,6 +24,7 @@ let streets: HokkaidoStreets | null = null;
 let sidewalks: HokkaidoSidewalks | null = null;
 let terrain: HokkaidoTerrain | null = null;
 let ready: Promise<void> = Promise.resolve();
+let excluded: number[][] = [];
 
 const post = (msg: CityResponse, transfer: Transferable[] = []) => (self as unknown as Worker).postMessage(msg, transfer);
 const buffers = (list: (MeshArrays | null)[]) => list.flatMap((a) => (a ? [a.pos.buffer, a.nor.buffer, a.uv.buffer, a.col.buffer, a.idx.buffer] : []));
@@ -39,11 +42,15 @@ self.onmessage = (ev: MessageEvent<CityRequest>) => {
     });
     return;
   }
+  if (req.type === "exclude") {
+    excluded = req.polys;
+    return;
+  }
   void ready.then(() => prepare(req)).then(() => handle(req));
 };
 
 /** 依頼の区画の頁（建物・道・歩道・地形）を読む（北海道の草案 20 章）。地形の頁は 60 枚（約 15MB）まで持つ */
-async function prepare(req: Exclude<CityRequest, { type: "init" }>) {
+async function prepare(req: Exclude<CityRequest, { type: "init" | "exclude" }>) {
   const cells = [...req.cells, ...(req.walkCells ?? [])];
   if (!cells.length || !terrain) return;
   const r = rectOfCells(cells, 250);
@@ -56,7 +63,7 @@ async function prepare(req: Exclude<CityRequest, { type: "init" }>) {
   ]);
 }
 
-function handle(req: Exclude<CityRequest, { type: "init" }>) {
+function handle(req: Exclude<CityRequest, { type: "init" | "exclude" }>) {
   const t0 = performance.now();
   try {
     if (!terrain) throw new Error("地形を読めていない");
@@ -71,11 +78,12 @@ function handle(req: Exclude<CityRequest, { type: "init" }>) {
       return;
     }
     if (!buildings) throw new Error("建物を読めていない");
-    const list: number[] = [];
+    let list: number[] = [];
     for (const k of req.cells) {
       const c = buildings.index.cells[k];
       if (c) for (let i = c[0]; i < c[0] + c[1]; i++) list.push(i);
     }
+    if (excluded.length) list = withoutExcluded(buildings, list, excluded);
     if (req.type === "near") {
       const r = buildNear(buildings, terrain, list, req.ox, req.oz);
       post({ type: "near", id: req.id, kinds: r.kinds, triangles: r.triangles, buildings: list.length, ms: performance.now() - t0 }, buffers(r.kinds));

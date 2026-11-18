@@ -23,6 +23,8 @@ export interface HudState {
   paused: boolean;
   /** 行き先までの直線距離 (m)。行き先がなければ null */
   goalDistance?: number | null;
+  /** 行き先の名所の名前（名所帳から選んだ時） */
+  goalName?: string | null;
   /** 世界の時刻（時） */
   hour?: number;
   /** 天候の名前 */
@@ -320,7 +322,7 @@ export class Hud {
     this.stats.climb.textContent = String(Math.round(st.climb));
     this.stats.time.textContent = fmtTime(st.time);
     const sky = st.hour !== undefined ? `  ${fmtHour(st.hour)}${st.weather ? ` ${st.weather}` : ""}` : "";
-    this.roadEl.textContent = `${st.roadName}  標高 ${Math.round(st.elevation)} m${sky}${st.goalDistance != null ? `  行き先まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}`;
+    this.roadEl.textContent = `${st.roadName}  標高 ${Math.round(st.elevation)} m${sky}${st.goalDistance != null ? `  ${st.goalName ?? "行き先"}まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}`;
     this.pauseEl.classList.toggle("hidden", !st.paused);
     this.uturnBtn.classList.toggle("hidden", !st.canUTurn);
     this.updateBranch(st.upcoming);

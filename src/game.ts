@@ -29,10 +29,29 @@ import { creditLine } from "./ui/credit.ts";
 import { ControlsHelp, TitleScreen } from "./ui/title.ts";
 import type { Cafe } from "./render/town-layout.ts";
 import { Minimap } from "./ui/minimap.ts";
+import { compass, LandmarkBook } from "./ui/landmark-book.ts";
+import { arrivedAt, isLandmarkStamp, type LandmarkData, landmarkStampId } from "./shared/world/landmarks.ts";
+import { nearestOnNetwork } from "./sim/route-plan.ts";
 import type { RoadClient } from "./workers/road-client.ts";
 
 /** カメラの近い面の既定 (m)。一人称だけ手前にする（camera-rig.ts） */
 const NEAR_DEFAULT = 0.8;
+
+/** 名所の立ち寄りの視点: 回る半径・目の高さ・見る高さ (m) */
+const LANDMARK_VIEW: Record<string, { r: number; eye: number; look: number }> = {
+  tvtower: { r: 150, eye: 30, look: 70 },
+  odori: { r: 120, eye: 40, look: 0 },
+  clocktower: { r: 45, eye: 14, look: 9 },
+  akarenga: { r: 95, eye: 28, look: 12 },
+  hokudai: { r: 70, eye: 20, look: 6 },
+  nakajima: { r: 60, eye: 18, look: 6 },
+  jingu: { r: 70, eye: 24, look: 6 },
+  asahiyama: { r: 60, eye: 20, look: 2 },
+  moiwa: { r: 70, eye: 25, look: 6 },
+  moere: { r: 90, eye: 30, look: 12 },
+  okurayama: { r: 220, eye: 60, look: 40 },
+  hitsujigaoka: { r: 18, eye: 5, look: 4 },
+};
 
 export class Game {
   readonly input = new Input();
@@ -83,7 +102,15 @@ export class Game {
   stampSet = new Set<string>();
   private minimapT = 0;
   /** 喫茶店に立ち寄っている間の店（モック仕様 7.1） */
-  stop: { cafe: Cafe; t0: number } | null = null;
+  /** 立ち寄り中（喫茶店か名所のどちらか） */
+  stop: { cafe: Cafe | null; landmark: LandmarkData | null; t0: number } | null = null;
+  /** 名所帳から選んだ行き先の名所（地図を押して行き先を変えたら null） */
+  goalLandmark: LandmarkData | null = null;
+  /** 直前に立ち寄った名所。150m 離れるまで同じ名所に立ち寄りにしない（"*" は走り始めた所） */
+  private lastLandmark: { id: string; x: number; z: number } | null = null;
+  /** 名所の行き先から一番近い走る道までの距離（山の上の名所で着いたとみなす範囲を広げる） */
+  private landmarkGap = new Map<string, number>();
+  private landmarkBook = new LandmarkBook();
   /** 出発した店（60m 離れるまで、また止まっても立ち寄りにしない） */
   private lastCafe: { id: string; x: number; z: number } | null = null;
   private stopPanel = new StopPanel();
@@ -129,7 +156,10 @@ export class Game {
     // 小地図と世界地図（モック仕様 7.4）
     this.minimap = new Minimap(this.hud.root, () => this.toggleMap());
     this.mapOverlay = new MapOverlay(roads.seed, view.world);
-    this.mapOverlay.onClearGoal = () => this.ride?.setGoal(null);
+    this.mapOverlay.onClearGoal = () => {
+      this.goalLandmark = null;
+      this.ride?.setGoal(null);
+    };
     // 音量と消音
     this.volumeSel = this.hud.addSelect(
       "音量",
@@ -186,6 +216,15 @@ export class Game {
       this.hud.toggleMenu(false);
       this.toggleMap();
     });
+    // 名所帳（北海道の世界。名所の草案）
+    if (view.world.local) {
+      this.landmarkBook.onGoal = (lm) => this.goToLandmark(lm);
+      this.landmarkBook.onStart = (st) => this.startFrom(st);
+      this.hud.addButton("名所帳", () => {
+        this.hud.toggleMenu(false);
+        this.openLandmarkBook();
+      });
+    }
     // 眺める乗り方の設定（モック仕様 7.2）
     this.routeSel = this.hud.addSelect(
       "眺める進路",
@@ -403,6 +442,8 @@ export class Game {
       // 続きから始めた所では、60m 動くまで立ち寄りにしない（店の前で終えた時にもう一度数えないため）
       const p0 = ride.road ? ride.pose() : null;
       if (p0) this.lastCafe = { id: "*", x: p0.x, z: p0.z };
+      // 名所も同じ（走り始めた所が名所のそばでも、150m 動くまで立ち寄りにしない）
+      if (p0) this.lastLandmark = { id: "*", x: p0.x, z: p0.z };
       ride.odometer = res.odometer;
       ride.climb = res.climb;
       ride.time = res.time;
@@ -501,7 +542,11 @@ export class Game {
       player: () => (this.ride?.road ? this.ride.pose() : null),
       goal: () => this.ride?.goal ?? null,
       stamped: () => this.stampSet,
-      onTap: (x, z) => this.ride?.setGoal(x, z),
+      onTap: (x, z) => {
+        this.goalLandmark = null;
+        this.ride?.setGoal(x, z);
+      },
+      landmarks: () => this.landmarkMarks(),
     });
   }
 
@@ -530,6 +575,8 @@ export class Game {
     this.stamps = [];
     this.stampSet = new Set();
     this.lastCafe = null;
+    this.lastLandmark = null;
+    this.goalLandmark = null;
     this.resume = { pos: null, odometer: 0, climb: 0, time: 0, generator: this.view.world.generator };
     this.anchor = { ...this.view.world.origin };
     this.ride = null;
@@ -571,7 +618,7 @@ export class Game {
       this.stamps.push(st);
       this.stampSet.add(c.poi.id);
     }
-    this.stop = { cafe: c, t0: t };
+    this.stop = { cafe: c, landmark: null, t0: t };
     this.lastCafe = { id: c.poi.id, x: c.roadX, z: c.roadZ };
     this.hud.toggleMenu(false);
     this.hud.root.classList.add("hidden");
@@ -579,9 +626,110 @@ export class Game {
     void this.save();
   }
 
+  /** 名所帳を開く: 今いる所からの距離と方角、行ったかどうか */
+  openLandmarkBook() {
+    const list = this.view.landmarks?.list ?? [];
+    const p = this.ride?.road ? this.ride.pose() : this.anchor;
+    const goal = this.ride?.goal;
+    this.landmarkBook.open(
+      list.map((lm) => ({
+        lm,
+        distance: Math.hypot(lm.x - p.x, lm.z - p.z),
+        dir: compass(lm.x - p.x, lm.z - p.z),
+        stamp: this.stamps.find((st) => st.poi === landmarkStampId(lm.id)) ?? null,
+        goal: !!goal && this.goalLandmark === lm && goal.x === lm.x && goal.z === lm.z,
+      })),
+    );
+  }
+
+  /** 名所を行き先にする（経路は地図で選んだ行き先と同じに探す） */
+  goToLandmark(lm: LandmarkData): boolean {
+    this.goalLandmark = lm;
+    return this.ride?.setGoal(lm.x, lm.z) ?? false;
+  }
+
+  /** 地図・小地図に出す名所の印 */
+  private landmarkMarks() {
+    const list = this.view.landmarks?.list ?? [];
+    const goal = this.ride?.goal;
+    return list.map((lm) => ({ x: lm.x, z: lm.z, name: lm.name, visited: this.stampSet.has(landmarkStampId(lm.id)), goal: !!goal && goal.x === lm.x && goal.z === lm.z }));
+  }
+
+  /** 止まった所が名所の区域のそば（名所の草案）なら、名所の立ち寄りにする */
+  private checkLandmark(t: number) {
+    const ride = this.ride;
+    const list = this.view.landmarks?.list;
+    if (!ride?.road || this.stop || !list) return;
+    const p = ride.pose();
+    const ll = this.lastLandmark;
+    if (ll && Math.hypot(ll.x - p.x, ll.z - p.z) > 150) this.lastLandmark = null;
+    if (ride.speed > 0.3 || this.lastLandmark?.id === "*") return;
+    // 着いた名所が 2 つ以上なら、行き先の名所、無ければ行き先の点が近い方
+    let best: LandmarkData | null = null;
+    let bestD = Infinity;
+    for (const lm of list) {
+      if (this.lastLandmark?.id === landmarkStampId(lm.id)) continue;
+      if (Math.abs(lm.x - p.x) > 3000 || Math.abs(lm.z - p.z) > 3000) continue;
+      let gap = this.landmarkGap.get(lm.id);
+      if (gap === undefined) {
+        gap = nearestOnNetwork(this.roads.net, lm.x, lm.z)?.d ?? 0;
+        this.landmarkGap.set(lm.id, gap);
+      }
+      if (!arrivedAt(lm, p.x, p.z, gap)) continue;
+      const d = lm === this.goalLandmark ? -1 : Math.hypot(lm.x - p.x, lm.z - p.z);
+      if (d < bestD) {
+        best = lm;
+        bestD = d;
+      }
+    }
+    if (best) this.arriveLandmark(best, t);
+  }
+
+  private arriveLandmark(lm: LandmarkData, t: number) {
+    const ride = this.ride!;
+    const p = ride.pose();
+    const id = landmarkStampId(lm.id);
+    let st = this.stamps.find((x) => x.poi === id);
+    if (st) st.visits++;
+    else {
+      st = {
+        poi: id,
+        name: lm.name,
+        date: new Date().toLocaleDateString("sv-SE"),
+        visits: 1,
+        x: p.x,
+        z: p.z,
+        elevation: p.y,
+        road: ride.pos.road,
+        s: ride.pos.s,
+      };
+      this.stamps.push(st);
+      this.stampSet.add(id);
+    }
+    if (this.goalLandmark === lm) {
+      this.goalLandmark = null;
+      ride.setGoal(null);
+    }
+    this.stop = { cafe: null, landmark: lm, t0: t };
+    this.lastLandmark = { id, x: p.x, z: p.z };
+    this.hud.toggleMenu(false);
+    this.hud.root.classList.add("hidden");
+    const all = this.view.landmarks?.list.length ?? 0;
+    const done = this.stamps.filter((x) => isLandmarkStamp(x.poi)).length;
+    this.stopPanel.show(st, this.stamps.length, { done, all });
+    void this.save();
+  }
+
   /** 「出発」: 走行に戻る */
   depart() {
     if (!this.stop) return;
+    // 名所を出たら、150m 走るまでほかの名所にも立ち寄りにしない（隣り合う名所: テレビ塔と大通公園など）
+    const lm = this.stop.landmark;
+    const ride = this.ride;
+    if (lm && ride?.road) {
+      const p = ride.pose();
+      this.lastLandmark = { id: "*", x: p.x, z: p.z };
+    }
     this.stop = null;
     this.stopPanel.hide();
     this.hud.root.classList.remove("hidden");
@@ -600,6 +748,7 @@ export class Game {
       generator: this.view.world.generator,
     };
     this.lastCafe = { id: st.poi, x: st.x, z: st.z };
+    this.lastLandmark = isLandmarkStamp(st.poi) ? { id: st.poi, x: st.x, z: st.z } : null;
     this.anchor = { x: st.x, z: st.z };
     this.ride = null;
     this.smoothEye = null;
@@ -693,6 +842,7 @@ export class Game {
     if (!this.ride) this.place();
     this.updateWatching(t);
     this.checkCafe(t);
+    this.checkLandmark(t);
     this.sound.update({
       speed: this.ride?.speed ?? 0,
       surface: this.ride?.road?.surface ?? "paved",
@@ -753,7 +903,21 @@ export class Game {
     }
     // 立ち寄り中は店の外観を回る視点
     const st = this.stop;
-    if (st) {
+    const sl = st?.landmark;
+    if (st && sl) {
+      // 名所の立ち寄り: 名所の周りをゆっくり回って見上げる
+      const v = LANDMARK_VIEW[sl.kind] ?? { r: 70, eye: 25, look: 8 };
+      const g = this.view.heights.height(sl.x, sl.z);
+      const a = (t - st.t0) / 14000 + 0.6;
+      const ex = sl.x + Math.cos(a) * v.r;
+      const ez = sl.z + Math.sin(a) * v.r;
+      eye = { x: ex, y: Math.max(g + v.eye, this.view.surfaceHeight(ex, ez) + 4), z: ez };
+      target = { x: sl.x, y: g + v.look, z: sl.z };
+      fov = 55;
+      this.view.nearPlane = NEAR_DEFAULT;
+      this.smoothEye = null;
+    }
+    if (st?.cafe) {
       const c = st.cafe;
       // 店の正面（道路側）を中心に左右へゆっくり回る
       const a = Math.atan2(c.fz, c.fx) + Math.sin((t - st.t0) / 9000) * 1.1;
@@ -811,14 +975,16 @@ export class Game {
     const pose = road ? ride.pose() : null;
     const goal = ride.goal;
     const goalDistance = goal && pose ? Math.hypot(goal.x - pose.x, goal.z - pose.z) : null;
+    const gl = this.goalLandmark;
+    const goalName = gl && goal && goal.x === gl.x && goal.z === gl.z ? gl.name : null;
     // 小地図（10 回／秒）と世界地図の表示
     if (pose && t - this.minimapT > 100) {
       this.minimapT = t;
-      this.minimap.draw({ roads: this.roads.roadEntries(), pois: this.roads.pois.values(), ridden: this.ridden, stamped: this.stampSet, x: pose.x, z: pose.z, dx: pose.dx, dz: pose.dz, goal });
+      this.minimap.draw({ roads: this.roads.roadEntries(), pois: this.roads.pois.values(), ridden: this.ridden, stamped: this.stampSet, x: pose.x, z: pose.z, dx: pose.dx, dz: pose.dz, goal, landmarks: this.landmarkMarks() });
     }
     if (this.mapOverlay.isOpen)
       this.mapOverlay.setInfo(
-        goalDistance !== null ? `行き先まで 直線 ${(goalDistance / 1000).toFixed(1)} km${ride.plan ? "" : "（経路を探索中）"}` : ride.goalReached ? "行き先に着いた" : "地図を押すと行き先を指定",
+        goalDistance !== null ? `${goalName ?? "行き先"}まで 直線 ${(goalDistance / 1000).toFixed(1)} km${ride.plan ? "" : "（経路を探索中）"}` : ride.goalReached ? "行き先に着いた" : "地図を押すと行き先を指定",
         !!goal,
       );
     this.hud.update({
@@ -836,6 +1002,7 @@ export class Game {
       watching: this.watching,
       paused: this.paused,
       goalDistance,
+      goalName,
       hour: this.view.env.hour,
       weather: WEATHER_LABELS[this.weatherNow.kind],
     });

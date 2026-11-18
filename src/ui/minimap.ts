@@ -3,6 +3,7 @@
 
 import type { Poi, Road } from "../shared/world/types.ts";
 import type { RiddenLog } from "../sim/ridden.ts";
+import { drawLandmark } from "./world-map.ts";
 
 const RIDDEN = "#ff8a1f";
 const ROAD = "rgba(245,245,240,0.85)";
@@ -18,6 +19,8 @@ export interface MinimapInput {
   dx: number;
   dz: number;
   goal: { x: number; z: number } | null;
+  /** 名所の印（円の中だけ描く） */
+  landmarks?: { x: number; z: number; visited: boolean; goal: boolean }[];
 }
 
 export class Minimap {
@@ -127,6 +130,12 @@ export class Minimap {
       const h = 5 * dpr;
       ctx.fillRect(sx - h, sy - h, h * 2, h * 2);
       ctx.strokeRect(sx - h, sy - h, h * 2, h * 2);
+    }
+    // 名所
+    for (const lm of m.landmarks ?? []) {
+      const [sx, sy] = toScreen(lm.x, lm.z);
+      if ((sx - R) ** 2 + (sy - R) ** 2 > (R - 6 * dpr) ** 2) continue;
+      drawLandmark(ctx, sx, sy, lm.visited, lm.goal, dpr * 0.8);
     }
     ctx.restore();
     // 行き先: 円の中なら印、外なら縁に向きの印

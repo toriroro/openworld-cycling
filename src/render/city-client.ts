@@ -4,7 +4,7 @@
 
 import type { HokkaidoBuildings, HokkaidoStreets, HokkaidoTerrain } from "../shared/world/hokkaido.ts";
 import type { CityRequest, CityResponse } from "../workers/city.worker.ts";
-import { buildFar, buildNear, buildStreets } from "./city-build.ts";
+import { buildFar, buildNear, buildStreets, withoutExcluded } from "./city-build.ts";
 
 type Kind = "near" | "far" | "streets";
 export type CityResult<K extends Kind> = Extract<CityResponse, { type: K }>;
@@ -43,6 +43,13 @@ export class CityClient {
       this.workerError = String(e);
       this.worker = null;
     }
+  }
+
+  /** 描かない建物（名所の模型で置き換える外形）。次に頼む組から効く */
+  private excluded: number[][] = [];
+  setExcluded(polys: number[][]) {
+    this.excluded = polys;
+    this.worker?.postMessage({ type: "exclude", polys } satisfies CityRequest);
   }
 
   /** 種類ごとの受け取り口 */
@@ -86,11 +93,12 @@ export class CityClient {
       const r = buildStreets(streets!, terrain, pieces, ox, oz);
       return { type: "streets", id, ...r, pieces: pieces.length, ms: performance.now() - t0 };
     }
-    const list: number[] = [];
+    let list: number[] = [];
     for (const k of cells) {
       const c = buildings?.index.cells[k];
       if (c) for (let i = c[0]; i < c[0] + c[1]; i++) list.push(i);
     }
+    if (this.excluded.length && buildings) list = withoutExcluded(buildings, list, this.excluded);
     if (kind === "near") return { type: "near", id, ...buildNear(buildings!, terrain, list, ox, oz), buildings: list.length, ms: performance.now() - t0 };
     return { type: "far", id, ...buildFar(buildings!, terrain, list, ox, oz), buildings: list.length, ms: performance.now() - t0 };
   }

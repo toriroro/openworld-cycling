@@ -17,6 +17,8 @@ import { TrafficView } from "./traffic/traffic-view.ts";
 import { RealBuildings } from "./real-buildings.ts";
 import { RealStreets } from "./real-streets.ts";
 import { CityClient } from "./city-client.ts";
+import { LandmarkView } from "./landmarks/landmark-view.ts";
+import { loadLandmarks } from "../workers/hokkaido-load.ts";
 
 export type Quality = "standard" | "light";
 
@@ -44,6 +46,8 @@ export class WorldView {
   readonly realBuildings: RealBuildings | null = null;
   /** 北海道の世界の走らない道（見た目だけ。無ければ null） */
   readonly realStreets: RealStreets | null = null;
+  /** 北海道の世界の名所の模型（読めるまで null。名所の草案） */
+  landmarks: LandmarkView | null = null;
   /** 車とバス停（sim/traffic を読んで描く） */
   readonly trafficView = new TrafficView();
   private pruneT = 0;
@@ -144,6 +148,22 @@ export class WorldView {
       this.towns.extraLots = (r) => rb.lotsIn(r);
       this.scene.add(rb.group);
     }
+    const local = this.world.local;
+    if (local)
+      void loadLandmarks(this.world.base).then((file) => {
+        if (!file) return;
+        const lv = new LandmarkView(file, local, this.heights, { geometry: this.districts.treeGeometry, material: this.districts.treeMaterial });
+        lv.setQuality(this.quality === "light");
+        lv.setOrigin(this.originX, this.originZ);
+        this.materials.push(...lv.materials);
+        this.landmarks = lv;
+        this.scene.add(lv.group);
+        // 模型で置き換える OSM の建物を描かない
+        if (city && this.realBuildings) {
+          city.setExcluded(lv.replacedOutlines());
+          this.realBuildings.refresh();
+        }
+      });
     this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group, this.districts.group, this.trafficView.group);
     this.setQuality(matchMedia("(pointer: coarse)").matches ? "light" : "standard");
   }
@@ -164,6 +184,7 @@ export class WorldView {
     this.trafficView?.setQuality(light);
     this.realBuildings?.setQuality(light);
     this.realStreets?.setQuality(light);
+    this.landmarks?.setQuality(light);
     this.roadMeshes.range = light ? 900 : 1600;
     const far = this.terrain.ranges.far;
     this.env.setFar(far);
@@ -194,6 +215,7 @@ export class WorldView {
       this.districts.setOrigin(this.originX, this.originZ);
       this.realBuildings?.setOrigin(this.originX, this.originZ);
       this.realStreets?.setOrigin(this.originX, this.originZ);
+      this.landmarks?.setOrigin(this.originX, this.originZ);
       this.rebases++;
     }
     this.camera.position.set(eye.x - this.originX, eye.y, eye.z - this.originZ);
@@ -212,6 +234,7 @@ export class WorldView {
     this.districts.update(eye.x, eye.z);
     this.realBuildings?.update(eye.x, eye.z);
     this.realStreets?.update(eye.x, eye.z);
+    this.landmarks?.update(eye.x, eye.z);
     // 遠くの町の配置を忘れる（道路の保持範囲 10km より少し広く）
     const now = performance.now();
     if (now - this.pruneT > 5000) {
@@ -276,7 +299,7 @@ export class WorldView {
   }
 
   settled(): boolean {
-    return this.pagesPending === 0 && this.roads.pending === 0 && this.terrain.settled() && this.roadMeshes.pendingBuild === 0 && (this.realBuildings?.pending ?? 0) === 0 && (this.realStreets?.pending ?? 0) === 0;
+    return this.pagesPending === 0 && this.roads.pending === 0 && this.terrain.settled() && this.roadMeshes.pendingBuild === 0 && (this.realBuildings?.pending ?? 0) === 0 && (this.realStreets?.pending ?? 0) === 0 && (this.landmarks?.pending ?? 0) === 0;
   }
 
   stats() {
@@ -296,6 +319,7 @@ export class WorldView {
       traffic: { ...this.trafficView.stats },
       realBuildings: this.realBuildings?.stats() ?? null,
       realStreets: this.realStreets ? { ...this.realStreets.stats } : null,
+      landmarks: this.landmarks ? { ...this.landmarks.stats } : null,
       roads: this.roadMeshes.stats(),
       roadsLoaded: this.roads.net.roads.size,
       roadBlocksPending: this.roads.pending,

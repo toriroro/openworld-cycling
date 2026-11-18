@@ -27,7 +27,8 @@ export class StopPanel {
     b.addEventListener("click", () => this.onDepart());
   }
 
-  show(stamp: Stamp, total: number) {
+  /** landmarks: 名所の立ち寄りの時の、行った名所の数と全部の数 */
+  show(stamp: Stamp, total: number, landmarks?: { done: number; all: number }) {
     this.nameEl.textContent = stamp.name;
     this.rows.replaceChildren();
     const row = (k: string, v: string) => {
@@ -37,7 +38,8 @@ export class StopPanel {
     row("標高", `${Math.round(stamp.elevation)} m`);
     row("初めて来た日", stamp.date);
     row("来た回数", `${stamp.visits} 回`);
-    row("スタンプ", `${total} 個`);
+    if (landmarks) row("名所", `${landmarks.done} / ${landmarks.all}`);
+    else row("スタンプ", `${total} 個`);
     this.root.classList.remove("hidden");
   }
 

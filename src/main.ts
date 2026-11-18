@@ -129,10 +129,19 @@ if (q.get("mode") === "m2" && devTools) {
       return game.sound.stats();
     },
     stopInfo() {
-      return { stop: game.stop ? game.stop.cafe.poi.id : null, stamps: game.stamps.map((st) => ({ ...st })) };
+      return { stop: game.stop ? (game.stop.cafe?.poi.id ?? `landmark:${game.stop.landmark?.id}`) : null, stamps: game.stamps.map((st) => ({ ...st })) };
     },
     depart() {
       game.depart();
+    },
+    /** 名所の一覧（今いる所からの直線距離つき）と、名所を行き先にする（名所の草案） */
+    landmarks() {
+      const p = game.ride?.road ? game.ride.pose() : { x: 0, z: 0 };
+      return (view.landmarks?.list ?? []).map((lm) => ({ id: lm.id, name: lm.name, x: lm.x, z: lm.z, d: Math.hypot(lm.x - p.x, lm.z - p.z) }));
+    },
+    goToLandmark(id: string) {
+      const lm = view.landmarks?.list.find((l) => l.id === id);
+      return lm ? game.goToLandmark(lm) : false;
     },
     cafes(range = 20000) {
       const p = game.ride?.road ? game.ride.pose() : { x: 0, z: 0 };

@@ -1,0 +1,60 @@
+{
+  "quality": "standard",
+  "shots": {
+    "tvtower": {
+      "cam": {
+        "e": {
+          "x": 380,
+          "y": 61.6,
+          "z": 120
+        },
+        "t": {
+          "x": 522,
+          "y": 81.956,
+          "z": -126
+        },
+        "fov": 55
+      },
+      "triangles": 1766810,
+      "calls": 296,
+      "landmarks": null
+    },
+    "odori": {
+      "cam": {
+        "e": {
+          "x": -60,
+          "y": 90.8,
+          "z": 220
+        },
+        "t": {
+          "x": -300,
+          "y": 19.6,
+          "z": 30
+        },
+        "fov": 55
+      },
+      "triangles": 1707489,
+      "calls": 280,
+      "landmarks": null
+    },
+    "hokudai": {
+      "cam": {
+        "e": {
+          "x": -560,
+          "y": 75.1,
+          "z": -1300
+        },
+        "t": {
+          "x": -470,
+          "y": 14.5,
+          "z": -1700
+        },
+        "fov": 55
+      },
+      "triangles": 1070521,
+      "calls": 220,
+      "landmarks": null
+    }
+  },
+  "errors": []
+}

@@ -12,6 +12,7 @@ import {
   HokkaidoTerrain,
   HokkaidoWorld,
 } from "../shared/world/hokkaido.ts";
+import type { LandmarkFile } from "../shared/world/landmarks.ts";
 
 /** 建物・走らない道・歩道の区画の一辺 (m)（scripts/hokkaido/build.ts と同じ） */
 const CITY_CELL = 250;
@@ -20,6 +21,19 @@ async function get(base: string, name: string): Promise<Response> {
   const res = await fetch(base + name);
   if (!res.ok) throw new Error(`${base}${name} ${res.status}`);
   return res;
+}
+
+/**
+ * 名所（scripts/hokkaido/landmarks.ts の出力。名所の草案）。範囲のフォルダ（build.ts が作り直す時に消す）の外の
+ * landmarks-<範囲>.json を読む。無ければ null（名所なしで走れる）
+ */
+export async function loadLandmarks(base: string): Promise<LandmarkFile | null> {
+  const m = /([^/]+)\/$/.exec(base);
+  if (!m) return null;
+  const res = await fetch(`${base}../landmarks-${m[1]}.json`);
+  if (!res.ok) return null;
+  const file = (await res.json()) as LandmarkFile;
+  return file.version === 1 ? file : null;
 }
 
 /** 頁を読む関数（無い頁は null） */

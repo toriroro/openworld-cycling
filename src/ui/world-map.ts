@@ -53,6 +53,8 @@ export interface GameMapLayer {
   stamped: () => Set<string>;
   /** 地図を押した所（世界座標） */
   onTap: (x: number, z: number) => void;
+  /** 名所の印（北海道の世界。名所の草案） */
+  landmarks?: () => { x: number; z: number; name: string; visited: boolean; goal: boolean }[];
 }
 
 export interface MapStatus {
@@ -720,6 +722,14 @@ export class WorldMap {
       }
     }
 
+    // 名所（どの縮尺でも出す。行った名所は塗る）
+    for (const lm of this.opts.game?.landmarks?.() ?? []) {
+      if (lm.x < v.x0 || lm.x > v.x1 || lm.z < v.z0 || lm.z > v.z1) continue;
+      const [sx, sy] = toScreen(lm.x, lm.z);
+      drawLandmark(ctx, sx, sy, lm.visited, lm.goal, 1);
+      if (this.mpp <= 40) label(ctx, lm.name, sx + 10, sy + 4, 12, "#1b1b1b");
+    }
+
     // 結節点
     for (const n of this.nodes.values()) {
       if (n.x < v.x0 || n.x > v.x1 || n.z < v.z0 || n.z > v.z1) continue;
@@ -877,6 +887,23 @@ function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number
 }
 
 export const POI_COLORS = { cafe: "#8a4b16", pass: "#3b2f8f", viewpoint: "#0a7f86" } as const;
+
+/** 名所の印: 星（行った名所は金色、まだは白、行き先は水色の縁） */
+export function drawLandmark(ctx: CanvasRenderingContext2D, x: number, y: number, visited: boolean, goal: boolean, k: number) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const r = (i % 2 ? 3.6 : 8.5) * k;
+    if (i === 0) ctx.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    else ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+  }
+  ctx.closePath();
+  ctx.fillStyle = visited ? "#f2b632" : "#ffffff";
+  ctx.fill();
+  ctx.lineWidth = (goal ? 2.6 : 1.6) * k;
+  ctx.strokeStyle = goal ? "#2fd0ff" : "#7a4a00";
+  ctx.stroke();
+}
 
 export function drawPoi(ctx: CanvasRenderingContext2D, kind: Poi["kind"], x: number, y: number) {
   ctx.lineWidth = 1.5;

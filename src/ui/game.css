@@ -485,6 +485,17 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 
+/* 名所帳（名所の草案）: スタンプ帳と同じ形に、ボタンを 2 つまで */
+.landmark-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.landmark-book .stamp-item.visited .stamp-name::before {
+  content: "★ ";
+  color: #f2b632;
+}
+
 /* 起動画面と操作の説明 */
 .title-screen {
   position: fixed;

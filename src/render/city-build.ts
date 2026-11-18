@@ -1,6 +1,7 @@
 // 北海道の世界の建物・敷地・走らない道の形を作る（北海道の草案 16・17 章）。DOM・Three.js を使わない（city.worker.ts で動かす）。
 // 出来るのは型付きの配列（MeshArrays）だけ。メインスレッドがそれを描画の形にする（real-buildings.ts・real-streets.ts）。
 
+import { insidePolygon } from "../shared/world/landmarks.ts";
 import { BUILDING_REC, BUILDING_ROOFS, BUILDING_STYLES, type HokkaidoBuildings, type HokkaidoSidewalks, type HokkaidoStreets } from "../shared/world/hokkaido.ts";
 import type { TerrainLike } from "../shared/world/terrain.ts";
 import { atlasLayout } from "./building/atlas-layout.ts";
@@ -162,6 +163,25 @@ function box(m: Mesher, data: HokkaidoBuildings, k: number, ox: number, oz: numb
 let layout: ReturnType<typeof atlasLayout> | null = null;
 
 /** 近くの建物（細部まで）と敷地。材質ごとの配列（BUILDING_KINDS の順） */
+/** 外形（世界座標の [x, z, ...]）の中に中心がある建物を除く（名所の模型で置き換える建物。名所の草案） */
+export function withoutExcluded(data: HokkaidoBuildings, list: number[], polys: number[][]): number[] {
+  const D = data.data;
+  const boxes = polys.map((p) => {
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (let i = 0; i < p.length; i += 2) {
+      x0 = Math.min(x0, p[i]);
+      x1 = Math.max(x1, p[i]);
+      z0 = Math.min(z0, p[i + 1]);
+      z1 = Math.max(z1, p[i + 1]);
+    }
+    return { p, x0, z0, x1, z1 };
+  });
+  return list.filter((k) => {
+    const x = D[k * BUILDING_REC], z = D[k * BUILDING_REC + 1];
+    return !boxes.some((b) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && insidePolygon(b.p, x, z));
+  });
+}
+
 export function buildNear(data: HokkaidoBuildings, heights: TerrainLike, list: number[], ox: number, oz: number): { kinds: (MeshArrays | null)[]; triangles: number } {
   layout ??= atlasLayout();
   const out = Object.fromEntries(BUILDING_KINDS.map((k) => [k, new Mesher()])) as Out;

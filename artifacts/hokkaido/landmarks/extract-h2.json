@@ -1,0 +1,224 @@
+{
+  "out": "public/data/hokkaido/landmarks-h2.json",
+  "bytes": 458718,
+  "seconds": 19.8,
+  "landmarks": {
+    "tvtower": {
+      "goal": [
+        525,
+        -124
+      ],
+      "zonePoints": 4,
+      "replaced": 1,
+      "counts": {
+        "viewpoint": 1,
+        "lamp": 2,
+        "tree": 2,
+        "building": 4,
+        "path": 9,
+        "row": 1
+      },
+      "nearestRoad": 40
+    },
+    "odori": {
+      "goal": [
+        160,
+        -52
+      ],
+      "zonePoints": 26,
+      "replaced": 0,
+      "counts": {
+        "viewpoint": 1,
+        "lamp": 4,
+        "statue": 6,
+        "tree": 48,
+        "building": 22,
+        "path": 247,
+        "grass": 5,
+        "wood": 8,
+        "fountain": 7,
+        "garden": 12,
+        "row": 21
+      },
+      "nearestRoad": 12
+    },
+    "clocktower": {
+      "goal": [
+        293,
+        -285
+      ],
+      "zonePoints": 16,
+      "replaced": 1,
+      "counts": {
+        "tree": 22,
+        "lamp": 9,
+        "building": 1,
+        "path": 10,
+        "garden": 2
+      },
+      "nearestRoad": 29
+    },
+    "akarenga": {
+      "goal": [
+        -159,
+        -439
+      ],
+      "zonePoints": 18,
+      "replaced": 1,
+      "counts": {
+        "statue": 1,
+        "tree": 37,
+        "building": 4,
+        "garden": 8,
+        "path": 7,
+        "grass": 9,
+        "water": 2,
+        "wood": 2
+      },
+      "nearestRoad": 125
+    },
+    "hokudai": {
+      "goal": [
+        -304,
+        -1191
+      ],
+      "zonePoints": 74,
+      "replaced": 0,
+      "counts": {
+        "statue": 2,
+        "gate": 6,
+        "tree": 97,
+        "viewpoint": 1,
+        "building": 426,
+        "path": 234,
+        "water": 2,
+        "grass": 56,
+        "wood": 13,
+        "row": 9,
+        "fountain": 2,
+        "garden": 2
+      },
+      "nearestRoad": 109
+    },
+    "nakajima": {
+      "goal": [
+        209,
+        1529
+      ],
+      "zonePoints": 72,
+      "replaced": 1,
+      "counts": {
+        "statue": 3,
+        "tree": 332,
+        "lamp": 50,
+        "building": 56,
+        "wood": 21,
+        "path": 268,
+        "torii": 3,
+        "grass": 15,
+        "water": 8
+      },
+      "nearestRoad": 106
+    },
+    "jingu": {
+      "goal": [
+        -3411,
+        488
+      ],
+      "zonePoints": 53,
+      "replaced": 51,
+      "counts": {
+        "lamp": 86,
+        "tree": 42,
+        "torii": 9,
+        "path": 117,
+        "building": 58,
+        "wood": 25,
+        "water": 1,
+        "grass": 3
+      },
+      "nearestRoad": 68
+    },
+    "asahiyama": {
+      "goal": [
+        -2976,
+        2352
+      ],
+      "zonePoints": 43,
+      "replaced": 2,
+      "counts": {
+        "viewpoint": 1,
+        "path": 105,
+        "building": 24,
+        "fountain": 1
+      },
+      "nearestRoad": 89
+    },
+    "moiwa": {
+      "goal": [
+        -2250,
+        4197
+      ],
+      "zonePoints": 16,
+      "replaced": 1,
+      "counts": {
+        "peak": 1,
+        "viewpoint": 1,
+        "building": 3,
+        "path": 13
+      },
+      "nearestRoad": 191
+    },
+    "moere": {
+      "goal": [
+        6577,
+        -6952
+      ],
+      "zonePoints": 88,
+      "replaced": 3,
+      "counts": {
+        "peak": 2,
+        "water": 6,
+        "path": 114,
+        "building": 60,
+        "grass": 22,
+        "fountain": 1,
+        "wood": 35
+      },
+      "nearestRoad": 554
+    },
+    "okurayama": {
+      "goal": [
+        -4994,
+        972
+      ],
+      "zonePoints": 27,
+      "replaced": 1,
+      "counts": {
+        "station": 2,
+        "takeoff": 1,
+        "building": 7,
+        "skijump": 3,
+        "lift": 1,
+        "path": 5,
+        "wood": 1
+      },
+      "nearestRoad": 218
+    },
+    "hitsujigaoka": {
+      "goal": [
+        3655,
+        6751
+      ],
+      "zonePoints": 33,
+      "replaced": 0,
+      "counts": {
+        "statue": 1,
+        "viewpoint": 1,
+        "building": 8,
+        "path": 1
+      },
+      "nearestRoad": 455
+    }
+  }
+}
