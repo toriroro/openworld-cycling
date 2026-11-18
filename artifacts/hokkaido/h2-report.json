@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-11-18T06:24:16.105Z",
+  "builtAt": "2026-11-18T13:43:41.986Z",
   "area": {
     "x0": -30000,
     "x1": 30000,
@@ -273,13 +273,13 @@
     "withLevels": 11434
   },
   "streets": {
-    "ways": 160743,
+    "ways": 161717,
     "km": [
       14257.5,
-      7202.5
+      7217.3
     ],
-    "pieces": 242679,
-    "clippedPoints": 1003861
+    "pieces": 243596,
+    "clippedPoints": 1004696
   },
   "sidewalks": {
     "km": 2868,
@@ -297,7 +297,7 @@
     "terrainPages": 900,
     "buildingsMB": 45.4,
     "buildingPages": 565,
-    "streetsMB": 9.4,
+    "streetsMB": 9.5,
     "sidewalksMB": 18.4,
     "roadsMB": 36.6,
     "worldJsonMB": 6.6

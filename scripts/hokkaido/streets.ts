@@ -28,6 +28,8 @@ function streetSpec(t: Tags): { kind: number; width: number } | null {
     case "footway":
     case "path":
     case "cycleway":
+    // 階段も小道として描く（坂の小道は、踊り場の footway と階段の steps が交互に並ぶことが多く、steps を除くと点線に見えた。旭山記念公園など）
+    case "steps":
       // 歩道橋は描かない（走る道の上に重なる）
       if (t.bridge && t.bridge !== "no") return null;
       return { kind: 1, width: t.footway === "sidewalk" ? 2 : 1.6 };
