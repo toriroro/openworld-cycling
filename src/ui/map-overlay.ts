@@ -1,5 +1,5 @@
 // ゲーム内の世界地図（モック仕様 7.4）。M1 の 2D 地図に、走った道・現在地・行き先・立ち寄った店を重ねる。
-// 地図を押すと行き先を指定する。開いている間だけ地図用の Worker を動かす。
+// 地図を押すと行き先を指定する。「ワープ」を押してから地図を押すと、押した所の近くの走る道へ移る。開いている間だけ地図用の Worker を動かす。
 
 import type { WorldChoice } from "../world-choice.ts";
 import { creditLine } from "./credit.ts";
@@ -18,6 +18,9 @@ export class MapOverlay {
   private canvas: HTMLCanvasElement;
   private info: HTMLElement;
   private clearBtn: HTMLButtonElement;
+  private warpBtn: HTMLButtonElement;
+  /** 次に地図を押した所へワープする（地図を閉じると戻る） */
+  warping = false;
   map: WorldMap | null = null;
   onClose: () => void = () => {};
   onClearGoal: () => void = () => {};
@@ -36,6 +39,10 @@ export class MapOverlay {
     this.clearBtn = h("button", "btn", "行き先を消す", bar);
     this.clearBtn.type = "button";
     this.clearBtn.addEventListener("click", () => this.onClearGoal());
+    this.warpBtn = h("button", "btn", "ワープ", bar);
+    this.warpBtn.type = "button";
+    this.warpBtn.setAttribute("aria-pressed", "false");
+    this.warpBtn.addEventListener("click", () => this.setWarping(!this.warping));
     const zin = h("button", "btn", "＋", bar);
     zin.type = "button";
     zin.setAttribute("aria-label", "拡大");
@@ -63,6 +70,7 @@ export class MapOverlay {
     if (!this.map) return;
     this.map.destroy();
     this.map = null;
+    this.setWarping(false);
     this.root.classList.add("hidden");
     this.onClose();
   }
@@ -72,8 +80,15 @@ export class MapOverlay {
     if (m) m.setView(m.cx, m.cz, m.mpp * f);
   }
 
-  /** 行き先までの直線距離と、行き先があるか */
+  setWarping(on: boolean) {
+    this.warping = on;
+    this.warpBtn.classList.toggle("active", on);
+    this.warpBtn.setAttribute("aria-pressed", String(on));
+  }
+
+  /** 行き先までの直線距離と、行き先があるか（ワープの間はワープの操作を出す） */
   setInfo(text: string, hasGoal: boolean) {
+    if (this.warping) text = "地図を押すと、その近くの走る道へワープ";
     if (this.info.textContent !== text) this.info.textContent = text;
     this.clearBtn.disabled = !hasGoal;
   }

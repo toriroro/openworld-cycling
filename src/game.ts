@@ -87,6 +87,8 @@ export class Game {
   /** 保存データを読み終えた（読み終えるまで道路に乗せない） */
   private loaded = false;
   /** 続きから始める位置と記録 */
+  /** ワープで引き継ぐ行き先（次に走り始めた時に探し直す） */
+  private carryGoal: { x: number; z: number } | null = null;
   private resume: { pos: SaveData["pos"]; odometer: number; climb: number; time: number; generator: number } | null = null;
   private saveT = 0;
   /** 最後に保存した時刻（確認用） */
@@ -451,6 +453,10 @@ export class Game {
     }
     this.ride = ride;
     this.skySnap = true;
+    // ワープの前の行き先を、移った所から探し直す
+    const g = this.carryGoal;
+    this.carryGoal = null;
+    if (g) ride.setGoal(g.x, g.z);
   }
 
   /**
@@ -530,7 +536,7 @@ export class Game {
     }
   }
 
-  /** 世界地図を開く・閉じる。地図を押すと行き先になる */
+  /** 世界地図を開く・閉じる。地図を押すと行き先になる（「ワープ」の間は、押した所へワープして地図を閉じる） */
   toggleMap() {
     if (this.mapOverlay.isOpen) {
       this.mapOverlay.close();
@@ -543,6 +549,11 @@ export class Game {
       goal: () => this.ride?.goal ?? null,
       stamped: () => this.stampSet,
       onTap: (x, z) => {
+        if (this.mapOverlay.warping) {
+          this.mapOverlay.close();
+          this.teleport(x, z);
+          return;
+        }
         this.goalLandmark = null;
         this.ride?.setGoal(x, z);
       },
@@ -577,6 +588,7 @@ export class Game {
     this.lastCafe = null;
     this.lastLandmark = null;
     this.goalLandmark = null;
+    this.carryGoal = null;
     this.resume = { pos: null, odometer: 0, climb: 0, time: 0, generator: this.view.world.generator };
     this.anchor = { ...this.view.world.origin };
     this.ride = null;
@@ -757,10 +769,13 @@ export class Game {
     this.traffic.reset();
   }
 
+  /** 指定した所の近くの走る道から走り始める（世界地図の「ワープ」と開発用）。記録と行き先は引き継ぐ */
   teleport(x: number, z: number) {
-    // 記録は引き継ぐ
+    this.depart();
     const r = this.ride;
     if (r) this.resume = { pos: null, odometer: r.odometer, climb: r.climb, time: r.time, generator: this.view.world.generator };
+    // まだ走り始めていない（ワープを続けた）時は、前に引き継いだ行き先のまま
+    if (r) this.carryGoal = r.goal ? { ...r.goal } : null;
     this.anchor = { x, z };
     this.ride = null;
     this.smoothEye = null;
