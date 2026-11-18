@@ -10,12 +10,12 @@ export type CityRequest =
   | { type: "init"; base?: string; seed: number }
   /** 描かない建物（名所の模型で置き換える外形。世界座標の [x, z, ...]） */
   | { type: "exclude"; polys: number[][] }
-  /** walkCells: 幹線の歩道を描く区画（走らない道より狭い範囲） */
-  | { type: "near" | "far" | "streets"; id: number; cells: string[]; walkCells?: string[]; ox: number; oz: number };
+  /** subCells: 狭い方の区画。走らない道では幹線の歩道を描く区画、近くの建物では細部まで作る区画 */
+  | { type: "near" | "far" | "streets"; id: number; cells: string[]; subCells?: string[]; ox: number; oz: number };
 
 export type CityResponse =
   | { type: "near"; id: number; kinds: (MeshArrays | null)[]; triangles: number; buildings: number; ms: number }
-  | { type: "far"; id: number; mesh: MeshArrays | null; triangles: number; buildings: number; ms: number }
+  | { type: "far"; id: number; meshes: MeshArrays[]; triangles: number; buildings: number; ms: number }
   | { type: "streets"; id: number; mesh: MeshArrays | null; groups: [number, number, number][]; triangles: number; pieces: number; ms: number }
   | { type: "error"; id: number; message: string };
 
@@ -51,7 +51,7 @@ self.onmessage = (ev: MessageEvent<CityRequest>) => {
 
 /** 依頼の区画の頁（建物・道・歩道・地形）を読む（北海道の草案 20 章）。地形の頁は 60 枚（約 15MB）まで持つ */
 async function prepare(req: Exclude<CityRequest, { type: "init" | "exclude" }>) {
-  const cells = [...req.cells, ...(req.walkCells ?? [])];
+  const cells = [...req.cells, ...(req.subCells ?? [])];
   if (!cells.length || !terrain) return;
   const r = rectOfCells(cells, 250);
   const pad = { x0: r.x0 - 20, z0: r.z0 - 20, x1: r.x1 + 20, z1: r.z1 + 20 };
@@ -63,6 +63,17 @@ async function prepare(req: Exclude<CityRequest, { type: "init" | "exclude" }>) 
   ]);
 }
 
+/** 細部まで作る建物（区画の組が無ければ全部） */
+function detailOf(data: HokkaidoBuildings, cells: string[] | undefined): Set<number> | undefined {
+  if (!cells) return undefined;
+  const out = new Set<number>();
+  for (const k of cells) {
+    const c = data.index.cells[k];
+    if (c) for (let i = c[0]; i < c[0] + c[1]; i++) out.add(i);
+  }
+  return out;
+}
+
 function handle(req: Exclude<CityRequest, { type: "init" | "exclude" }>) {
   const t0 = performance.now();
   try {
@@ -72,7 +83,7 @@ function handle(req: Exclude<CityRequest, { type: "init" | "exclude" }>) {
       const pieces: [number, number, number, number][] = [];
       for (const k of req.cells) for (const p of streets.index.pieces[k] ?? []) pieces.push(p);
       const runs: [number, number][] = [];
-      if (sidewalks) for (const k of req.walkCells ?? req.cells) for (const p of sidewalks.index.sidewalks[k] ?? []) runs.push(p);
+      if (sidewalks) for (const k of req.subCells ?? req.cells) for (const p of sidewalks.index.sidewalks[k] ?? []) runs.push(p);
       const r = buildStreets(streets, terrain, pieces, req.ox, req.oz, sidewalks ? { data: sidewalks, runs } : undefined);
       post({ type: "streets", id: req.id, mesh: r.mesh, groups: r.groups, triangles: r.triangles, pieces: pieces.length, ms: performance.now() - t0 }, buffers([r.mesh]));
       return;
@@ -85,11 +96,11 @@ function handle(req: Exclude<CityRequest, { type: "init" | "exclude" }>) {
     }
     if (excluded.length) list = withoutExcluded(buildings, list, excluded);
     if (req.type === "near") {
-      const r = buildNear(buildings, terrain, list, req.ox, req.oz);
+      const r = buildNear(buildings, terrain, list, req.ox, req.oz, detailOf(buildings, req.subCells));
       post({ type: "near", id: req.id, kinds: r.kinds, triangles: r.triangles, buildings: list.length, ms: performance.now() - t0 }, buffers(r.kinds));
     } else {
       const r = buildFar(buildings, terrain, list, req.ox, req.oz);
-      post({ type: "far", id: req.id, mesh: r.mesh, triangles: r.triangles, buildings: list.length, ms: performance.now() - t0 }, buffers([r.mesh]));
+      post({ type: "far", id: req.id, meshes: r.meshes, triangles: r.triangles, buildings: list.length, ms: performance.now() - t0 }, buffers(r.meshes));
     }
   } catch (e) {
     post({ type: "error", id: req.id, message: String(e) });

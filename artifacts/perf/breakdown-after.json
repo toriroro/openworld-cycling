@@ -1,0 +1,2441 @@
+{
+  "quality": "standard",
+  "places": {
+    "generated": {
+      "sum": {
+        "main": 389089,
+        "shadow": 81142,
+        "calls": 162
+      },
+      "rows": [
+        [
+          "Group/terrain",
+          {
+            "main": 147456,
+            "shadow": 0,
+            "mainCalls": 64,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/cyclist_body",
+          {
+            "main": 27406,
+            "shadow": 27406,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[4]",
+          {
+            "main": 53956,
+            "shadow": 0,
+            "mainCalls": 6,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "buildings/buildings:trim",
+          {
+            "main": 51584,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "Group/road",
+          {
+            "main": 24605,
+            "shadow": 0,
+            "mainCalls": 13,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "districts/district:props",
+          {
+            "main": 7860,
+            "shadow": 7860,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[6]",
+          {
+            "main": 6840,
+            "shadow": 6840,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-rear-wheel",
+          {
+            "main": 6536,
+            "shadow": 6536,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:atlas",
+          {
+            "main": 12262,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-front-wheel",
+          {
+            "main": 4424,
+            "shadow": 4424,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-frame",
+          {
+            "main": 3688,
+            "shadow": 3688,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "districts/district:ground",
+          {
+            "main": 7138,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-steering",
+          {
+            "main": 3020,
+            "shadow": 3020,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "districts/district:asphalt",
+          {
+            "main": 4980,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "buildings/buildings:siding",
+          {
+            "main": 2344,
+            "shadow": 2344,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/helmet_road",
+          {
+            "main": 2112,
+            "shadow": 2112,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:mortar",
+          {
+            "main": 1878,
+            "shadow": 1878,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-sedan-fixed[884]",
+          {
+            "main": 1768,
+            "shadow": 1768,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "districts/district:lines",
+          {
+            "main": 3356,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "districts/district:trees[6]",
+          {
+            "main": 1410,
+            "shadow": 1410,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-sedan-paint[696]",
+          {
+            "main": 1392,
+            "shadow": 1392,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:seam",
+          {
+            "main": 1344,
+            "shadow": 1344,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-van-fixed[580]",
+          {
+            "main": 1160,
+            "shadow": 1160,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "sky-dome",
+          {
+            "main": 2208,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/traffic-van-paint[540]",
+          {
+            "main": 1080,
+            "shadow": 1080,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-crankset",
+          {
+            "main": 1048,
+            "shadow": 1048,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-minivan-fixed[988]",
+          {
+            "main": 988,
+            "shadow": 988,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-minivan-paint[944]",
+          {
+            "main": 944,
+            "shadow": 944,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-keiTruck-fixed[712]",
+          {
+            "main": 712,
+            "shadow": 712,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:tilewall",
+          {
+            "main": 662,
+            "shadow": 662,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:lap",
+          {
+            "main": 558,
+            "shadow": 558,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/Mesh[252]",
+          {
+            "main": 504,
+            "shadow": 504,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:plaster",
+          {
+            "main": 408,
+            "shadow": 408,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:metal",
+          {
+            "main": 376,
+            "shadow": 376,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-keiTruck-paint[232]",
+          {
+            "main": 232,
+            "shadow": 232,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "districts/district:walk",
+          {
+            "main": 386,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-pedals[88]",
+          {
+            "main": 176,
+            "shadow": 176,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:tile",
+          {
+            "main": 140,
+            "shadow": 140,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:cedar",
+          {
+            "main": 132,
+            "shadow": 132,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "Mesh",
+          {
+            "main": 12,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "water",
+          {
+            "main": 2,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-computer-screen",
+          {
+            "main": 2,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/Mesh[120]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[42]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[48]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[8]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 4,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[1099]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[508]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "districts/district:wires",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ]
+      ],
+      "info": {
+        "triangles": 470231,
+        "calls": 152
+      },
+      "stats": {
+        "vegetation": {
+          "farTrees": 25678,
+          "nearTrees": 1140,
+          "shrubs": 0,
+          "rocks": 0,
+          "grass": 0,
+          "bales": 0,
+          "crops": 0
+        },
+        "realBuildings": null,
+        "realStreets": null
+      }
+    },
+    "odori": {
+      "sum": {
+        "main": 944810,
+        "shadow": 113180,
+        "calls": 269
+      },
+      "rows": [
+        [
+          "Group/terrain",
+          {
+            "main": 177408,
+            "shadow": 0,
+            "mainCalls": 77,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-streets/real-streets",
+          {
+            "main": 175074,
+            "shadow": 0,
+            "mainCalls": 3,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "Group/road",
+          {
+            "main": 145201,
+            "shadow": 0,
+            "mainCalls": 81,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:trim",
+          {
+            "main": 109144,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:atlas",
+          {
+            "main": 67226,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/cyclist_body",
+          {
+            "main": 27406,
+            "shadow": 27406,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "landmarks/landmarks:ground:hokudai",
+          {
+            "main": 47538,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "landmarks/landmarks:solid",
+          {
+            "main": 20984,
+            "shadow": 20984,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "landmarks/landmarks:trees[6]",
+          {
+            "main": 15558,
+            "shadow": 15558,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "landmarks/landmarks:ground:odori",
+          {
+            "main": 27652,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-streets/real-streets:trees[6]",
+          {
+            "main": 19932,
+            "shadow": 3318,
+            "mainCalls": 2,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/real-buildings:far",
+          {
+            "main": 19298,
+            "shadow": 0,
+            "mainCalls": 3,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[4]",
+          {
+            "main": 18920,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-rear-wheel",
+          {
+            "main": 6536,
+            "shadow": 6536,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "landmarks/landmarks:ground:akarenga",
+          {
+            "main": 10988,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-front-wheel",
+          {
+            "main": 4424,
+            "shadow": 4424,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-frame",
+          {
+            "main": 3688,
+            "shadow": 3688,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:mortar",
+          {
+            "main": 3564,
+            "shadow": 3564,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:tilewall",
+          {
+            "main": 3164,
+            "shadow": 3164,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-steering",
+          {
+            "main": 3020,
+            "shadow": 3020,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[42]",
+          {
+            "main": 5208,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[1099]",
+          {
+            "main": 4396,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/helmet_road",
+          {
+            "main": 2112,
+            "shadow": 2112,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-minivan-fixed[988]",
+          {
+            "main": 1976,
+            "shadow": 1976,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-minivan-paint[944]",
+          {
+            "main": 1888,
+            "shadow": 1888,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-kei-fixed[892]",
+          {
+            "main": 1784,
+            "shadow": 1784,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-sedan-fixed[884]",
+          {
+            "main": 1768,
+            "shadow": 1768,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:siding",
+          {
+            "main": 1628,
+            "shadow": 1628,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-kei-paint[712]",
+          {
+            "main": 1424,
+            "shadow": 1424,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-keiTruck-fixed[712]",
+          {
+            "main": 1424,
+            "shadow": 1424,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-sedan-paint[696]",
+          {
+            "main": 1392,
+            "shadow": 1392,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "sky-dome",
+          {
+            "main": 2208,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-crankset",
+          {
+            "main": 1048,
+            "shadow": 1048,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "landmarks/landmarks:glow",
+          {
+            "main": 1844,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/traffic-bus-fixed[908]",
+          {
+            "main": 908,
+            "shadow": 908,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "landmarks/landmarks:shiny",
+          {
+            "main": 710,
+            "shadow": 710,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-van-fixed[580]",
+          {
+            "main": 580,
+            "shadow": 580,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-van-paint[540]",
+          {
+            "main": 540,
+            "shadow": 540,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/Mesh[252]",
+          {
+            "main": 504,
+            "shadow": 504,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-keiTruck-paint[232]",
+          {
+            "main": 464,
+            "shadow": 464,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "landmarks/landmarks:ground:clocktower",
+          {
+            "main": 786,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[6]",
+          {
+            "main": 336,
+            "shadow": 336,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "Group/terrain:water",
+          {
+            "main": 633,
+            "shadow": 0,
+            "mainCalls": 9,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "buildings/buildings:trim",
+          {
+            "main": 576,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:seam",
+          {
+            "main": 256,
+            "shadow": 256,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[508]",
+          {
+            "main": 508,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:lap",
+          {
+            "main": 206,
+            "shadow": 206,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[8]",
+          {
+            "main": 392,
+            "shadow": 0,
+            "mainCalls": 4,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-pedals[88]",
+          {
+            "main": 176,
+            "shadow": 176,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:metal",
+          {
+            "main": 140,
+            "shadow": 140,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-bus-paint[72]",
+          {
+            "main": 72,
+            "shadow": 72,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:plaster",
+          {
+            "main": 64,
+            "shadow": 64,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:cedar",
+          {
+            "main": 58,
+            "shadow": 58,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:cedar",
+          {
+            "main": 32,
+            "shadow": 32,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:tile",
+          {
+            "main": 28,
+            "shadow": 28,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "Mesh",
+          {
+            "main": 12,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "water",
+          {
+            "main": 2,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-computer-screen",
+          {
+            "main": 2,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/Mesh[120]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[48]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ]
+      ],
+      "info": {
+        "triangles": 1057990,
+        "calls": 263
+      },
+      "stats": {
+        "vegetation": {
+          "farTrees": 10041,
+          "nearTrees": 56,
+          "shrubs": 4,
+          "rocks": 1,
+          "grass": 124,
+          "bales": 0,
+          "crops": 49
+        },
+        "realBuildings": {
+          "near": {
+            "buildings": 423,
+            "triangles": 185478,
+            "meshes": 11
+          },
+          "far": {
+            "buildings": 5704,
+            "triangles": 59292
+          },
+          "pending": 0
+        },
+        "realStreets": {
+          "pieces": 4007,
+          "triangles": 175074
+        }
+      }
+    },
+    "kotoni": {
+      "sum": {
+        "main": 756389,
+        "shadow": 96640,
+        "calls": 208
+      },
+      "rows": [
+        [
+          "real-streets/real-streets",
+          {
+            "main": 171540,
+            "shadow": 0,
+            "mainCalls": 3,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "Group/terrain",
+          {
+            "main": 152064,
+            "shadow": 0,
+            "mainCalls": 66,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:trim",
+          {
+            "main": 139634,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/cyclist_body",
+          {
+            "main": 27406,
+            "shadow": 27406,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "Group/road",
+          {
+            "main": 50444,
+            "shadow": 0,
+            "mainCalls": 38,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:atlas",
+          {
+            "main": 41742,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[4]",
+          {
+            "main": 39752,
+            "shadow": 0,
+            "mainCalls": 3,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/real-buildings:far",
+          {
+            "main": 38534,
+            "shadow": 0,
+            "mainCalls": 10,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:siding",
+          {
+            "main": 11906,
+            "shadow": 11906,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[1099]",
+          {
+            "main": 18683,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-rear-wheel",
+          {
+            "main": 6536,
+            "shadow": 6536,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:mortar",
+          {
+            "main": 5512,
+            "shadow": 5512,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "landmarks/landmarks:trees[6]",
+          {
+            "main": 5322,
+            "shadow": 5322,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "landmarks/landmarks:solid",
+          {
+            "main": 0,
+            "shadow": 9406,
+            "mainCalls": 0,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[42]",
+          {
+            "main": 9240,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-front-wheel",
+          {
+            "main": 4424,
+            "shadow": 4424,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-frame",
+          {
+            "main": 3688,
+            "shadow": 3688,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-steering",
+          {
+            "main": 3020,
+            "shadow": 3020,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-streets/real-streets:trees[6]",
+          {
+            "main": 4524,
+            "shadow": 162,
+            "mainCalls": 2,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:seam",
+          {
+            "main": 2170,
+            "shadow": 2170,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/helmet_road",
+          {
+            "main": 2112,
+            "shadow": 2112,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-sedan-fixed[884]",
+          {
+            "main": 1768,
+            "shadow": 1768,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-sedan-paint[696]",
+          {
+            "main": 1392,
+            "shadow": 1392,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[6]",
+          {
+            "main": 1230,
+            "shadow": 1230,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "sky-dome",
+          {
+            "main": 2208,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-crankset",
+          {
+            "main": 1048,
+            "shadow": 1048,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/Mesh[252]",
+          {
+            "main": 1008,
+            "shadow": 1008,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-minivan-fixed[988]",
+          {
+            "main": 988,
+            "shadow": 988,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-minivan-paint[944]",
+          {
+            "main": 944,
+            "shadow": 944,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:plaster",
+          {
+            "main": 934,
+            "shadow": 934,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-bus-fixed[908]",
+          {
+            "main": 908,
+            "shadow": 908,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-kei-fixed[892]",
+          {
+            "main": 892,
+            "shadow": 892,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:lap",
+          {
+            "main": 824,
+            "shadow": 824,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-kei-paint[712]",
+          {
+            "main": 712,
+            "shadow": 712,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-van-fixed[580]",
+          {
+            "main": 580,
+            "shadow": 580,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-van-paint[540]",
+          {
+            "main": 540,
+            "shadow": 540,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "landmarks/landmarks:shiny",
+          {
+            "main": 284,
+            "shadow": 284,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[508]",
+          {
+            "main": 508,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:metal",
+          {
+            "main": 190,
+            "shadow": 190,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:tile",
+          {
+            "main": 190,
+            "shadow": 190,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-pedals[88]",
+          {
+            "main": 176,
+            "shadow": 176,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:cedar",
+          {
+            "main": 146,
+            "shadow": 146,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:trim",
+          {
+            "main": 288,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:tilewall",
+          {
+            "main": 134,
+            "shadow": 134,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-bus-paint[72]",
+          {
+            "main": 72,
+            "shadow": 72,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[8]",
+          {
+            "main": 80,
+            "shadow": 0,
+            "mainCalls": 4,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "Group/terrain:water",
+          {
+            "main": 58,
+            "shadow": 0,
+            "mainCalls": 2,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "buildings/buildings:cedar",
+          {
+            "main": 16,
+            "shadow": 16,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "Mesh",
+          {
+            "main": 12,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "water",
+          {
+            "main": 2,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-computer-screen",
+          {
+            "main": 2,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "buildings/cafe-sign:hp6174319888",
+          {
+            "main": 2,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/Mesh[120]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[48]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ]
+      ],
+      "info": {
+        "triangles": 853029,
+        "calls": 202
+      },
+      "stats": {
+        "vegetation": {
+          "farTrees": 27109,
+          "nearTrees": 205,
+          "shrubs": 17,
+          "rocks": 1,
+          "grass": 220,
+          "bales": 0,
+          "crops": 10
+        },
+        "realBuildings": {
+          "near": {
+            "buildings": 1326,
+            "triangles": 203382,
+            "meshes": 11
+          },
+          "far": {
+            "buildings": 10795,
+            "triangles": 112520
+          },
+          "pending": 0
+        },
+        "realStreets": {
+          "pieces": 5208,
+          "triangles": 171540
+        }
+      }
+    },
+    "jozankei": {
+      "sum": {
+        "main": 563167,
+        "shadow": 76402,
+        "calls": 189
+      },
+      "rows": [
+        [
+          "vegetation/vegetation[4]",
+          {
+            "main": 170348,
+            "shadow": 0,
+            "mainCalls": 7,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "Group/terrain",
+          {
+            "main": 154368,
+            "shadow": 0,
+            "mainCalls": 67,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/cyclist_body",
+          {
+            "main": 27406,
+            "shadow": 27406,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "Group/road",
+          {
+            "main": 43617,
+            "shadow": 0,
+            "mainCalls": 22,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[1099]",
+          {
+            "main": 42861,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:trim",
+          {
+            "main": 22424,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[6]",
+          {
+            "main": 10848,
+            "shadow": 10848,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[42]",
+          {
+            "main": 20762,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-streets/real-streets",
+          {
+            "main": 15574,
+            "shadow": 0,
+            "mainCalls": 3,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-rear-wheel",
+          {
+            "main": 6536,
+            "shadow": 6536,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:atlas",
+          {
+            "main": 8936,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-front-wheel",
+          {
+            "main": 4424,
+            "shadow": 4424,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-frame",
+          {
+            "main": 3688,
+            "shadow": 3688,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-steering",
+          {
+            "main": 3020,
+            "shadow": 3020,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-kei-fixed[892]",
+          {
+            "main": 2676,
+            "shadow": 2676,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-kei-paint[712]",
+          {
+            "main": 2136,
+            "shadow": 2136,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/helmet_road",
+          {
+            "main": 2112,
+            "shadow": 2112,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-minivan-fixed[988]",
+          {
+            "main": 1976,
+            "shadow": 1976,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-minivan-paint[944]",
+          {
+            "main": 1888,
+            "shadow": 1888,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-keiTruck-fixed[712]",
+          {
+            "main": 1424,
+            "shadow": 1424,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/real-buildings:far",
+          {
+            "main": 2636,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/traffic-van-fixed[580]",
+          {
+            "main": 1160,
+            "shadow": 1160,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "sky-dome",
+          {
+            "main": 2208,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/traffic-van-paint[540]",
+          {
+            "main": 1080,
+            "shadow": 1080,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-crankset",
+          {
+            "main": 1048,
+            "shadow": 1048,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[508]",
+          {
+            "main": 2032,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/traffic-sedan-fixed[884]",
+          {
+            "main": 884,
+            "shadow": 884,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:siding",
+          {
+            "main": 840,
+            "shadow": 840,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-sedan-paint[696]",
+          {
+            "main": 696,
+            "shadow": 696,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:mortar",
+          {
+            "main": 608,
+            "shadow": 608,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/Mesh[252]",
+          {
+            "main": 504,
+            "shadow": 504,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-keiTruck-paint[232]",
+          {
+            "main": 464,
+            "shadow": 464,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:tilewall",
+          {
+            "main": 312,
+            "shadow": 312,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-streets/real-streets:trees[6]",
+          {
+            "main": 366,
+            "shadow": 168,
+            "mainCalls": 2,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "Group/road:tunnel-shadow",
+          {
+            "main": 396,
+            "shadow": 0,
+            "mainCalls": 2,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-pedals[88]",
+          {
+            "main": 176,
+            "shadow": 176,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:trim",
+          {
+            "main": 288,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:seam",
+          {
+            "main": 128,
+            "shadow": 128,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:plaster",
+          {
+            "main": 62,
+            "shadow": 62,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:lap",
+          {
+            "main": 58,
+            "shadow": 58,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "Group/terrain:water",
+          {
+            "main": 99,
+            "shadow": 0,
+            "mainCalls": 8,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:cedar",
+          {
+            "main": 40,
+            "shadow": 40,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:tile",
+          {
+            "main": 24,
+            "shadow": 24,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "buildings/buildings:cedar",
+          {
+            "main": 16,
+            "shadow": 16,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "Mesh",
+          {
+            "main": 12,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "water",
+          {
+            "main": 2,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-computer-screen",
+          {
+            "main": 2,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "buildings/cafe-sign:hp13938185801",
+          {
+            "main": 2,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/Mesh[120]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[48]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[8]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 4,
+            "shadowCalls": 0
+          }
+        ]
+      ],
+      "info": {
+        "triangles": 639597,
+        "calls": 182
+      },
+      "stats": {
+        "vegetation": {
+          "farTrees": 92528,
+          "nearTrees": 1808,
+          "shrubs": 39,
+          "rocks": 4,
+          "grass": 495,
+          "bales": 0,
+          "crops": 0
+        },
+        "realBuildings": {
+          "near": {
+            "buildings": 114,
+            "triangles": 33432,
+            "meshes": 10
+          },
+          "far": {
+            "buildings": 225,
+            "triangles": 2636
+          },
+          "pending": 0
+        },
+        "realStreets": {
+          "pieces": 272,
+          "triangles": 15574
+        }
+      }
+    },
+    "farm": {
+      "sum": {
+        "main": 564754,
+        "shadow": 82420,
+        "calls": 203
+      },
+      "rows": [
+        [
+          "Group/terrain",
+          {
+            "main": 218880,
+            "shadow": 0,
+            "mainCalls": 95,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[4]",
+          {
+            "main": 151788,
+            "shadow": 0,
+            "mainCalls": 12,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[6]",
+          {
+            "main": 29640,
+            "shadow": 29640,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/cyclist_body",
+          {
+            "main": 27406,
+            "shadow": 27406,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[1099]",
+          {
+            "main": 41762,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[42]",
+          {
+            "main": 25830,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "Group/road",
+          {
+            "main": 23872,
+            "shadow": 0,
+            "mainCalls": 30,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-rear-wheel",
+          {
+            "main": 6536,
+            "shadow": 6536,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-front-wheel",
+          {
+            "main": 4424,
+            "shadow": 4424,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-streets/real-streets",
+          {
+            "main": 8116,
+            "shadow": 0,
+            "mainCalls": 3,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-frame",
+          {
+            "main": 3688,
+            "shadow": 3688,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/bike-steering",
+          {
+            "main": 3020,
+            "shadow": 3020,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "player/helmet_road",
+          {
+            "main": 2112,
+            "shadow": 2112,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/traffic-kei-fixed[892]",
+          {
+            "main": 1784,
+            "shadow": 1784,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[508]",
+          {
+            "main": 3556,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/real-buildings:far",
+          {
+            "main": 3060,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/traffic-kei-paint[712]",
+          {
+            "main": 1424,
+            "shadow": 1424,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "sky-dome",
+          {
+            "main": 2208,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-crankset",
+          {
+            "main": 1048,
+            "shadow": 1048,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:trim",
+          {
+            "main": 2072,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/traffic-keiTruck-fixed[712]",
+          {
+            "main": 712,
+            "shadow": 712,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:atlas",
+          {
+            "main": 652,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/traffic-keiTruck-paint[232]",
+          {
+            "main": 232,
+            "shadow": 232,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "Group/terrain:water",
+          {
+            "main": 448,
+            "shadow": 0,
+            "mainCalls": 13,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-pedals[88]",
+          {
+            "main": 176,
+            "shadow": 176,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:siding",
+          {
+            "main": 148,
+            "shadow": 148,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-streets/real-streets:trees[6]",
+          {
+            "main": 144,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "real-buildings/buildings:mortar",
+          {
+            "main": 0,
+            "shadow": 58,
+            "mainCalls": 0,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "real-buildings/buildings:seam",
+          {
+            "main": 0,
+            "shadow": 12,
+            "mainCalls": 0,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "Mesh",
+          {
+            "main": 12,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "water",
+          {
+            "main": 2,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "player/bike-computer-screen",
+          {
+            "main": 2,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "traffic/Mesh[252]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "traffic/Mesh[120]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 1
+          }
+        ],
+        [
+          "vegetation/vegetation[48]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 1,
+            "shadowCalls": 0
+          }
+        ],
+        [
+          "vegetation/vegetation[8]",
+          {
+            "main": 0,
+            "shadow": 0,
+            "mainCalls": 4,
+            "shadowCalls": 0
+          }
+        ]
+      ],
+      "info": {
+        "triangles": 647174,
+        "calls": 194
+      },
+      "stats": {
+        "vegetation": {
+          "farTrees": 44486,
+          "nearTrees": 4940,
+          "shrubs": 38,
+          "rocks": 7,
+          "grass": 615,
+          "bales": 0,
+          "crops": 0
+        },
+        "realBuildings": {
+          "near": {
+            "buildings": 14,
+            "triangles": 2952,
+            "meshes": 6
+          },
+          "far": {
+            "buildings": 296,
+            "triangles": 3060
+          },
+          "pending": 0
+        },
+        "realStreets": {
+          "pieces": 127,
+          "triangles": 8116
+        }
+      }
+    }
+  }
+}

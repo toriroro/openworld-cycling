@@ -17,6 +17,15 @@ import type { Towns } from "./towns.ts";
 
 const BASE = `${import.meta.env.BASE_URL}assets/buildings/`;
 
+/**
+ * 影を落とす材質か。窓の絵と、細部の部品（頂点色の材質: 庇の縁・ベランダ・手すり・看板・タンクなど）は落とさない。
+ * 影の形は壁と屋根で決まり（地面の影は壁だけでも同じ）、細部の部品は三角形が建物の 8 割を占めて、
+ * 影の描画で同じ数をもう一度描いていたため（北海道の草案 24 章）
+ */
+function castsShadow(kind: BuildingKind): boolean {
+  return kind !== "atlas" && kind !== "trim";
+}
+
 const CEDAR: Rgb = [1, 1, 1];
 const C_FRAME = hex("#c9ccce");
 const C_GLASS_A = hex("#2a3a44");
@@ -194,7 +203,7 @@ export class BuildingMeshes {
       tris += m.triangles;
       const mesh = new THREE.Mesh(g, k === "trim" ? this.trimMat : k === "atlas" ? this.atlasMat : this.surfaces[k].material);
       mesh.name = `buildings:${k}`;
-      mesh.castShadow = k !== "atlas";
+      mesh.castShadow = castsShadow(k);
       mesh.receiveShadow = true;
       this.group.add(mesh);
       this.meshes.push(mesh);
@@ -211,7 +220,7 @@ export class BuildingMeshes {
   meshFor(kind: BuildingKind, g: THREE.BufferGeometry): THREE.Mesh {
     const mesh = new THREE.Mesh(g, kind === "trim" ? this.trimMat : kind === "atlas" ? this.atlasMat : this.surfaces[kind].material);
     mesh.name = `buildings:${kind}`;
-    mesh.castShadow = kind !== "atlas";
+    mesh.castShadow = castsShadow(kind);
     mesh.receiveShadow = true;
     mesh.matrixAutoUpdate = false;
     return mesh;

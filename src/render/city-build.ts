@@ -182,13 +182,27 @@ export function withoutExcluded(data: HokkaidoBuildings, list: number[], polys: 
   });
 }
 
-export function buildNear(data: HokkaidoBuildings, heights: TerrainLike, list: number[], ox: number, oz: number): { kinds: (MeshArrays | null)[]; triangles: number } {
+/**
+ * 細部まで作る区画の外の建物で省く部品の細さ (m)（Mesher.minPart）。柱・脚・看板の腕・庇の縁・屋根の縁など。
+ * 近くの建物の三角形の多くは頂点色の部品で、100m より離れると 1〜2 画素にしかならないため（北海道の草案 24 章）
+ */
+const MID_PART = 0.3;
+
+/**
+ * 近くの建物（細部まで）と敷地。材質ごとの配列（BUILDING_KINDS の順）。
+ * detail を渡すと、その中の建物だけ細部まで作り、他は細い部品を省く
+ */
+export function buildNear(data: HokkaidoBuildings, heights: TerrainLike, list: number[], ox: number, oz: number, detail?: Set<number>): { kinds: (MeshArrays | null)[]; triangles: number } {
   layout ??= atlasLayout();
   const out = Object.fromEntries(BUILDING_KINDS.map((k) => [k, new Mesher()])) as Out;
   const kit: Kit = { out, tex: SURFACE_TEX, atlas: layout };
   for (const k of list) {
+    kit.mid = !!detail && !detail.has(k);
+    out.trim.minPart = kit.mid ? MID_PART : 0;
     const b = recordBuilding(data, k);
     buildBuilding(kit, b, v3(b.x - ox, 0, b.z - oz));
+    out.trim.minPart = 0;
+    kit.mid = false;
     foundation(out.trim, data, k, ox, oz);
     pad(out.trim, data, heights, k, ox, oz);
   }
@@ -200,14 +214,50 @@ export function buildNear(data: HokkaidoBuildings, heights: TerrainLike, list: n
   return { kinds, triangles };
 }
 
-/** 遠くの建物（箱）と敷地 */
-export function buildFar(data: HokkaidoBuildings, heights: TerrainLike, list: number[], ox: number, oz: number): { mesh: MeshArrays | null; triangles: number } {
-  const m = new Mesher();
+/** 遠くの建物をまとめる四角の一辺 (m)。まとまりごとに視野の外を省く（北海道の草案 24 章） */
+export const FAR_BLOCK = 500;
+/** これより三角形の少ないまとまりは 1 つにまとめる（描画命令を増やさないため） */
+const FAR_BLOCK_MIN = 1500;
+
+/**
+ * 遠くの建物（箱）と敷地。FAR_BLOCK 四方のまとまりごとに 1 つの配列にする（1 つにすると視野の外の分も描くため）。
+ * 敷地は (ox, oz) から padRange 以内の建物だけ（遠くでは見えない。北海道の草案 24 章）
+ */
+export function buildFar(data: HokkaidoBuildings, heights: TerrainLike, list: number[], ox: number, oz: number, padRange = 600): { meshes: MeshArrays[]; triangles: number } {
+  const D = data.data;
+  const blocks = new Map<string, Mesher>();
   for (const k of list) {
+    const x = D[k * BUILDING_REC], z = D[k * BUILDING_REC + 1];
+    const key = `${Math.floor(x / FAR_BLOCK)},${Math.floor(z / FAR_BLOCK)}`;
+    let m = blocks.get(key);
+    if (!m) blocks.set(key, (m = new Mesher()));
     box(m, data, k, ox, oz);
-    pad(m, data, heights, k, ox, oz);
+    if ((x - ox) * (x - ox) + (z - oz) * (z - oz) < padRange * padRange) pad(m, data, heights, k, ox, oz);
   }
-  return { mesh: m.arrays(), triangles: m.triangles };
+  // 小さなまとまりは 1 つにまとめる
+  const rest = new Mesher();
+  const big: Mesher[] = [];
+  for (const m of blocks.values()) {
+    if (m.triangles >= FAR_BLOCK_MIN) {
+      big.push(m);
+      continue;
+    }
+    const base = rest.pos.length / 3;
+    rest.pos.push(...m.pos);
+    rest.nor.push(...m.nor);
+    rest.uv.push(...m.uv);
+    rest.col.push(...m.col);
+    for (const i of m.idx) rest.idx.push(i + base);
+  }
+  const meshes: MeshArrays[] = [];
+  let triangles = 0;
+  for (const m of [...big, rest]) {
+    const a = m.arrays();
+    if (!a) continue;
+    meshes.push(a);
+    triangles += m.triangles;
+  }
+  return { meshes, triangles };
 }
 
 // ---- 走らない道 ----

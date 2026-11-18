@@ -15,6 +15,8 @@ export interface Kit {
   /** 素材 1 枚が覆う長さ (m) */
   tex: Record<SurfaceKind, number>;
   atlas: AtlasLayout;
+  /** 離れた建物（細部を省く。北海道の草案 24 章）。灯油タンクを 1 つの箱に、室外機を省く */
+  mid?: boolean;
 }
 
 export const C_SLAB = hex("#b4b2ad");
@@ -231,6 +233,11 @@ export function sideSign(k: Kit, fc: Face, a: number, y0: number, y1: number, pr
 /** 灯油タンク（ホームタンク）: 脚つきの箱 */
 export function tank(k: Kit, fc: Face, a: number, y: number, tone: number) {
   const m = k.out.trim, c = C_TANK[tone % C_TANK.length];
+  if (k.mid) {
+    // 脚まで含めた 1 つの箱（三角形 42 → 10。アパートの裏に並ぶタンクが近くの建物の三角形の 3 割を占めたため）
+    fbox(m, fc, a - 0.5, a + 0.5, y, y + 1.25, 0.18, 0.62, c);
+    return;
+  }
   fbox(m, fc, a - 0.5, a + 0.5, y + 0.62, y + 1.25, 0.18, 0.62, c, true);
   fbox(m, fc, a - 0.46, a - 0.42, y, y + 0.62, 0.2, 0.6, C_STEEL);
   fbox(m, fc, a + 0.42, a + 0.46, y, y + 0.62, 0.2, 0.6, C_STEEL);
@@ -264,6 +271,7 @@ export function porch(k: Kit, fc: Face, a: number, y: number, floor: number, cel
 
 /** 室外機 */
 export function acUnit(k: Kit, fc: Face, a: number, y: number) {
+  if (k.mid) return;
   fbox(k.out.trim, fc, a - 0.4, a + 0.4, y, y + 0.58, 0.1, 0.4, hex("#dedcd3"));
   pic(k, fc, a - 0.4, y, 0.8, 0.58, k.atlas.cell.ac, false, 0.41);
 }

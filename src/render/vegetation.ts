@@ -24,6 +24,8 @@ interface Limits {
 }
 const LIMITS_STANDARD: Limits = { shrubs: 120, rocks: 100, grass: 5000, bales: 1200, crops: 6000, nearZone: 320 };
 const LIMITS_LIGHT: Limits = { shrubs: 40, rocks: 40, grass: 1500, bales: 400, crops: 1500, nearZone: 220 };
+/** 低木を置く距離 (m) */
+const SHRUB_RANGE = 120;
 const CROP_TUFTS: [number, CropTuft][] = [[VEG_CROP_LEAF, "leaf"], [VEG_CROP_STALK, "stalk"], [VEG_CROP_RICE, "rice"], [VEG_CROP_CORN, "corn"]];
 
 /** 容量を足りなくなったら作り直すインスタンス描画 */
@@ -34,6 +36,8 @@ class Pool {
     private geometry: THREE.BufferGeometry | null,
     private material: THREE.Material | THREE.Material[] | null,
     private shadow: boolean,
+    /** 視野の外なら描かない（入れた木の全部を囲む球で判定する） */
+    private cull = false,
   ) {}
   setSource(geometry: THREE.BufferGeometry, material: THREE.Material | THREE.Material[]) {
     this.geometry = geometry;
@@ -55,7 +59,7 @@ class Pool {
       const cap = Math.max(64, Math.ceil(count * 1.4));
       this.mesh = new THREE.InstancedMesh(this.geometry, this.material, cap);
       this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.mesh.frustumCulled = false;
+      this.mesh.frustumCulled = this.cull;
       this.mesh.castShadow = this.shadow;
       this.mesh.receiveShadow = true;
       this.mesh.name = "vegetation";
@@ -64,6 +68,13 @@ class Pool {
     fill(this.mesh.instanceMatrix.array as Float32Array);
     this.mesh.count = count;
     this.mesh.instanceMatrix.needsUpdate = true;
+    if (this.cull) this.mesh.computeBoundingSphere();
+  }
+  dispose() {
+    if (!this.mesh) return;
+    this.group.remove(this.mesh);
+    this.mesh.dispose();
+    this.mesh = null;
   }
   setShadow(on: boolean) {
     this.shadow = on;
@@ -81,6 +92,14 @@ function writeMatrix(a: Float32Array, i: number, x: number, y: number, z: number
   a[o + 12] = x; a[o + 13] = y; a[o + 14] = z; a[o + 15] = 1;
 }
 
+/**
+ * 遠くの板の木をまとめる四角の一辺 (m)。まとまりごとに 1 つの InstancedMesh にして視野の外を省く。
+ * 全部を 1 つにすると、後ろや横の木（森では 9 万本）まで描いていたため（北海道の草案 24 章）
+ */
+const FAR_TREE_BLOCK = 2048;
+/** これより木の少ないまとまりは 1 つにまとめる（省ける三角形より描画命令の手間の方が大きいため） */
+const FAR_TREE_MIN = 1000;
+
 interface TileVeg {
   key: string;
   level: number;
@@ -91,7 +110,9 @@ interface TileVeg {
 
 export class Vegetation {
   readonly group = new THREE.Group();
-  private farBB: Pool;
+  /** 遠くの板の木（FAR_TREE_BLOCK 四方のまとまりごと） */
+  private farBB = new Map<string, Pool>();
+  private cross: THREE.BufferGeometry;
   private nearBB: Pool;
 
   private shrubs: Pool[] = [];
@@ -122,7 +143,7 @@ export class Vegetation {
     const cross = mergeGeometries([a, b])!;
     // 近くは 3 枚（0°・60°・120°）にして、どの向きから見ても薄く見えないようにする
     const star = mergeGeometries([a.clone(), a.clone().rotateY(Math.PI / 3), a.clone().rotateY((Math.PI * 2) / 3)])!;
-    this.farBB = new Pool(this.group, cross, this.bbMaterial, false);
+    this.cross = cross;
     this.nearBB = new Pool(this.group, star, this.bbMaterial, true);
     // 草の株: 細い円錐を束ねる（不透明）
     let seed = 91827;
@@ -236,16 +257,44 @@ export class Vegetation {
     const fk = far.map((t) => t.key).join("|") + `@${this.originX},${this.originZ}`;
     if (fk !== this.farKey) {
       this.farKey = fk;
+      const blocks = new Map<string, { tiles: TileVeg[]; count: number }>();
       let count = 0;
-      for (const t of far) for (let i = 0; i < t.veg.length; i += VEG_STRIDE) if (t.veg[i + 5] === VEG_TREE) count++;
-      this.farBB.write(count, (arr) => {
-        let k = 0;
-        for (const t of far) {
-          const v = t.veg;
-          for (let i = 0; i < v.length; i += VEG_STRIDE)
-            if (v[i + 5] === VEG_TREE) writeMatrix(arr, k++, t.ox + v[i] - this.originX, v[i + 1], t.oz + v[i + 2] - this.originZ, v[i + 3], v[i + 4]);
+      for (const t of far) {
+        let n = 0;
+        for (let i = 0; i < t.veg.length; i += VEG_STRIDE) if (t.veg[i + 5] === VEG_TREE) n++;
+        if (!n) continue;
+        const key = `${Math.floor(t.ox / FAR_TREE_BLOCK)},${Math.floor(t.oz / FAR_TREE_BLOCK)}`;
+        let b = blocks.get(key);
+        if (!b) blocks.set(key, (b = { tiles: [], count: 0 }));
+        b.tiles.push(t);
+        b.count += n;
+        count += n;
+      }
+      const rest = { tiles: [] as TileVeg[], count: 0 };
+      for (const [key, b] of blocks)
+        if (b.count < FAR_TREE_MIN) {
+          rest.tiles.push(...b.tiles);
+          rest.count += b.count;
+          blocks.delete(key);
         }
-      });
+      if (rest.count) blocks.set("rest", rest);
+      for (const [key, pool] of this.farBB)
+        if (!blocks.has(key)) {
+          pool.dispose();
+          this.farBB.delete(key);
+        }
+      for (const [key, b] of blocks) {
+        let pool = this.farBB.get(key);
+        if (!pool) this.farBB.set(key, (pool = new Pool(this.group, this.cross, this.bbMaterial, false, true)));
+        pool.write(b.count, (arr) => {
+          let k = 0;
+          for (const t of b.tiles) {
+            const v = t.veg;
+            for (let i = 0; i < v.length; i += VEG_STRIDE)
+              if (v[i + 5] === VEG_TREE) writeMatrix(arr, k++, t.ox + v[i] - this.originX, v[i + 1], t.oz + v[i + 2] - this.originZ, v[i + 3], v[i + 4]);
+          }
+        });
+      }
       this.stats.farTrees = count;
     }
     // 牧草ロール: いちばん細かいタイルの全部から、近い順に。タイルの組が変わった時だけ作り直す
@@ -277,7 +326,8 @@ export class Vegetation {
         const d = dx * dx + dz * dz;
         const type = v[i + 5];
         if (type === VEG_TREE) trees.push({ d, t, i });
-        else if (type === VEG_SHRUB && d < 180 * 180) shrubs.push({ d, t, i });
+        // 低木は 1 本 1,100 個の三角形の模型のため 120m まで（180m では森・農地で 9 万個になった。北海道の草案 24 章）
+        else if (type === VEG_SHRUB && d < SHRUB_RANGE * SHRUB_RANGE) shrubs.push({ d, t, i });
         else if (type === VEG_ROCK && d < 180 * 180) rocks.push({ d, t, i });
         else if (type === VEG_GRASS && d < 75 * 75) grass.push({ d, t, i });
         else if (type >= VEG_CROP_LEAF && d < 110 * 110) {

@@ -13,7 +13,7 @@ interface Slot {
   /** 送った依頼（番号と組の鍵） */
   inFlight: { id: number; key: string; ox: number; oz: number } | null;
   /** 欲しい組 */
-  want: { key: string; cells: string[]; walkCells?: string[]; ox: number; oz: number } | null;
+  want: { key: string; cells: string[]; subCells?: string[]; ox: number; oz: number } | null;
   onDone: (key: string, r: CityResponse, ox: number, oz: number) => void;
 }
 
@@ -63,9 +63,9 @@ export class CityClient {
     return !!s && (!!s.inFlight || !!s.want);
   }
 
-  request(kind: Kind, key: string, cells: string[], ox: number, oz: number, walkCells?: string[]) {
+  request(kind: Kind, key: string, cells: string[], ox: number, oz: number, subCells?: string[]) {
     const s = this.slots.get(kind)!;
-    s.want = { key, cells, walkCells, ox, oz };
+    s.want = { key, cells, subCells, ox, oz };
     if (!s.inFlight) this.send(kind, s);
   }
 
@@ -76,7 +76,7 @@ export class CityClient {
     const id = this.nextId++;
     s.inFlight = { id, key: w.key, ox: w.ox, oz: w.oz };
     if (this.worker) {
-      this.worker.postMessage({ type: kind, id, cells: w.cells, walkCells: w.walkCells, ox: w.ox, oz: w.oz } satisfies CityRequest);
+      this.worker.postMessage({ type: kind, id, cells: w.cells, subCells: w.subCells, ox: w.ox, oz: w.oz } satisfies CityRequest);
       return;
     }
     // Worker なし: その場で作る

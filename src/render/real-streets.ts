@@ -26,6 +26,12 @@ export class RealStreets {
   /** 幹線の歩道を描く範囲と、街路樹を描く範囲 (m) */
   walkRange = 700;
   treeRange = 900;
+  /**
+   * 影を落とす街路樹の範囲 (m)。太陽の影を描く範囲（environment.ts、±160m）より少し広く。
+   * 範囲の全部の木に影を描かせると、影の描画で見えない木を数千本描いていたため（北海道の草案 24 章）
+   */
+  treeShadowRange = 220;
+  private treeKey = "";
   private layer: Layer | null = null;
   private lastT = 0;
   private key = "";
@@ -71,7 +77,7 @@ export class RealStreets {
     this.originX = x;
     this.originZ = z;
     if (this.layer?.mesh) this.place(this.layer);
-    if (this.trees) this.trees.position.set(this.treesAt.x - x, 0, this.treesAt.z - z);
+    for (const t of this.trees) t.position.set(this.treesAt.x - x, 0, this.treesAt.z - z);
   }
 
   get pending(): number {
@@ -102,49 +108,58 @@ export class RealStreets {
     this.lastT = now;
     const cells = this.cellsWithin(cx, cz, this.range);
     const walk = this.cellsWithin(cx, cz, this.walkRange);
+    const ox = Math.round(cx / 256) * 256;
+    const oz = Math.round(cz / 256) * 256;
+    const treeCells = this.cellsWithin(cx, cz, this.treeRange);
+    const shadowCells = this.cellsWithin(cx, cz, this.treeShadowRange);
+    const treeKey = `${treeCells.join("|")}#${shadowCells.join("|")}`;
+    if (treeKey !== this.treeKey) {
+      this.treeKey = treeKey;
+      this.updateTrees(treeCells, new Set(shadowCells), ox, oz);
+    }
     const key = `${cells.join("|")}#${walk.join("|")}`;
     if (key === this.key) return;
     this.key = key;
-    const ox = Math.round(cx / 256) * 256;
-    const oz = Math.round(cz / 256) * 256;
     this.client.request("streets", key, cells, ox, oz, walk);
-    this.updateTrees(this.cellsWithin(cx, cz, this.treeRange), ox, oz);
   }
 
-  private trees: THREE.InstancedMesh | null = null;
+  private trees: THREE.InstancedMesh[] = [];
   private treesAt = { x: 0, z: 0 };
 
-  /** 街路樹（範囲の区画の木を 1 つの InstancedMesh に。描画命令 1） */
-  private updateTrees(cells: string[], ox: number, oz: number) {
+  /** 街路樹。影を落とす近くの区画の木と、それより遠くの木の 2 つの InstancedMesh に（描画命令 2、影 1） */
+  private updateTrees(cells: string[], shadowCells: Set<string>, ox: number, oz: number) {
     const S = this.sidewalks;
     if (!S) return;
-    if (this.trees) {
-      this.group.remove(this.trees);
-      this.trees.dispose();
-      this.trees = null;
+    for (const t of this.trees) {
+      this.group.remove(t);
+      t.dispose();
     }
-    const list: number[] = [];
-    for (const k of cells) for (const t of S.index.trees[k] ?? []) list.push(t);
-    if (!list.length) return;
-    const inst = new THREE.InstancedMesh(this.mats.treeGeo, this.mats.tree, list.length);
-    inst.name = "real-streets:trees";
+    this.trees = [];
+    const near: number[] = [];
+    const far: number[] = [];
+    for (const k of cells) for (const t of S.index.trees[k] ?? []) (shadowCells.has(k) ? near : far).push(t);
+    this.treesAt = { x: ox, z: oz };
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
     const T = S.trees;
-    list.forEach((t, i) => {
-      const o = t * 5;
-      q.setFromAxisAngle(up, T[o + 4]);
-      p.set(T[o] - ox, T[o + 1] - 0.1, T[o + 2] - oz);
-      sc.setScalar(T[o + 3]);
-      m.compose(p, q, sc);
-      inst.setMatrixAt(i, m);
-    });
-    inst.castShadow = true;
-    inst.frustumCulled = false;
-    this.trees = inst;
-    this.treesAt = { x: ox, z: oz };
-    inst.position.set(ox - this.originX, 0, oz - this.originZ);
-    this.group.add(inst);
-    this.treeCount = list.length;
+    for (const [list, shadow] of [[near, true], [far, false]] as const) {
+      if (!list.length) continue;
+      const inst = new THREE.InstancedMesh(this.mats.treeGeo, this.mats.tree, list.length);
+      inst.name = "real-streets:trees";
+      list.forEach((t, i) => {
+        const o = t * 5;
+        q.setFromAxisAngle(up, T[o + 4]);
+        p.set(T[o] - ox, T[o + 1] - 0.1, T[o + 2] - oz);
+        sc.setScalar(T[o + 3]);
+        m.compose(p, q, sc);
+        inst.setMatrixAt(i, m);
+      });
+      inst.castShadow = shadow;
+      inst.frustumCulled = false;
+      inst.position.set(ox - this.originX, 0, oz - this.originZ);
+      this.group.add(inst);
+      this.trees.push(inst);
+    }
+    this.treeCount = near.length + far.length;
   }
   treeCount = 0;
 

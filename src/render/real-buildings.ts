@@ -23,6 +23,8 @@ interface Layer {
 export class RealBuildings {
   readonly group = new THREE.Group();
   nearRange = 260;
+  /** この距離までの区画の建物は細部まで作り、近くの他の建物は細い部品を省く（北海道の草案 24 章） */
+  detailRange = 100;
   farRange = 1300;
   private near: Layer | null = null;
   private far: Layer | null = null;
@@ -56,9 +58,10 @@ export class RealBuildings {
     client.on("far", (key, r, ox, oz) => {
       if (r.type !== "far") return;
       const t0 = performance.now();
+      // 500m 四方のまとまりごとのメッシュ（視野の外のまとまりは描かない）
       const meshes: THREE.Mesh[] = [];
-      if (r.mesh) {
-        const m = new THREE.Mesh(toGeometry(r.mesh), this.kit.boxMaterial);
+      for (const a of r.meshes) {
+        const m = new THREE.Mesh(toGeometry(a), this.kit.boxMaterial);
         m.name = "real-buildings:far";
         m.castShadow = false;
         m.receiveShadow = true;
@@ -81,6 +84,7 @@ export class RealBuildings {
 
   setQuality(light: boolean) {
     this.nearRange = light ? 160 : 260;
+    this.detailRange = light ? 60 : 100;
     this.farRange = light ? 650 : 1300;
     this.lastT = 0;
   }
@@ -138,15 +142,16 @@ export class RealBuildings {
     if (now - this.lastT < 300) return;
     this.lastT = now;
     const nearCells = this.cellsWithin(cx, cz, this.nearRange);
-    const nearKey = nearCells.join("|");
+    const detailCells = this.cellsWithin(cx, cz, this.detailRange);
+    const nearKey = `${nearCells.join("|")}#${detailCells.join("|")}`;
     const farCells = this.cellsWithin(cx, cz, this.farRange, new Set(nearCells));
-    const farKey = `${farCells.join("|")}#${nearKey}`;
+    const farKey = `${farCells.join("|")}#${nearCells.join("|")}`;
     const ox = Math.round(cx / 256) * 256;
     const oz = Math.round(cz / 256) * 256;
     // 近くを先に頼む
     if (nearKey !== this.nearKey) {
       this.nearKey = nearKey;
-      this.client.request("near", nearKey, nearCells, ox, oz);
+      this.client.request("near", nearKey, nearCells, ox, oz, detailCells);
     }
     if (farKey !== this.farKey) {
       this.farKey = farKey;

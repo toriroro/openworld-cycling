@@ -70,6 +70,11 @@ export function boundingSphere(pos: Float32Array): [number, number, number, numb
 
 /** 材質ごとの頂点の集まり */
 export class Mesher {
+  /**
+   * これより細い部品を作らない (m)。箱は 2 番目に長い辺、壁は短い辺で比べる（柱・脚・腕・庇の縁など）。
+   * 0 なら全部作る。離れた建物の細部を省くのに使う（北海道の草案 24 章）
+   */
+  minPart = 0;
   pos: number[] = [];
   nor: number[] = [];
   uv: number[] = [];
@@ -108,6 +113,7 @@ export class Mesher {
   }
   /** 外向き n の鉛直の面。左下 p0、幅 w（u 軸 = UP × n、外から見て右）、高さ h。uv は m を tex で割る */
   wall(p0: V3, n: V3, w: number, h: number, c: Rgb, tex: number, u0 = 0, v0 = 0) {
+    if (this.minPart > 0 && Math.min(w, h) < this.minPart) return;
     const u = v3(n.z, 0, -n.x);
     const p1 = add(p0, u, w);
     this.quad([p0, p1, add(p1, UP, h), add(p0, UP, h)], [
@@ -126,6 +132,10 @@ export class Mesher {
   }
   /** 中心 c、軸 X・Z（Z = X × UP）、寸法の直方体（側面 4 と上面。bottom で下面も）、頂点色 */
   box(c: V3, X: V3, Z: V3, w: number, h: number, d: number, col: Rgb, tex = 1, bottom = false) {
+    if (this.minPart > 0 && w + h + d - Math.max(w, h, d) - Math.min(w, h, d) < this.minPart) return;
+    const minPart = this.minPart;
+    // 側面は箱として残すと決めたので、細い面も省かない
+    this.minPart = 0;
     const hw = w / 2, hd = d / 2;
     const at = (a: number, b: number, y: number) => v3(c.x + X.x * a + Z.x * b, y, c.z + X.z * a + Z.z * b);
     const y0 = c.y - h / 2, y1 = c.y + h / 2;
@@ -135,6 +145,7 @@ export class Mesher {
     this.wall(at(-hw, -hd, y0), v3(-X.x, 0, -X.z), d, h, col, tex);
     this.quad([at(-hw, hd, y1), at(hw, hd, y1), at(hw, -hd, y1), at(-hw, -hd, y1)], [[0, 0], [w / tex, 0], [w / tex, d / tex], [0, d / tex]], col);
     if (bottom) this.quad([at(-hw, -hd, y0), at(hw, -hd, y0), at(hw, hd, y0), at(-hw, hd, y0)], [[0, 0], [w / tex, 0], [w / tex, d / tex], [0, d / tex]], col);
+    this.minPart = minPart;
   }
   get triangles() {
     return this.idx.length / 3;
