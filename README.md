@@ -38,7 +38,7 @@ npm run preview
 npm run deploy
 ```
 
-本番ビルドをしてから `wrangler deploy` を実行する。先に `npx wrangler login` で Cloudflare にログインしておく。試作の間は `public/_headers` で検索エンジンに載せない指定を付けている。
+本番ビルドをしてから `wrangler deploy` を実行する。公開先は 1 ファイル 25MiB までなので、ビルドの最後（`scripts/split-large-assets.mjs`）で大きいファイル（北海道の `roads.bin`）を分け、今は読まない北海道の H0 のデータを除く。先に `npx wrangler login` で Cloudflare にログインしておく。試作の間は `public/_headers` で検索エンジンに載せない指定を付けている。
 
 ### パスワード
 

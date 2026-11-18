@@ -19,6 +19,17 @@ const CITY_CELL = 250;
 
 async function get(base: string, name: string): Promise<Response> {
   const res = await fetch(base + name);
+  if (res.status === 404) {
+    // 公開先は 1 ファイル 25MiB までなので、大きいファイルは name.part0, part1, … に分けて置く（scripts/split-large-assets.mjs）
+    const parts: ArrayBuffer[] = [];
+    for (let i = 0; ; i++) {
+      const p = await fetch(`${base}${name}.part${i}`);
+      if (p.status === 404) break;
+      if (!p.ok) throw new Error(`${base}${name}.part${i} ${p.status}`);
+      parts.push(await p.arrayBuffer());
+    }
+    if (parts.length) return new Response(new Blob(parts));
+  }
   if (!res.ok) throw new Error(`${base}${name} ${res.status}`);
   return res;
 }
