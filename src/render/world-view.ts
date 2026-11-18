@@ -186,6 +186,7 @@ export class WorldView {
     this.realStreets?.setQuality(light);
     this.landmarks?.setQuality(light);
     this.roadMeshes.range = light ? 900 : 1600;
+    this.roadMeshes.detailRange = light ? 250 : 400;
     const far = this.terrain.ranges.far;
     this.env.setFar(far);
     this.camera.far = far * 1.3;
@@ -248,34 +249,22 @@ export class WorldView {
     this.renderer.render(this.scene, this.camera);
   }
 
-  private groundRay = new THREE.Raycaster();
-  private groundTargets: THREE.Object3D[] = [];
-  private groundTargetsT = -1;
+  /** カメラの近い面 (m)。一人称では手元が映るように手前にする（game.ts が決める） */
+  nearPlane = 0.8;
+
   /**
    * 描いている面（地形と道路）の高さ。視点を地面より上に保つのに使う。描いていない所は高さ関数の値。
    * 道路の近くは地形を路面に合わせているので、高さ関数では切土の所で高く出すぎるため。
-   * 光線は地形（近景）にだけ当て、路面は道路の中心線と幅から求めて高い方を使う（交差点の多い札幌で、
-   * 道路のメッシュへの光線が 1 フレームに 40ms を超えたため。北海道の草案 18 章）。
+   * 地形は近景のタイルの格子から、路面は道路の中心線と幅から求めて高い方を使う（どちらも光線を当てない。
+   * 道路のメッシュへの光線は札幌で 1 フレームに 40ms を超えた。北海道の草案 18・23 章）。
    */
-  /** カメラの近い面 (m)。一人称では手元が映るように手前にする（game.ts が決める） */
-  nearPlane = 0.8;
 
   surfaceHeight(x: number, z: number): number {
     // トンネルの中（北海道の世界）は路面の高さ。内壁の外へ少しはみ出した視点も山の上へ押し上げない
     const tunnel = this.roads.tunnelAt(x, z, 3);
     if (tunnel !== null) return tunnel;
-    const now = performance.now();
-    if (now - this.groundTargetsT > 500) {
-      this.groundTargetsT = now;
-      this.groundTargets = [];
-      this.terrain.group.traverse((o) => {
-        if (o instanceof THREE.Mesh && o.visible && o.userData.level === 0) this.groundTargets.push(o);
-      });
-    }
-    this.groundRay.set(new THREE.Vector3(x - this.originX, 4000, z - this.originZ), new THREE.Vector3(0, -1, 0));
-    this.groundRay.far = 6000;
-    const hit = this.groundRay.intersectObjects(this.groundTargets, false)[0];
-    const ground = hit ? hit.point.y : this.heights.height(x, z);
+    // 近景のタイルの格子から（光線を当てない。北海道の草案 23 章）
+    const ground = this.terrain.heightAt(x, z) ?? this.heights.height(x, z);
     const road = this.roads.surfaceAt(x, z);
     return road === null ? ground : Math.max(ground, road);
   }

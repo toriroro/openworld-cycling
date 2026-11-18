@@ -50,6 +50,8 @@ export function buildAsphaltSurface(
   twoLane: boolean,
   seed: number,
   ext: (j: number) => number,
+  /** 遠くの段: 断面を両端の 2 点にし、補修跡を作らない（北海道の草案 23 章） */
+  simple = false,
 ) {
   // 工区: 120〜520m ごとに古さが変わる
   const age = (s: number) => {
@@ -66,7 +68,7 @@ export function buildAsphaltSurface(
     const sec = (hash(seed, k, 2) % 1000) / 1000;
     return Math.min(1, Math.max(0, 0.35 * base + 0.65 * sec));
   };
-  const prof = profile(hw, twoLane);
+  const prof = simple ? [{ off: -hw, k: 0.97 }, { off: hw, k: 0.97 }] : profile(hw, twoLane);
   const toneAt = new Array<number[]>(cnt);
   const patchK = new Array<number>(cnt);
   const a01 = new Array<number>(cnt);
@@ -100,6 +102,7 @@ export function buildAsphaltSurface(
       return [o / 4, sOf(j) / 4];
     });
   }
+  if (simple) return;
   // 補修跡: 40〜160m ごとに1つ、長さ 1.5〜8m、幅 1〜3m
   const s0 = sOf(0);
   const s1 = sOf(cnt - 1);

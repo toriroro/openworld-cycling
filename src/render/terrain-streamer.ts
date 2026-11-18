@@ -361,6 +361,34 @@ export class TerrainStreamer {
     for (let i = 0; i < this.releasePerFrame && this.releaseQueue.length; i++) this.disposeMesh(this.releaseQueue.shift()!);
   }
 
+  /**
+   * 描いている近景のタイルの地面の高さ（タイルの格子と三角形の対角線から。terrain-tile.ts の頂点・三角形の並びと同じ）。
+   * 近景のタイルが出ていない所は null。光線を当てるより速い（北海道の草案 23 章）
+   */
+  heightAt(x: number, z: number): number | null {
+    const spec = LEVELS[0];
+    const tx = Math.floor(x / spec.size);
+    const tz = Math.floor(z / spec.size);
+    const t = this.tiles.get(keyOf(0, tx, tz));
+    const m = t?.mesh;
+    if (!m || !m.visible) return null;
+    const P = m.geometry.getAttribute("position").array as Float32Array;
+    const N = spec.cells + 1;
+    const step = spec.size / spec.cells;
+    const fx = (x - tx * spec.size) / step;
+    const fz = (z - tz * spec.size) / step;
+    const i = Math.max(0, Math.min(spec.cells - 1, Math.floor(fx)));
+    const j = Math.max(0, Math.min(spec.cells - 1, Math.floor(fz)));
+    const u = fx - i;
+    const v = fz - j;
+    const ha = P[(j * N + i) * 3 + 1];
+    const hb = P[(j * N + i + 1) * 3 + 1];
+    const hc = P[((j + 1) * N + i) * 3 + 1];
+    const hd = P[((j + 1) * N + i + 1) * 3 + 1];
+    if ((i + j) & 1) return u + v <= 1 ? ha + (hb - ha) * u + (hc - ha) * v : hd + (hc - hd) * (1 - u) + (hb - hd) * (1 - v);
+    return v >= u ? ha + (hd - hc) * u + (hc - ha) * v : ha + (hb - ha) * u + (hd - hb) * v;
+  }
+
   private disposeMesh(m: THREE.Mesh) {
     this.group.remove(m);
     m.geometry.dispose();

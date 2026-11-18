@@ -45,6 +45,10 @@ const H2_PLACES = [
   // 川・湖の水面（豊平川の河川敷、豊平峡ダムの湖）
   ["toyohira-river", 420, 3870],
   ["hoheikyo-lake", -19341, 15215],
+  // 市街地の外の山道・林道（北海道の草案 22 章）
+  ["farm-road", 9752, -11952],
+  ["kannonzawa-rindo", -7432, 9339],
+  ["mayoisawa-rindo", -16484, 2094],
 ];
 const ALL = SET === "h2" ? H2_PLACES : [
   ["start-odori", 240, 40],

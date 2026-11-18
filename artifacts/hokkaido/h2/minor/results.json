@@ -1,0 +1,126 @@
+{
+  "loadSec": 8.055,
+  "places": {
+    "start-odori": {
+      "pos": {
+        "x": 188,
+        "y": 21,
+        "z": 53
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0,
+        "other": 0,
+        "urban": 1,
+        "town": 1
+      },
+      "triangles": 1614257,
+      "calls": 270,
+      "ray": {
+        "rays": 4038,
+        "poke": 1,
+        "missed": 20,
+        "worst": {
+          "road": "h1473886801_0",
+          "s": 0,
+          "over": 0.16951839870728946
+        }
+      }
+    },
+    "jozankei": {
+      "pos": {
+        "x": -15043,
+        "y": 287,
+        "z": 10053
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0,
+        "other": 1
+      },
+      "triangles": 982008,
+      "calls": 183,
+      "ray": {
+        "rays": 1053,
+        "poke": 0,
+        "missed": 1,
+        "worst": null
+      }
+    },
+    "farm-road": {
+      "pos": {
+        "x": 9748,
+        "y": 3,
+        "z": -11952
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 1,
+        "mountain": 0,
+        "other": 0
+      },
+      "triangles": 779293,
+      "calls": 220,
+      "ray": {
+        "rays": 936,
+        "poke": 0,
+        "missed": 1,
+        "worst": null
+      }
+    },
+    "kannonzawa-rindo": {
+      "pos": {
+        "x": -7434,
+        "y": 283,
+        "z": 9342
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0.06792779831709919,
+        "other": 0.9320722016829008
+      },
+      "triangles": 899277,
+      "calls": 139,
+      "ray": {
+        "rays": 486,
+        "poke": 0,
+        "missed": 0,
+        "worst": null
+      }
+    },
+    "mayoisawa-rindo": {
+      "pos": {
+        "x": -16482,
+        "y": 651,
+        "z": 2093
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 1,
+        "other": 0
+      },
+      "triangles": 1057905,
+      "calls": 136,
+      "ray": {
+        "rays": 948,
+        "poke": 0,
+        "missed": 3,
+        "worst": null
+      }
+    }
+  },
+  "ride": {
+    "meters": 1271,
+    "frameP95ms": 33.5,
+    "frames": 1771
+  },
+  "cafe": {
+    "name": "喫茶店（北3条東3丁目）",
+    "nearCount": 39
+  },
+  "errors": []
+}

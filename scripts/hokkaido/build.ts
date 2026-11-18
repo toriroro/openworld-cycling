@@ -8,6 +8,7 @@
 
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { convertBuildings, type Seg } from "./buildings.ts";
+import { BUILDING_REC } from "../../src/shared/world/hokkaido.ts";
 import { buildSidewalks, buildingCoverage, coverageAt } from "./sidewalks.ts";
 import { buildStreets } from "./streets.ts";
 import { H0_BOX, H2_BOX, type LatLonBox, SOURCE_DIR } from "./area.ts";
@@ -133,8 +134,62 @@ lap("水・土地利用");
 
 // ---- 道路 ----
 const rd = osm.roads;
-// 走る道は等級 2・3（unclassified・track）を除く（決定 2026-11-17、北海道の草案 13.1 #8）。入れた版は数字だけ
-const built = buildRoads(rd, dem5, { ...DEFAULT_ROAD_OPTIONS, includeMinor: false });
+// 走る道の等級 2・3（unclassified・track）は市街地の外だけ入れる（決定 2026-11-17、北海道の草案 13.1 #8 の c・20.1 #12 の a）。
+// 市街地は、建物の外形（変換前）の床面積の割合 0.06 以上（19 章と同じ）か、土地利用が市街地の所。全部を入れた版は数字だけ
+const preCoverage = (() => {
+  const rec = new Float32Array(osm.buildings.length * BUILDING_REC);
+  osm.buildings.forEach((b, i) => {
+    const r = b.ring;
+    let a = 0;
+    let cx = 0;
+    let cz = 0;
+    for (let k = 0, m = r.length / 2; k < m; k++) {
+      const j = (k + 1) % m;
+      const c = r[k * 2] * r[j * 2 + 1] - r[j * 2] * r[k * 2 + 1];
+      a += c;
+      cx += (r[k * 2] + r[j * 2]) * c;
+      cz += (r[k * 2 + 1] + r[j * 2 + 1]) * c;
+    }
+    if (Math.abs(a) < 1e-6) return;
+    const area = Math.abs(a) / 2;
+    rec[i * BUILDING_REC] = cx / (3 * a);
+    rec[i * BUILDING_REC + 1] = cz / (3 * a);
+    rec[i * BUILDING_REC + 2] = Math.sqrt(area);
+    rec[i * BUILDING_REC + 3] = Math.sqrt(area);
+  });
+  return buildingCoverage(rec, { x0: X0, z0: Z0, step: 10, nx, nz });
+})();
+const inTown = (x: number, z: number) => {
+  if (coverageAt(preCoverage, x, z) >= 0.06) return true;
+  const i = Math.round((x - X0) / 10);
+  const j = Math.round((z - Z0) / 10);
+  return i >= 0 && j >= 0 && i < nx && j < nz && landuse.data[j * nx + i] === HOKKAIDO_LANDUSE.urban;
+};
+const minorOpt = { ...DEFAULT_ROAD_OPTIONS, includeMinor: true, minorAt: (x: number, z: number) => !inTown(x, z), minorMinLength: 150 };
+// 1 回目: 市街地の外の等級 2・3 を全部入れて作り、一番大きなつながり（走る道の網）に入る道の way を集める。
+// 2 回目: その way の等級 2・3 だけ入れる（どこにもつながらない林道の切れ端を除く）
+const keepMinor = (() => {
+  const first = buildRoads(rd, dem5, minorOpt);
+  const parent = new Map<string, string>();
+  const find = (a: string): string => {
+    let r = a;
+    while (parent.get(r) && parent.get(r) !== r) r = parent.get(r)!;
+    parent.set(a, r);
+    return r;
+  };
+  for (const r of first.roads) {
+    const a = find(r.start);
+    const b = find(r.end);
+    if (a !== b) parent.set(a, b);
+  }
+  const size = new Map<string, number>();
+  for (const r of first.roads) size.set(find(r.start), (size.get(find(r.start)) ?? 0) + r.length);
+  const main = [...size].sort((a, b) => b[1] - a[1])[0][0];
+  const keep = new Set<number>();
+  for (const r of first.roads) if (r.minor && find(r.start) === main) for (const w of r.ways) keep.add(w);
+  return keep;
+})();
+const built = buildRoads(rd, dem5, { ...minorOpt, keepMinorWay: (id) => keepMinor.has(id) });
 lap("道路");
 const builtAll = buildRoads(rd, dem5, DEFAULT_ROAD_OPTIONS);
 lap("道路（等級 2・3 を入れた版。数字だけ）");
@@ -308,8 +363,8 @@ for (const r of built.roads) {
 const coverage = buildingCoverage(buildingOut?.data ?? new Float32Array(0), { x0: X0, z0: Z0, step: 10, nx, nz });
 // 店・ビル・集合住宅・低い店舗だけの込み具合（舗装の多い街の中心。家の多い所は庭と草地にする）
 const commercial = buildingCoverage(buildingOut?.data ?? new Float32Array(0), { x0: X0, z0: Z0, step: 10, nx, nz }, 110, new Set([2, 3, 4, 5, 6, 7]));
-// 走らない道（見た目だけ。北海道の草案 17 章）
-const streetOut = buildStreets(rd, dem5, rideSegs, new Set(built.roads.flatMap((r) => r.ways)), 250, (x, z) => coverageAt(coverage, x, z));
+// 走らない道（見た目だけ。北海道の草案 17 章）。等級 2・3 の道は市街地の中の部分を走らない道として描くので、道の番号では除かず、走る道の路面の上を切り取るだけにする
+const streetOut = buildStreets(rd, dem5, rideSegs, new Set(built.roads.filter((r) => !r.minor).flatMap((r) => r.ways)), 250, (x, z) => coverageAt(coverage, x, z));
 lap(`走らない道 ${streetOut.stats.km.join("km・")}km`);
 // 幹線の歩道と街路樹
 const sidewalkOut = buildSidewalks(built.roads, buildingOut?.data ?? new Float32Array(0), coverage, 250, streetOut);

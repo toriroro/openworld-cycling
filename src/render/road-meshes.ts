@@ -5,7 +5,7 @@
 
 import * as THREE from "three";
 import type { TerrainLike } from "../shared/world/terrain.ts";
-import type { Road } from "../shared/world/types.ts";
+import type { Junction, Road } from "../shared/world/types.ts";
 import { hashString } from "../shared/world/hash.ts";
 import { junctionShape, type JunctionShape, roadFrame, type Vec3 } from "../sim/junction-shape.ts";
 import { rectDist, type RoadClient } from "../workers/road-client.ts";
@@ -41,7 +41,16 @@ interface Chunk {
   gapKey: string;
   /** トンネルの影だけを落とす箱（三角形の頂点の並び。区間の原点から） */
   caster: Float32Array | null;
+  /** 遠くの段（簡単な形）で作ったか */
+  far: boolean;
+  /** 作った時の道路網の版（変わっていなければ接続点の切れ目を調べ直さない） */
+  net: number;
 }
+
+/** 遠くの段で、点を何個おきに使うか（2m の点を 4 個おき = 8m） */
+const FAR_STRIDE = 4;
+/** 段を切り替える距離の遊び (m)。境目で行ったり来たりしないように */
+const LOD_HYSTERESIS = 50;
 
 
 /**
@@ -155,11 +164,14 @@ export class RoadMeshes {
   /** 1 フレームにまとめ直す区画の数 */
   mergePerFrame = 2;
   private releaseQueue: THREE.Mesh[] = [];
-  private discs: THREE.Mesh | null = null;
-  private discKey = "";
   private gapCache = new Map<string, Gap[]>();
   private gapVersion = -1;
   range = 1600;
+  /**
+   * この距離より遠い区間は簡単な形（断面 2 点・8m ごと、区画線・補修跡・ガードレールなし）で作る。
+   * 半径 1.6km の道路を全部細かく作ると、札幌で三角形の 7 割（122万）を道路が占めたため（北海道の草案 23 章）
+   */
+  detailRange = 400;
   buildPerFrame = 3;
   private originX = 0;
   private originZ = 0;
@@ -167,7 +179,7 @@ export class RoadMeshes {
   private lastCx = NaN;
   private lastCz = NaN;
   private lastVersion = -1;
-  private wanted: { key: string; road: Road; k: number; d: number }[] = [];
+  private wanted: { key: string; road: Road | null; junction?: Junction; k: number; d: number; far: boolean }[] = [];
   /** トンネルの影だけを落とす箱の材質（画面には色も深さも書かない。影の描画は材質の色を使わないので影だけ落ちる） */
   private readonly casterMat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, colorWrite: false, depthWrite: false });
 
@@ -186,10 +198,6 @@ export class RoadMeshes {
         m.position.set(c.ox - x, 0, c.oz - z);
         m.updateMatrix();
       }
-    }
-    if (this.discs) {
-      this.discs.position.set(this.discs.userData.ox - x, 0, this.discs.userData.oz - z);
-      this.discs.updateMatrix();
     }
   }
 
@@ -218,25 +226,53 @@ export class RoadMeshes {
           }
           if (d > this.range) continue;
           const key = `${road.id}#${k}`;
-          const have = this.chunks.get(key);
-          if (have && have.gapKey !== this.gapKey(road, k)) {
-            // 接続点の形が変わった（腕の道路が読み込まれた）ので作り直す
-            this.removeChunk(have);
+          let have = this.chunks.get(key);
+          if (have && have.net !== this.roads.net.version) {
+            if (have.gapKey !== this.gapKey(road, k)) {
+              // 接続点の形が変わった（腕の道路が読み込まれた）ので作り直す
+              this.removeChunk(have);
+              have = undefined;
+            } else have.net = this.roads.net.version;
           }
           keep.add(key);
-          if (!this.chunks.has(key)) wanted.push({ key, road, k, d });
+          const far = have ? (have.far ? d > this.detailRange - LOD_HYSTERESIS : d > this.detailRange + LOD_HYSTERESIS) : d > this.detailRange;
+          // 段が変わる区間は、新しい形ができるまで古い形を出しておく（作った所で入れ替える）
+          if (!have || have.far !== far) wanted.push({ key, road, k, d, far });
         }
+      }
+      // 接続点の舗装面も道路の区間と同じく区画のメッシュに入れる。範囲の全部の接続点を 1 つのメッシュに作り直すと、
+      // 札幌で動くたびに 50〜90ms 止まったため（北海道の草案 23 章）
+      for (const j of this.roads.net.junctions.values()) {
+        const d = Math.hypot(j.x - cx, j.z - cz);
+        if (d > this.range) continue;
+        const key = `J#${j.id}`;
+        let have = this.chunks.get(key);
+        if (have && have.net !== this.roads.net.version) {
+          const shape = junctionShape(this.roads.net, j);
+          if (shape.arms.length < 2 || have.gapKey !== shape.key) {
+            this.removeChunk(have);
+            have = undefined;
+          } else have.net = this.roads.net.version;
+        }
+        if (!have && junctionShape(this.roads.net, j).arms.length < 2) continue;
+        keep.add(key);
+        if (!have) wanted.push({ key, road: null, junction: j, k: 0, d, far: false });
       }
       wanted.sort((a, b) => a.d - b.d);
       this.wanted = wanted;
       for (const [key, c] of this.chunks) if (!keep.has(key)) this.removeChunk(c);
-      this.updateDiscs(cx, cz);
     }
-    for (let i = 0; i < this.buildPerFrame && this.wanted.length; i++) {
+    // 1 フレームに buildPerFrame 個、または 2ms まで作る（接続点は小さいので数が多くても早く埋める）
+    const buildStart = performance.now();
+    for (let i = 0; this.wanted.length && (i < this.buildPerFrame || performance.now() - buildStart < 2); i++) {
       const w = this.wanted.shift()!;
-      if (this.chunks.has(w.key) || !this.roads.net.roads.has(w.road.id)) continue;
+      const old = this.chunks.get(w.key);
+      if (w.junction) {
+        if (old || !this.roads.net.junctions.has(w.junction.id)) continue;
+      } else if ((old && old.far === w.far) || !w.road || !this.roads.net.roads.has(w.road.id)) continue;
       const t0 = performance.now();
-      const c = this.build(w.road, w.k);
+      const c = w.junction ? this.buildJunction(w.junction) : this.build(w.road!, w.k, w.far);
+      if (old) this.removeChunk(old);
       this.buildMs.push(performance.now() - t0);
       if (this.buildMs.length > 2000) this.buildMs.splice(0, 1000);
       this.chunks.set(w.key, c);
@@ -401,7 +437,7 @@ export class RoadMeshes {
     }
   }
 
-  private build(road: Road, k: number): Chunk {
+  private build(road: Road, k: number, wantFar = false): Chunk {
     const P = road.points;
     const n = P.length / 3;
     const ds = road.length / (n - 1);
@@ -443,21 +479,33 @@ export class RoadMeshes {
       cut.push(gaps.some((g) => s > g.from + 1e-3 && s < g.to - 1e-3));
     }
     const runs = runsOf(cut);
+    // 遠くの段: 橋・トンネルの無い区間だけ（橋・トンネルは形が崩れないよう細かいまま）
+    let structure = false;
+    for (let j = 0; j < cnt && !structure; j++) if (bridge[i0 + j]) structure = true;
+    const far = wantFar && !structure;
+    /** 続く点 r0..r1 のうち使う点（遠くの段は FAR_STRIDE 個おきと最後の点） */
+    const pick = (r0: number, r1: number): number[] => {
+      const out: number[] = [];
+      for (let j = r0; j < r1; j += far ? FAR_STRIDE : 1) out.push(j);
+      out.push(r1);
+      return out;
+    };
 
     // 路面
     const gravel = road.surface === "gravel";
     for (const [r0, r1] of runs) {
-      const at2 = (j: number, off: number, dy: number) => at(r0 + j, off, dy);
-      const s2 = (j: number) => sOf(r0 + j);
-      if (gravel) buildGravelSurface(surf, at2, r1 - r0 + 1, s2, hw, hashString(road.id));
-      else buildAsphaltSurface(surf, pat, at2, r1 - r0 + 1, s2, hw, road.cls <= 1, hashString(road.id), (j) => (isBridge(r0 + j) ? 0.3 : 0));
+      const sel = pick(r0, r1);
+      const at2 = (j: number, off: number, dy: number) => at(sel[j], off, dy);
+      const s2 = (j: number) => sOf(sel[j]);
+      if (gravel) buildGravelSurface(surf, at2, sel.length, s2, hw, hashString(road.id), far);
+      else buildAsphaltSurface(surf, pat, at2, sel.length, s2, hw, road.cls <= 1, hashString(road.id), (j) => (isBridge(sel[j]) ? 0.3 : 0), far);
     }
 
     // 路肩（土の部分）: 端から 0.7m は少し下げて平ら、そこから 0.7m で地面の下へ
     for (const sign of [-1, 1])
       for (const [r0, r1] of runs) {
       const a: number[][] = [], b: number[][] = [], c: number[][] = [];
-      for (let j = r0; j <= r1; j++) {
+      for (const j of pick(r0, r1)) {
         const br = isBridge(j);
         a.push(at(j, sign * hw, gravel ? -0.03 : 0));
         b.push(at(j, sign * (hw + 0.7), br ? 0 : gravel ? -0.08 : -0.04));
@@ -496,7 +544,7 @@ export class RoadMeshes {
       }
       flush();
     };
-    if (road.surface === "paved") {
+    if (road.surface === "paved" && !far) {
       if (road.cls <= 1) line(0, 0.15, road.cls === 1);
       if (road.cls <= 2) {
         line(-hw + 0.3, 0.15, false);
@@ -504,8 +552,8 @@ export class RoadMeshes {
       }
     }
 
-    // 谷側のガードレール（橋は欄干があるので除く）
-    for (const sign of [-1, 1]) {
+    // 谷側のガードレール（橋は欄干があるので除く。遠くの段は作らない）
+    for (const sign of far ? [] : [-1, 1]) {
       const valley: boolean[] = [];
       for (let j = 0; j < cnt; j++) {
         if (isBridge(j) || cut[j]) {
@@ -633,7 +681,7 @@ export class RoadMeshes {
     if (lamp.idx.length) g.addGroup(surf.idx.length + str.idx.length + pat.idx.length, lamp.idx.length, 3);
     g.computeVertexNormals();
     const cell = `${Math.floor(ox / CELL)},${Math.floor(oz / CELL)}`;
-    return { key: `${road.id}#${k}`, road: road.id, k, geo: g, surface: road.surface === "paved" ? 0 : 1, ox, oz, cell, gapKey: this.gapKey(road, k), caster };
+    return { key: `${road.id}#${k}`, road: road.id, k, geo: g, surface: road.surface === "paved" ? 0 : 1, ox, oz, cell, gapKey: this.gapKey(road, k), caster, far, net: this.roads.net.version };
   }
 
   private rail(
@@ -894,58 +942,41 @@ export class RoadMeshes {
       .join(",");
   }
 
-  /** 範囲内の接続点の舗装面・路肩・外側線を1つのメッシュにまとめる */
-  private updateDiscs(cx: number, cz: number) {
-    const shapes: JunctionShape[] = [];
-    for (const j of this.roads.net.junctions.values()) {
-      const dx = j.x - cx, dz = j.z - cz;
-      if (dx * dx + dz * dz > this.range * this.range) continue;
-      const shape = junctionShape(this.roads.net, j);
-      if (shape.arms.length < 2) continue;
-      shapes.push(shape);
-    }
-    const key = shapes.map((s) => `${s.junction.id}=${s.key}`).join("|");
-    if (key === this.discKey) return;
-    this.discKey = key;
-    if (this.discs) this.releaseQueue.push(this.discs);
-    this.discs = null;
-    if (!shapes.length) return;
-    const ox = Math.round(cx), oz = Math.round(cz);
+  /** 接続点 1 つの舗装面・路肩・外側線を、区画にまとめる区間として作る */
+  private buildJunction(j: Junction): Chunk {
+    const shape = junctionShape(this.roads.net, j);
+    const ox = Math.round(j.x);
+    const oz = Math.round(j.z);
     const paved = new GeoBuilder();
     const gravel = new GeoBuilder();
     const lines = new GeoBuilder();
-    for (const sh of shapes) this.junctionPatch(sh, ox, oz, paved, gravel, lines);
-    const all = new GeoBuilder();
-    const parts = [paved, gravel, lines];
+    this.junctionPatch(shape, ox, oz, paved, gravel, lines);
+    const isGravel = gravel.idx.length > 0 && paved.idx.length === 0;
+    const surf = isGravel ? gravel : paved;
     const g = new THREE.BufferGeometry();
-    let start = 0;
-    let vbase = 0;
-    parts.forEach((p, mi) => {
-      // 交差点の多い市街地（北海道の世界）では配列が大きく、push(...) は引数の数の上限を超える
-      for (const v of p.pos) all.pos.push(v);
-      for (const v of p.col) all.col.push(v);
-      for (const v of p.uv) all.uv.push(v);
-      for (const v of p.idx) all.idx.push(v + vbase);
-      if (p.idx.length) g.addGroup(start, p.idx.length, mi);
-      start += p.idx.length;
-      vbase += p.pos.length / 3;
-    });
-    g.setAttribute("position", new THREE.Float32BufferAttribute(all.pos, 3));
-    g.setAttribute("color", new THREE.Float32BufferAttribute(all.col, 3));
-    g.setAttribute("uv", new THREE.Float32BufferAttribute(all.uv, 2));
-    g.setIndex(all.pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(all.idx, 1) : new THREE.Uint16BufferAttribute(all.idx, 1));
+    const off = surf.pos.length / 3;
+    g.setAttribute("position", new THREE.Float32BufferAttribute([...surf.pos, ...lines.pos], 3));
+    g.setAttribute("color", new THREE.Float32BufferAttribute([...surf.col, ...lines.col], 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute([...surf.uv, ...lines.uv], 2));
+    const idx = [...surf.idx, ...lines.idx.map((v) => v + off)];
+    g.setIndex((surf.pos.length + lines.pos.length) / 3 > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
+    g.addGroup(0, surf.idx.length, 0);
+    if (lines.idx.length) g.addGroup(surf.idx.length, lines.idx.length, 1);
     g.computeVertexNormals();
-    g.computeBoundingSphere();
-    const m = new THREE.Mesh(g, [this.mats.paved, this.mats.gravel, this.mats.structure]);
-    m.name = "road";
-    m.userData.ox = ox;
-    m.userData.oz = oz;
-    m.receiveShadow = true;
-    m.matrixAutoUpdate = false;
-    m.position.set(ox - this.originX, 0, oz - this.originZ);
-    m.updateMatrix();
-    this.discs = m;
-    this.group.add(m);
+    return {
+      key: `J#${j.id}`,
+      road: `J:${j.id}`,
+      k: 0,
+      geo: g,
+      surface: isGravel ? 1 : 0,
+      ox,
+      oz,
+      cell: `${Math.floor(ox / CELL)},${Math.floor(oz / CELL)}`,
+      gapKey: shape.key,
+      caster: null,
+      far: false,
+      net: this.roads.net.version,
+    };
   }
 
   /** 接続点1つ: 中心から外周への扇形の舗装面、隅切りの曲線に沿った路肩と外側線 */

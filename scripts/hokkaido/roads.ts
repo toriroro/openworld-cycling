@@ -86,6 +86,15 @@ const edgeFlag = (t: Tags) => (t.tunnel && t.tunnel !== "no" && t.tunnel !== "bu
 export interface RoadBuildOptions {
   /** 等級 2・3 を入れる */
   includeMinor: boolean;
+  /**
+   * 等級 2・3 を入れる時、この点で入れてよいか（市街地の外だけ入れる。北海道の草案 13.1 #8 の c）。
+   * 入れてよくない点で道を切る。省くとどこでも入れる
+   */
+  minorAt?: (x: number, z: number) => boolean;
+  /** 切った後の等級 2・3 の道がこれより短ければ入れない (m) */
+  minorMinLength?: number;
+  /** 等級 2・3 の道（OSM の way の番号）を入れてよいか。省くと全部 */
+  keepMinorWay?: (wayId: number) => boolean;
   /** これより短い道でつながる接続点は 1 つにまとめる (m) */
   mergeJunction: number;
   /** 行き止まりのこれより短い道は消す (m) */
@@ -114,16 +123,34 @@ export function buildRoads(d: OsmData, dem: Grid, opt: RoadBuildOptions = DEFAUL
     const p = d.nodes.get(id);
     return !!p && p.x >= dem.x0 && p.x <= gx1 && p.z >= dem.z0 && p.z <= gz1;
   };
+  const minorOk = (id: number) => {
+    if (!opt.minorAt) return true;
+    const p = d.nodes.get(id)!;
+    return opt.minorAt(p.x, p.z);
+  };
+  const lengthOf = (ids: number[]) => {
+    let l = 0;
+    for (let i = 1; i < ids.length; i++) {
+      const a = d.nodes.get(ids[i - 1])!;
+      const b = d.nodes.get(ids[i])!;
+      l += Math.hypot(b.x - a.x, b.z - a.z);
+    }
+    return l;
+  };
+  let minorWays = 0;
   for (const w of d.ways.values()) {
     const spec = classify(w.tags);
     if (!spec || (!opt.includeMinor && spec.minor)) continue;
     let run: number[] = [];
     for (const id of [...w.nodes, -1]) {
-      if (id !== -1 && inside(id)) {
+      if (id !== -1 && inside(id) && (!spec.minor || (minorOk(id) && (opt.keepMinorWay?.(w.id) ?? true)))) {
         run.push(id);
         continue;
       }
-      if (run.length >= 2) ways.push({ w: { id: w.id, nodes: run, tags: w.tags }, spec });
+      if (run.length >= 2 && (!spec.minor || lengthOf(run) >= (opt.minorMinLength ?? 0))) {
+        ways.push({ w: { id: w.id, nodes: run, tags: w.tags }, spec });
+        if (spec.minor) minorWays++;
+      }
       run = [];
     }
   }
@@ -418,7 +445,7 @@ export function buildRoads(d: OsmData, dem: Grid, opt: RoadBuildOptions = DEFAUL
     }
   }
   const outJunctions: BuiltJunction[] = [...junctions.values()].map(({ id, x, y, z, arms }) => ({ id, x, y, z, arms }));
-  return { roads, junctions: outJunctions, stats: { dual, shallowTunnels, selectedWays: ways.length, pieces: pieces.length, segments: segs.length, mergedJunctionLinks: merged, removedStubs: stubs } };
+  return { roads, junctions: outJunctions, stats: { dual, shallowTunnels, minorWays, selectedWays: ways.length, pieces: pieces.length, segments: segs.length, mergedJunctionLinks: merged, removedStubs: stubs } };
 }
 
 /** 中心を通るキャットマル・ロム（向心）で曲線にし、step 以下の等間隔に取り直す。flag は元の辺ごと */

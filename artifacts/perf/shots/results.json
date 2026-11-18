@@ -1,0 +1,35 @@
+{
+  "loadSec": 9.262,
+  "places": {
+    "start-odori": {
+      "pos": {
+        "x": 188,
+        "y": 21,
+        "z": 53
+      },
+      "landscape": {
+        "coast": 0,
+        "plain": 0,
+        "mountain": 0,
+        "other": 0,
+        "urban": 1,
+        "town": 1
+      },
+      "triangles": 1311358,
+      "calls": 251,
+      "ray": {
+        "rays": 4038,
+        "poke": 1,
+        "missed": 10,
+        "worst": {
+          "road": "h1473886801_0",
+          "s": 0,
+          "over": 0.16951488802180847
+        }
+      }
+    }
+  },
+  "ride": null,
+  "cafe": null,
+  "errors": []
+}

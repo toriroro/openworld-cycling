@@ -1,10 +1,10 @@
 {
   "hokkaido-standard": {
-    "triangles": 1634185,
-    "calls": 282,
+    "triangles": 1334558,
+    "calls": 259,
     "roads": {
-      "chunks": 731,
-      "cells": 146,
+      "chunks": 1070,
+      "cells": 147,
       "wanted": 0,
       "releasing": 0
     },
@@ -14,40 +14,40 @@
       "worst": {
         "road": "h1473886801_0",
         "s": 0,
-        "over": 0.16951839870728946
+        "over": 0.16951488802180847
       }
     },
-    "buildMsP95": 2.600000001490116,
-    "buildMsMax": 12.300000004470348,
+    "buildMsP95": 1.1000000000931323,
+    "buildMsMax": 7.800000000279397,
     "errors": []
   },
   "hokkaido-light": {
-    "triangles": 692196,
-    "calls": 162,
+    "triangles": 529579,
+    "calls": 147,
     "roads": {
-      "chunks": 345,
+      "chunks": 515,
       "cells": 54,
       "wanted": 0,
       "releasing": 0
     },
     "ray": {
-      "rays": 4035,
+      "rays": 4038,
       "poke": 1,
       "worst": {
         "road": "h1473886801_0",
         "s": 0,
-        "over": 0.16951839870728946
+        "over": 0.16951488802180847
       }
     },
-    "buildMsP95": 1.8999999985098839,
-    "buildMsMax": 5.700000002980232,
+    "buildMsP95": 1,
+    "buildMsMax": 5.2999999998137355,
     "errors": []
   },
   "generated-standard": {
-    "triangles": 601789,
-    "calls": 154,
+    "triangles": 570835,
+    "calls": 148,
     "roads": {
-      "chunks": 22,
+      "chunks": 23,
       "cells": 20,
       "wanted": 0,
       "releasing": 0
@@ -57,15 +57,15 @@
       "poke": 0,
       "worst": null
     },
-    "buildMsP95": 10,
-    "buildMsMax": 10.600000001490116,
+    "buildMsP95": 6.5,
+    "buildMsMax": 9.600000000093132,
     "errors": []
   },
   "generated-light": {
-    "triangles": 312926,
-    "calls": 99,
+    "triangles": 292742,
+    "calls": 95,
     "roads": {
-      "chunks": 13,
+      "chunks": 14,
       "cells": 11,
       "wanted": 0,
       "releasing": 0
@@ -75,8 +75,8 @@
       "poke": 0,
       "worst": null
     },
-    "buildMsP95": 13.799999997019768,
-    "buildMsMax": 35.69999999552965,
+    "buildMsP95": 9.399999999906868,
+    "buildMsMax": 11.5,
     "errors": []
   }
 }

@@ -8,7 +8,7 @@ import type { Junction, Poi, RailLine, Road, RoadClass, Span, WorldNode } from "
 import type { CrossingInfo, Rect } from "./world.ts";
 
 /** 保存データの generator に入れる値。道路の識別子が変わる変換をしたら上げる（走った区間・続きからの位置が道路の識別子を使うため） */
-export const HOKKAIDO_GENERATOR = 1002;
+export const HOKKAIDO_GENERATOR = 1003;
 /** 変換データの置き場（H2: 札幌圏 約 60km 四方） */
 export const HOKKAIDO_BASE = "/data/hokkaido/h2/";
 /** 地形・建物・走らない道・歩道の頁の一辺 (m)（北海道の草案 20 章） */

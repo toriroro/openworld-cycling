@@ -17,12 +17,32 @@ interface RoadEntry {
   blocks: Set<string>;
   /** 橋の上の点の印 */
   bridge: Uint8Array;
+  /** 区切りの索引に入れた格子の鍵（捨てる時に消す） */
+  cells: number[];
 }
+
+/** 道路の区切り（点 SEG_POINTS 個ごと）。surfaceAt・tunnelAt で引く格子の索引の中身 */
+interface Seg {
+  e: RoadEntry;
+  i0: number;
+  i1: number;
+  tunnel: boolean;
+}
+/** 区切りの点の数と、索引の格子の一辺 (m)。区切りは幅の半分 + SEG_PAD まで広げて格子に入れる */
+const SEG_POINTS = 8;
+const SEG_CELL = 64;
+const SEG_PAD = 3.5;
+const segKey = (cx: number, cz: number) => (cx + 32768) * 65536 + (cz + 32768);
 
 export class RoadClient {
   readonly net = new RoadNetwork();
   readonly pois = new Map<string, Poi>();
   private entries = new Map<string, RoadEntry>();
+  /**
+   * 道路の区切りの格子の索引。視点を地面の上に保つ問い合わせ（1 フレームに何回も）が、読み込んだ道路
+   * （札幌で 4,000 本）を毎回全部なめていたため（北海道の草案 23 章）
+   */
+  private segGrid = new Map<number, Seg[]>();
   private loaded = new Set<string>();
   private queue: string[] = [];
   private inFlight: string | null = null;
@@ -107,6 +127,7 @@ export class RoadClient {
       for (const [id, e] of this.entries) {
         e.blocks.delete(key);
         if (!e.blocks.size) {
+          this.unindex(e);
           this.entries.delete(id);
           this.net.removeRoad(id);
           for (const [pid, p] of this.pois) if (p.road === id) this.pois.delete(pid);
@@ -183,7 +204,9 @@ export class RoadClient {
         const b = sp.kind === "tunnel" ? Math.floor(sp.to / ds) : Math.ceil(sp.to / ds);
         for (let i = Math.max(0, a); i <= Math.min(n - 1, b); i++) bridge[i] = v;
       }
-      this.entries.set(r.id, { road: r, bounds: roadBounds(r), blocks: new Set([block]), bridge });
+      const entry: RoadEntry = { road: r, bounds: roadBounds(r), blocks: new Set([block]), bridge, cells: [] };
+      this.entries.set(r.id, entry);
+      this.index(entry);
       this.net.addRoad(r);
     }
     for (const j of d.junctions) this.net.addJunction(j);
@@ -202,19 +225,66 @@ export class RoadClient {
     return this.entries.get(id)?.bridge;
   }
 
-  /** (x, z) がトンネルの中（道路の端から margin m 以内）なら路面の高さ、でなければ null（視点を山の上へ押し上げないため） */
+  /** 道路の区切りを格子の索引に入れる */
+  private index(e: RoadEntry) {
+    const P = e.road.points;
+    const n = P.length / 3;
+    const ox = e.road.origin[0];
+    const oz = e.road.origin[1];
+    const pad = e.road.width / 2 + SEG_PAD;
+    const cells = new Set<number>();
+    for (let i0 = 0; i0 < n - 1; i0 += SEG_POINTS) {
+      const i1 = Math.min(n - 1, i0 + SEG_POINTS);
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+      let tunnel = false;
+      for (let i = i0; i <= i1; i++) {
+        const x = P[i * 3] + ox;
+        const z = P[i * 3 + 2] + oz;
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (z < z0) z0 = z;
+        if (z > z1) z1 = z;
+        if (e.bridge[i] === 2) tunnel = true;
+      }
+      const seg: Seg = { e, i0, i1, tunnel };
+      for (let cx = Math.floor((x0 - pad) / SEG_CELL); cx <= Math.floor((x1 + pad) / SEG_CELL); cx++)
+        for (let cz = Math.floor((z0 - pad) / SEG_CELL); cz <= Math.floor((z1 + pad) / SEG_CELL); cz++) {
+          const k = segKey(cx, cz);
+          const l = this.segGrid.get(k);
+          if (l) l.push(seg);
+          else this.segGrid.set(k, [seg]);
+          cells.add(k);
+        }
+    }
+    e.cells = [...cells];
+  }
+
+  private unindex(e: RoadEntry) {
+    for (const k of e.cells) {
+      const l = this.segGrid.get(k);
+      if (!l) continue;
+      const kept = l.filter((s) => s.e !== e);
+      if (kept.length) this.segGrid.set(k, kept);
+      else this.segGrid.delete(k);
+    }
+    e.cells = [];
+  }
+
+  private segsAt(x: number, z: number): Seg[] | undefined {
+    return this.segGrid.get(segKey(Math.floor(x / SEG_CELL), Math.floor(z / SEG_CELL)));
+  }
+
+  /** (x, z) がトンネルの中（道路の端から margin m 以内。margin は SEG_PAD まで）なら路面の高さ、でなければ null（視点を山の上へ押し上げないため） */
   tunnelAt(x: number, z: number, margin: number): number | null {
-    for (const e of this.entries.values()) {
-      const b = e.bounds;
+    for (const s of this.segsAt(x, z) ?? []) {
+      if (!s.tunnel) continue;
+      const e = s.e;
       const road = e.road;
-      if (!road.spans.some((s) => s.kind === "tunnel")) continue;
-      const hw = road.width / 2 + margin;
-      if (x < b.x0 - hw || x > b.x1 + hw || z < b.z0 - hw || z > b.z1 + hw) continue;
+      const hw = road.width / 2 + Math.min(margin, SEG_PAD);
       const P = road.points;
-      const n = P.length / 3;
       const ox = road.origin[0];
       const oz = road.origin[1];
-      for (let i = 0; i + 1 < n; i++) {
+      for (let i = s.i0; i < s.i1; i++) {
         if (e.bridge[i] !== 2 || e.bridge[i + 1] !== 2) continue;
         const ax = P[i * 3] + ox, az = P[i * 3 + 2] + oz;
         if (Math.abs(ax - x) > hw + 3 || Math.abs(az - z) > hw + 3) continue;
@@ -235,16 +305,13 @@ export class RoadClient {
    */
   surfaceAt(x: number, z: number): number | null {
     let best: number | null = null;
-    for (const e of this.entries.values()) {
-      const b = e.bounds;
-      const road = e.road;
+    for (const s of this.segsAt(x, z) ?? []) {
+      const road = s.e.road;
       const hw = road.width / 2 + 0.3;
-      if (x < b.x0 - hw || x > b.x1 + hw || z < b.z0 - hw || z > b.z1 + hw) continue;
       const P = road.points;
-      const n = P.length / 3;
       const ox = road.origin[0];
       const oz = road.origin[1];
-      for (let i = 0; i + 1 < n; i++) {
+      for (let i = s.i0; i < s.i1; i++) {
         const ax = P[i * 3] + ox, az = P[i * 3 + 2] + oz;
         const bx = P[i * 3 + 3] + ox, bz = P[i * 3 + 5] + oz;
         // 粗い除外（点の間隔は 2m 以下）

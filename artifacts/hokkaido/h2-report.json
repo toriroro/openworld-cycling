@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-11-17T11:52:51.330Z",
+  "builtAt": "2026-11-18T06:24:16.105Z",
   "area": {
     "x0": -30000,
     "x1": 30000,
@@ -116,6 +116,7 @@
         "colorConflicts": 0
       },
       "shallowTunnels": 175,
+      "minorWays": 24279,
       "selectedWays": 32899,
       "pieces": 65227,
       "segments": 57659,
@@ -124,94 +125,94 @@
     }
   },
   "withoutMinor": {
-    "roads": 7038,
-    "km": 3621.7,
+    "roads": 14468,
+    "km": 6057.9,
     "byClass": [
       {
         "cls": 0,
         "name": "幹線",
-        "roads": 1301,
+        "roads": 1713,
         "km": 896.5
       },
       {
         "cls": 1,
         "name": "一般道",
-        "roads": 5388,
-        "km": 2583.1
+        "roads": 7050,
+        "km": 2582.9
       },
       {
         "cls": 2,
         "name": "山道",
-        "roads": 0,
-        "km": 0
+        "roads": 2866,
+        "km": 1285.4
       },
       {
         "cls": 3,
         "name": "林道",
-        "roads": 0,
-        "km": 0
+        "roads": 2481,
+        "km": 1150.9
       },
       {
         "cls": 4,
         "name": "自転車道",
-        "roads": 349,
+        "roads": 358,
         "km": 142.2
       }
     ],
     "junctions": {
-      "total": 4864,
-      "deg3plus": 3420,
-      "deadEnds": 773,
-      "deg2": 671
+      "total": 10762,
+      "deg3plus": 7311,
+      "deadEnds": 2581,
+      "deg2": 870
     },
     "junctionToJunction": {
       "all": {
-        "count": 5294,
-        "p10": 115,
-        "p25": 161,
-        "median": 340,
-        "p75": 591,
-        "under50": 223,
-        "under150": 1239
+        "count": 10582,
+        "p10": 92,
+        "p25": 156,
+        "median": 288,
+        "p75": 561,
+        "under50": 563,
+        "under150": 2520
       },
       "main": {
-        "count": 5155,
-        "p10": 123,
-        "p25": 169,
-        "median": 348,
-        "p75": 597,
-        "under50": 176,
-        "under150": 1155
+        "count": 7293,
+        "p10": 98,
+        "p25": 152,
+        "median": 289,
+        "p75": 558,
+        "under50": 347,
+        "under150": 1788
       }
     },
     "components": {
-      "count": 129,
-      "largestShare": 0.981
+      "count": 139,
+      "largestShare": 0.989
     },
     "grade": {
-      "overLimitKm": 72.03,
+      "overLimitKm": 125,
       "overLimitKmByClass": [
-        35.1,
-        30.22,
-        0,
-        0,
-        6.71
+        34.83,
+        30.18,
+        12.93,
+        40.37,
+        6.69
       ],
-      "roadsSteeperThan15": 199
+      "roadsSteeperThan15": 524
     },
     "roadMinusGround": {
       "p50": 0.01,
-      "p90": 0.09,
-      "p99": 0.55,
+      "p90": 0.11,
+      "p99": 0.66,
       "max": 12.99
     },
     "bridges": {
-      "count": 1208,
-      "km": 91.16
+      "count": 1219,
+      "km": 91.71
     },
     "tunnels": {
       "count": 26,
-      "km": 12.39
+      "km": 12.4
     },
     "onewayMainKm": 62.4,
     "build": {
@@ -220,16 +221,17 @@
         "droppedWays": 1042,
         "keptKm": 497.6,
         "droppedKm": 490.1,
-        "reattachedNodes": 1141,
+        "reattachedNodes": 1279,
         "lostNodes": 14,
         "colorConflicts": 0
       },
       "shallowTunnels": 84,
-      "selectedWays": 8642,
-      "pieces": 12089,
-      "segments": 7628,
-      "mergedJunctionLinks": 513,
-      "removedStubs": 77
+      "minorWays": 4508,
+      "selectedWays": 13150,
+      "pieces": 19882,
+      "segments": 15330,
+      "mergedJunctionLinks": 752,
+      "removedStubs": 110
     }
   },
   "water": {
@@ -245,30 +247,30 @@
   "places": {
     "nodes": 449,
     "cafes": 409,
-    "cafesKept": 91,
-    "cafesThinned": 318,
-    "cafesFarFromRoad": 77,
+    "cafesKept": 92,
+    "cafesThinned": 317,
+    "cafesFarFromRoad": 76,
     "cafeCell": 1500,
     "viewpoints": 18,
     "passes": 2
   },
   "buildings": {
     "input": 741629,
-    "kept": 704456,
+    "kept": 704258,
     "tooSmall": 36432,
-    "onRoad": 646,
+    "onRoad": 844,
     "skipped": 95,
     "byStyle": {
-      "apartment": 63942,
-      "strip": 71130,
-      "tenant": 3131,
-      "mansion": 13130,
-      "house": 437170,
-      "shop": 4962,
-      "oldhouse": 109660,
-      "oldshop": 1331
+      "apartment": 63886,
+      "strip": 71100,
+      "tenant": 3143,
+      "mansion": 13128,
+      "house": 437008,
+      "shop": 5032,
+      "oldhouse": 109604,
+      "oldshop": 1357
     },
-    "withLevels": 11435
+    "withLevels": 11434
   },
   "streets": {
     "ways": 160743,
@@ -276,13 +278,13 @@
       14257.5,
       7202.5
     ],
-    "pieces": 255891,
-    "clippedPoints": 422725
+    "pieces": 242679,
+    "clippedPoints": 1003861
   },
   "sidewalks": {
-    "km": 2809.3,
-    "trees": 95598,
-    "runs": 51802
+    "km": 2868,
+    "trees": 95583,
+    "runs": 53126
   },
   "coverage": {
     "over06": 0.114,
@@ -295,9 +297,9 @@
     "terrainPages": 900,
     "buildingsMB": 45.4,
     "buildingPages": 565,
-    "streetsMB": 10.1,
-    "sidewalksMB": 18,
-    "roadsMB": 21.9,
-    "worldJsonMB": 3.3
+    "streetsMB": 9.4,
+    "sidewalksMB": 18.4,
+    "roadsMB": 36.6,
+    "worldJsonMB": 6.6
   }
 }
