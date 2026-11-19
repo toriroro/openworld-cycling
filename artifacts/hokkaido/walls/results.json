@@ -1,0 +1,433 @@
+{
+  "R": 500,
+  "places": {
+    "odori": {
+      "pos": {
+        "x": 188,
+        "z": 52
+      },
+      "triangles": 18,
+      "clusters": 10,
+      "byMesh": {
+        "real-buildings/buildings:siding": {
+          "clusters": 2,
+          "area": 1902.96
+        },
+        "real-buildings/buildings:atlas": {
+          "clusters": 8,
+          "area": 61.29
+        }
+      },
+      "top": [
+        {
+          "mesh": "real-buildings/buildings:siding",
+          "x": 497,
+          "z": 259.6,
+          "y": 21.86,
+          "road": "h219858936_2",
+          "n": 1,
+          "area": 951.48,
+          "hi": 4.8
+        },
+        {
+          "mesh": "real-buildings/buildings:siding",
+          "x": 495.1,
+          "z": 249.5,
+          "y": 21.83,
+          "road": "h219858936_2",
+          "n": 1,
+          "area": 951.48,
+          "hi": 4.83
+        },
+        {
+          "mesh": "real-buildings/buildings:atlas",
+          "x": 367.4,
+          "z": 283.6,
+          "y": 22.08,
+          "road": "h634020353_1",
+          "n": 3,
+          "area": 20.21,
+          "hi": 3.02
+        },
+        {
+          "mesh": "real-buildings/buildings:atlas",
+          "x": 496.9,
+          "z": 259.7,
+          "y": 21.86,
+          "road": "h219858936_2",
+          "n": 3,
+          "area": 20.21,
+          "hi": 3.23
+        },
+        {
+          "mesh": "real-buildings/buildings:atlas",
+          "x": 361.5,
+          "z": 284.6,
+          "y": 22.07,
+          "road": "h634020353_1",
+          "n": 1,
+          "area": 6.74,
+          "hi": 3.03
+        },
+        {
+          "mesh": "real-buildings/buildings:atlas",
+          "x": 491,
+          "z": 260.7,
+          "y": 21.87,
+          "road": "h219858936_2",
+          "n": 1,
+          "area": 6.74,
+          "hi": 3.22
+        },
+        {
+          "mesh": "real-buildings/buildings:atlas",
+          "x": 360.4,
+          "z": 274.3,
+          "y": 22.04,
+          "road": "h634020353_1",
+          "n": 2,
+          "area": 1.85,
+          "hi": 2.57
+        },
+        {
+          "mesh": "real-buildings/buildings:atlas",
+          "x": 366.2,
+          "z": 273.3,
+          "y": 22.05,
+          "road": "h634020353_1",
+          "n": 2,
+          "area": 1.85,
+          "hi": 2.57
+        },
+        {
+          "mesh": "real-buildings/buildings:atlas",
+          "x": 495.7,
+          "z": 249.4,
+          "y": 21.83,
+          "road": "h219858936_2",
+          "n": 2,
+          "area": 1.85,
+          "hi": 2.78
+        },
+        {
+          "mesh": "real-buildings/buildings:atlas",
+          "x": 489.8,
+          "z": 250.4,
+          "y": 21.84,
+          "road": "h219858936_2",
+          "n": 2,
+          "area": 1.84,
+          "hi": 2.77
+        }
+      ],
+      "shots": [
+        "artifacts/hokkaido/walls/odori-0.png",
+        "artifacts/hokkaido/walls/odori-1.png",
+        "artifacts/hokkaido/walls/odori-2.png",
+        "artifacts/hokkaido/walls/odori-3.png"
+      ],
+      "errors": []
+    },
+    "susukino": {
+      "pos": {
+        "x": 157,
+        "z": 914
+      },
+      "triangles": 19,
+      "clusters": 3,
+      "byMesh": {
+        "real-poles/real-poles:far": {
+          "clusters": 1,
+          "area": 9.86
+        },
+        "real-streets/real-streets": {
+          "clusters": 2,
+          "area": 0.86
+        }
+      },
+      "top": [
+        {
+          "mesh": "real-poles/real-poles:far",
+          "x": -289,
+          "z": 988,
+          "y": 23.1,
+          "road": "h138574776_0",
+          "n": 16,
+          "area": 9.86,
+          "hi": 11.23
+        },
+        {
+          "mesh": "real-streets/real-streets",
+          "x": 512,
+          "z": 852.3,
+          "y": 24.44,
+          "road": "h138574776_6",
+          "n": 1,
+          "area": 0.58,
+          "hi": 0.23
+        },
+        {
+          "mesh": "real-streets/real-streets",
+          "x": -289.7,
+          "z": 988.4,
+          "y": 23.11,
+          "road": "h138574776_0",
+          "n": 2,
+          "area": 0.28,
+          "hi": 0.22
+        }
+      ],
+      "shots": [
+        "artifacts/hokkaido/walls/susukino-0.png",
+        "artifacts/hokkaido/walls/susukino-1.png",
+        "artifacts/hokkaido/walls/susukino-2.png"
+      ],
+      "errors": []
+    },
+    "kotoni": {
+      "pos": {
+        "x": -4337,
+        "z": -2111
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "hassamu-bridge": {
+      "pos": {
+        "x": -5340,
+        "z": -3683
+      },
+      "triangles": 52,
+      "clusters": 9,
+      "byMesh": {
+        "real-streets/real-streets": {
+          "clusters": 9,
+          "area": 38.33
+        }
+      },
+      "top": [
+        {
+          "mesh": "real-streets/real-streets",
+          "x": -5387,
+          "z": -3663.3,
+          "y": 13.71,
+          "road": "h24268925_4",
+          "n": 15,
+          "area": 7.32,
+          "hi": 0.28
+        },
+        {
+          "mesh": "real-streets/real-streets",
+          "x": -5372.4,
+          "z": -3669.9,
+          "y": 13.74,
+          "road": "h24268925_4",
+          "n": 4,
+          "area": 7.23,
+          "hi": 0.29
+        },
+        {
+          "mesh": "real-streets/real-streets",
+          "x": -5378.8,
+          "z": -3667.1,
+          "y": 13.71,
+          "road": "h24268925_4",
+          "n": 5,
+          "area": 6.48,
+          "hi": 0.3
+        },
+        {
+          "mesh": "real-streets/real-streets",
+          "x": -5658.5,
+          "z": -3580,
+          "y": 17.36,
+          "road": "h24268925_3",
+          "n": 6,
+          "area": 4.99,
+          "hi": 0.26
+        },
+        {
+          "mesh": "real-streets/real-streets",
+          "x": -5383.6,
+          "z": -3664.9,
+          "y": 13.71,
+          "road": "h24268925_4",
+          "n": 3,
+          "area": 3.58,
+          "hi": 0.3
+        },
+        {
+          "mesh": "real-streets/real-streets",
+          "x": -5653,
+          "z": -3580.8,
+          "y": 17.25,
+          "road": "h24268925_3",
+          "n": 3,
+          "area": 3.12,
+          "hi": 0.23
+        },
+        {
+          "mesh": "real-streets/real-streets",
+          "x": -5605.2,
+          "z": -3902,
+          "y": 10.52,
+          "road": "h1126185921_0",
+          "n": 9,
+          "area": 2.32,
+          "hi": 0.2
+        },
+        {
+          "mesh": "real-streets/real-streets",
+          "x": -5665.3,
+          "z": -3579,
+          "y": 17.52,
+          "road": "h24268925_3",
+          "n": 2,
+          "area": 1.87,
+          "hi": 0.21
+        },
+        {
+          "mesh": "real-streets/real-streets",
+          "x": -5604.5,
+          "z": -3901.1,
+          "y": 10.52,
+          "road": "h1126185921_0",
+          "n": 5,
+          "area": 1.42,
+          "hi": 0.2
+        }
+      ],
+      "shots": [
+        "artifacts/hokkaido/walls/hassamu-bridge-0.png",
+        "artifacts/hokkaido/walls/hassamu-bridge-1.png",
+        "artifacts/hokkaido/walls/hassamu-bridge-2.png",
+        "artifacts/hokkaido/walls/hassamu-bridge-3.png"
+      ],
+      "errors": []
+    },
+    "teine": {
+      "pos": {
+        "x": -7782,
+        "z": -4361
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "toyohira": {
+      "pos": {
+        "x": 2583,
+        "z": 2790
+      },
+      "triangles": 2,
+      "clusters": 1,
+      "byMesh": {
+        "real-streets/real-streets": {
+          "clusters": 1,
+          "area": 1.03
+        }
+      },
+      "top": [
+        {
+          "mesh": "real-streets/real-streets",
+          "x": 2317.5,
+          "z": 3168.1,
+          "y": 41.22,
+          "road": "h31660021_2",
+          "n": 2,
+          "area": 1.03,
+          "hi": 0.2
+        }
+      ],
+      "shots": [
+        "artifacts/hokkaido/walls/toyohira-0.png"
+      ],
+      "errors": []
+    },
+    "maruyama": {
+      "pos": {
+        "x": -2615,
+        "z": 212
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "moiwa": {
+      "pos": {
+        "x": -2088,
+        "z": 4303
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "jozankei": {
+      "pos": {
+        "x": -15043,
+        "z": 10052
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "farm": {
+      "pos": {
+        "x": 9748,
+        "z": -11952
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "ebetsu": {
+      "pos": {
+        "x": 15126,
+        "z": -4896
+      },
+      "triangles": 1,
+      "clusters": 1,
+      "byMesh": {
+        "real-buildings/real-buildings:far": {
+          "clusters": 1,
+          "area": 74.54
+        }
+      },
+      "top": [
+        {
+          "mesh": "real-buildings/real-buildings:far",
+          "x": 15545.1,
+          "z": -5022.9,
+          "y": 16.58,
+          "road": "h1557318501_1",
+          "n": 1,
+          "area": 74.54,
+          "hi": 4.49
+        }
+      ],
+      "shots": [
+        "artifacts/hokkaido/walls/ebetsu-0.png"
+      ],
+      "errors": []
+    }
+  }
+}

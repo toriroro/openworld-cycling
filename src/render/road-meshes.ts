@@ -77,6 +77,11 @@ interface Gap {
   to: number;
   /** 区画線だけを切る（横断歩道の上。北海道の草案 26 章） */
   linesOnly?: boolean;
+  /**
+   * 橋の欄干を切る側（1 = 道のりの向きに見て右 (−tz, tx)、2 = 左）。ほかの腕がその側から入る接続点の口の内側（北海道の草案 30 章。
+   * 前は欄干を口の内側まで引き、橋の上で横から入る道を壁のように塞いでいた）
+   */
+  rail?: number;
 }
 
 /** 横断歩道の口からの位置 (m)。口の外 CROSSWALK_FROM〜CROSSWALK_TO に帯を引き、その間の区画線を切る */
@@ -570,7 +575,9 @@ export class RoadMeshes {
           continue;
         }
         const g = this.terrain.height(px[j] + ox + rx[j] * sign * (hw + 4), pz[j] + oz + rz[j] * sign * (hw + 4));
-        valley.push(g < py[j] - 2.2);
+        // ほかの道の路面の上には立てない（北海道の草案 30 章）
+        const onOther = this.roads.onOtherSurface(px[j] + ox + rx[j] * sign * (hw + 0.6), pz[j] + oz + rz[j] * sign * (hw + 0.6), road.id, py[j]);
+        valley.push(g < py[j] - 2.2 && !onOther);
       }
       // 短い切れ目を埋め、短い区間を捨てる
       const minRun = Math.ceil(16 / ds);
@@ -667,7 +674,16 @@ export class RoadMeshes {
       let e = j;
       while (e < cnt && isBridge(e)) e++;
       const run = Array.from({ length: e - j }, (_, q) => j + q);
-      if (run.length >= 2) this.bridge(str, at, run, hw, sOf, px, pz, ox, oz);
+      if (run.length >= 2) {
+        // 欄干は、ほかの腕が横から入る接続点の口の内側では切る
+        // ほかの道の路面の上（同じほどの高さ）でも切る（同じ 2 つの接続点の間を 2 本の道が重なって通る所など）
+        const railCut = (sign: number, q: number) => {
+          const sq = sOf(q);
+          if (gaps.some((g) => !!g.rail && (g.rail & (sign > 0 ? 1 : 2)) !== 0 && sq > g.from - 1e-3 && sq < g.to + 1e-3)) return true;
+          return this.roads.onOtherSurface(px[q] + ox + rx[q] * sign * (hw + 0.42), pz[q] + oz + rz[q] * sign * (hw + 0.42), road.id, py[q]);
+        };
+        this.bridge(str, at, run, hw, sOf, px, pz, ox, oz, railCut);
+      }
       j = e;
     }
 
@@ -858,12 +874,15 @@ export class RoadMeshes {
     pz: number[],
     ox: number,
     oz: number,
+    railCut: (sign: number, j: number) => boolean = () => false,
   ) {
     const deck = 1.2;
     const edge = hw + 0.55;
-    for (const sign of [-1, 1]) {
+    for (const sign of [-1, 1])
+      for (const part of splitRuns(run, (j) => !railCut(sign, j))) {
+      if (part.length < 2) continue;
       const inTop: number[][] = [], inBot: number[][] = [], outTop: number[][] = [], outBot: number[][] = [], wallTopIn: number[][] = [];
-      for (const j of run) {
+      for (const j of part) {
         inBot.push(at(j, sign * (hw + 0.3), 0));
         wallTopIn.push(at(j, sign * (hw + 0.3), 0.95));
         inTop.push(at(j, sign * edge, 0.95));
@@ -880,7 +899,7 @@ export class RoadMeshes {
         b.strip(inTop, wallTopIn, C_CONCRETE);
         b.strip(outBot, outTop, C_CONCRETE);
       }
-    }
+      }
     // 底面
     const lb: number[][] = [], rb: number[][] = [];
     for (const j of run) {
@@ -933,7 +952,15 @@ export class RoadMeshes {
       if (shape.arms.length < 2) continue;
       for (const a of shape.arms) {
         if (a.arm.road !== road.id) continue;
-        gaps.push({ from: Math.min(a.arm.s, a.mouthS), to: Math.max(a.arm.s, a.mouthS) });
+        // ほかの腕がどちらの側から入るか（道のりの向きに見て右 r = dir·(−oz, ox) との内積。まっすぐ続く腕は数えない）
+        let rail = 0;
+        for (const b of shape.arms) {
+          if (b === a) continue;
+          const side = (b.ux * -a.oz + b.uz * a.ox) * a.arm.dir;
+          if (side > 0.3) rail |= 1;
+          else if (side < -0.3) rail |= 2;
+        }
+        gaps.push({ from: Math.min(a.arm.s, a.mouthS), to: Math.max(a.arm.s, a.mouthS), ...(rail ? { rail } : {}) });
         if (junction.cross?.[junction.arms.indexOf(a.arm)]) {
           const far = a.mouthS + a.arm.dir * CROSSWALK_TO;
           gaps.push({ from: Math.min(a.mouthS, far), to: Math.max(a.mouthS, far), linesOnly: true });
@@ -951,7 +978,7 @@ export class RoadMeshes {
     const s1 = (k + 1) * CHUNK_LENGTH + 4;
     return this.gapsOf(road)
       .filter((g) => g.to >= s0 && g.from <= s1)
-      .map((g) => `${g.from.toFixed(2)}-${g.to.toFixed(2)}${g.linesOnly ? "L" : ""}`)
+      .map((g) => `${g.from.toFixed(2)}-${g.to.toFixed(2)}${g.linesOnly ? "L" : ""}${g.rail ?? ""}`)
       .join(",");
   }
 
@@ -1148,6 +1175,21 @@ export class RoadMeshes {
       band(CW1 + 1.5, CW1 + 1.95, l0, l1, 0.016);
     }
   }
+}
+
+/** 並び run を、keep が真の点の続く組に分ける */
+function splitRuns(run: number[], keep: (j: number) => boolean): number[][] {
+  const out: number[][] = [];
+  let cur: number[] = [];
+  for (const j of run) {
+    if (keep(j)) cur.push(j);
+    else if (cur.length) {
+      out.push(cur);
+      cur = [];
+    }
+  }
+  if (cur.length) out.push(cur);
+  return out;
 }
 
 /** 頂点の色を、一番近い中心線の点の明るさ（dim）で掛ける（トンネルの中を暗くする） */

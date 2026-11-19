@@ -586,12 +586,16 @@ export class HokkaidoBuildings extends PagedStore {
 
 export const HOKKAIDO_STREET_KINDS = ["street", "path"] as const;
 
+/** 走らない道の 1 本: [最初の点の番号, 点の数, 幅 × 10, 種類, 端の印（無ければ 0）] */
+export type StreetPiece = [number, number, number, number, number?];
+
 export interface HokkaidoStreetIndex {
   /** 区画の一辺 (m) */
   cell: number;
   kinds: string[];
   /** "cx,cz" → [最初の点の番号, 点の数, 幅 × 10, 種類] の並び */
-  pieces: Record<string, [number, number, number, number][]>;
+  /** [最初の点の番号, 点の数, 幅 × 10, 種類, 端の印]。端の印は 1 = 始めの端、2 = 終わりの端が走る道に出る（描く時に端を伸ばさない。北海道の草案 31 章） */
+  pieces: Record<string, StreetPiece[]>;
 }
 
 export class HokkaidoStreets extends PagedStore {
@@ -606,9 +610,9 @@ export class HokkaidoStreets extends PagedStore {
   }
   protected addPage(index: unknown, floats: Float32Array) {
     const at = this.arena.push(floats) / 2;
-    for (const [k, list] of Object.entries((index as HokkaidoStreetIndex).pieces)) this.index.pieces[k] = list.map(([o, n, w, kind]) => [o + at, n, w, kind]);
+    for (const [k, list] of Object.entries((index as HokkaidoStreetIndex).pieces)) this.index.pieces[k] = list.map(([o, n, w, kind, ends]) => (ends ? [o + at, n, w, kind, ends] : [o + at, n, w, kind]));
   }
-  cell(cx: number, cz: number): [number, number, number, number][] | null {
+  cell(cx: number, cz: number): StreetPiece[] | null {
     return this.index.pieces[`${cx},${cz}`] ?? null;
   }
 }
@@ -646,8 +650,10 @@ export const SIGN_TYPES = {
   yabane: 7,
   /** 防雪柵の 1 枚（(x, z) から (fx, fz) の向きに値 m。高さは地形） */
   fence: 8,
-  /** 住宅街の道の停止線（(x, z) は線の中心、(fx, fz) は進む向き、値は道の幅） */
+  /** 停止線（(x, z) は線の中心、(fx, fz) は進む向き、値は線の長さ（道の幅の向き）、張り出しは路面からの上げ（0 なら住宅街の道の上げ）） */
   stopLine: 9,
+  /** 路面の「止まれ」の文字（(x, z) は文字の中心、(fx, fz) は進む向き、値は文字の幅、張り出しは路面からの上げ。北海道の草案 29 章） */
+  roadText: 10,
 } as const;
 
 /** 電柱・街灯の点 1 つの数: [x, y, z, tx, tz, 印]。y が NaN なら地形の高さ */

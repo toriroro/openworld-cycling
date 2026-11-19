@@ -10,6 +10,7 @@
 //   値は最高速度 (km/h) か、案内標識の文字の番号（guides の [左, 直進, 右]）。張り出しは案内標識の柱から板の中心まで (m)
 // 北海道の草案 28 章: 案内標識は幹線どうしの交差点だけにし、同じ向きの案内標識を 300m 以内に重ねない。
 //   町の外の道の端に矢羽根（固定式視線誘導柱）、開けた農地・草地の道の北西側に防雪柵、住宅街の道の止まれに停止線
+// 北海道の草案 29 章: 走る道の止まれの腕にも停止線（接続点へ入る側の車線）と路面の「止まれ」の文字。住宅街の道にも文字
 
 import { SIGN_REC, SIGN_TYPES, type HokkaidoStreetIndex } from "../../src/shared/world/hokkaido.ts";
 import type { JunctionShape } from "../../src/sim/junction-shape.ts";
@@ -51,11 +52,13 @@ export function buildSigns(
   cell: number,
   /** (x, z) の土地利用（HOKKAIDO_LANDUSE の番号、無ければ 0）。水の上は −1 */
   land: (x: number, z: number) => number,
+  /** 接続点の舗装面（住宅街の道が走る道に出る所を見つける。北海道の草案 31 章） */
+  pads?: { inside(x: number, z: number, margin: number): boolean },
 ) {
   const pts: number[] = [];
   const index: Record<string, number[]> = {};
   const guides: [string, string, string][] = [];
-  const stats = { stop: 0, streetStop: 0, crosswalk: 0, oneway: 0, noEntry: 0, speed: 0, speedFromOsm: 0, guide: 0, guideSkippedNear: 0, yabane: 0, fencePanels: 0, fenceKm: 0, stopLine: 0 };
+  const stats = { stop: 0, streetStop: 0, crosswalk: 0, oneway: 0, noEntry: 0, speed: 0, speedFromOsm: 0, guide: 0, guideSkippedNear: 0, yabane: 0, fencePanels: 0, fenceKm: 0, stopLine: 0, rideStopLine: 0, roadText: 0 };
   // 置いた案内標識（同じ向きのものを近くに重ねない）
   const guideGrid = new Map<string, number[]>();
   const guideNear = (x: number, z: number, fx: number, fz: number) => {
@@ -89,7 +92,7 @@ export function buildSigns(
     const hw = roads[ri].width / 2;
     const off = best.walk > 0 ? hw + Math.min(sidewalkOff, best.walk - 0.3) : hw + shoulderOff;
     const x = best.x + best.nx * off, z = best.z + best.nz * off;
-    if (bidx.inside(x, z, 0.2) || ridx.onOther(x, z, ri, 0.3)) return null;
+    if (bidx.inside(x, z, 0.2) || ridx.onOther(x, z, ri, 0.3) || ridx.inside(x, z, -0.2)) return null;
     return { x, z, y: best.walk > 0 ? best.y + CURB : best.y - 0.04, q: best, off };
   };
   /** 一方通行で、腕 a から接続点へ入れないか（forward = 道のりの増える向きだけ走れる） */
@@ -123,6 +126,30 @@ export function buildSigns(
         if (p) {
           push(p.x, p.y, p.z, ox, oz, SIGN_TYPES.stop);
           stats.stop++;
+        }
+        // 舗装の道には停止線と路面の文字。一方通行で入るだけの道は幅いっぱい、両方向の道は入る側の車線（外向きに見て右 = dir の側）
+        const list = roadside.get(ri + "|" + dir);
+        const at = (s: number) => {
+          if (!list) return null;
+          let best = list[0];
+          for (const q of list) if (Math.abs(q.s - s) < Math.abs(best.s - s)) best = q;
+          return Math.abs(best.s - s) <= 2.5 && !best.span ? best : null;
+        };
+        if (a.road.surface === "paved" && a.hw >= 2) {
+          const oneway = roads[ri].oneway && info[ri].forward !== null;
+          const lo = oneway ? -(a.hw - 0.3) : 0.1, hi = a.hw - 0.3;
+          const ql = at(a.mouthS + dir * 1.5);
+          if (ql) {
+            const c = (lo + hi) / 2;
+            push(ql.x + ql.nx * c, ql.y, ql.z + ql.nz * c, -ox, -oz, SIGN_TYPES.stopLine, Math.round((hi - lo) * 100) / 100, 0.016);
+            stats.rideStopLine++;
+          }
+          const qt = at(a.mouthS + dir * 6.5);
+          if (qt) {
+            const c = oneway ? 0 : a.hw / 2;
+            push(qt.x + qt.nx * c, qt.y, qt.z + qt.nz * c, -ox, -oz, SIGN_TYPES.roadText, Math.min(1.8, (oneway ? a.hw : a.hw / 2) * 1.4), 0.017);
+            stats.roadText++;
+          }
         }
       }
       // 横断歩道の両端（両面）
@@ -308,15 +335,26 @@ export function buildSigns(
         if (l < 3) continue;
         dx /= l;
         dz /= l;
-        if (!ridx.onOther(ex + dx * 2.5, ez + dz * 2.5, -1, 0.3)) continue;
+        if (!ridx.onOther(ex + dx * 2.5, ez + dz * 2.5, -1, 0.3) && !(pads && pads.inside(ex + dx * 2.5, ez + dz * 2.5, 0.3))) continue;
         // 進む向きの左 (dz, −dx)
         const x = ex - dx * 2.5 + dz * (hw + 0.4), z = ez - dz * 2.5 - dx * (hw + 0.4);
         if (bidx.inside(x, z, 0.2) || ridx.onOther(x, z, -1, 0.3)) continue;
         push(x, Number.NaN, z, -dx, -dz, SIGN_TYPES.stop);
         stats.streetStop++;
-        // 停止線: 止まれの横、道の幅いっぱい（住宅街の道は中央線が無い）
-        push(ex - dx * 2.2, Number.NaN, ez - dz * 2.2, dx, dz, SIGN_TYPES.stopLine, w10 / 10);
+        // 停止線: 走る道の歩道（込み具合から歩道の幅を見込む。sidewalks.ts と同じ決め方）の手前 1m、道の幅いっぱい（住宅街の道は中央線が無い）
+        const cv = coverageAt(cov, ex, ez);
+        const walk = cv >= 0.25 ? 3 : cv >= 0.06 ? 2.4 : 0;
+        const back = (walk ? walk + 1 : 0) + 2.2;
+        let plen = 0;
+        for (let i = 0; i + 1 < count; i++) plen += Math.hypot(P[(off + i + 1) * 2] - P[(off + i) * 2], P[(off + i + 1) * 2 + 1] - P[(off + i) * 2 + 1]);
+        if (plen < back + 1) continue;
+        push(ex - dx * back, Number.NaN, ez - dz * back, dx, dz, SIGN_TYPES.stopLine, w10 / 10 - 0.4);
         stats.stopLine++;
+        // 路面の「止まれ」の文字（道の中ほど）
+        if (plen >= back + 6) {
+          push(ex - dx * (back + 3.4), Number.NaN, ez - dz * (back + 3.4), dx, dz, SIGN_TYPES.roadText, Math.min(1.8, hw * 0.8));
+          stats.roadText++;
+        }
       }
     }
 

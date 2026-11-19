@@ -1,0 +1,215 @@
+{
+  "R": 500,
+  "places": {
+    "odori": {
+      "pos": {
+        "x": 188,
+        "z": 52
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "susukino": {
+      "pos": {
+        "x": 157,
+        "z": 914
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "kotoni": {
+      "pos": {
+        "x": -4337,
+        "z": -2111
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "hassamu-bridge": {
+      "pos": {
+        "x": -5340,
+        "z": -3683
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "teine": {
+      "pos": {
+        "x": -7782,
+        "z": -4361
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "toyohira": {
+      "pos": {
+        "x": 2583,
+        "z": 2789
+      },
+      "triangles": 2,
+      "clusters": 1,
+      "byMesh": {
+        "real-streets/real-streets": {
+          "clusters": 1,
+          "area": 1.03
+        }
+      },
+      "top": [
+        {
+          "mesh": "real-streets/real-streets",
+          "x": 2317.5,
+          "z": 3168.1,
+          "y": 41.22,
+          "road": "h31660021_2",
+          "n": 2,
+          "area": 1.03,
+          "hi": 0.2
+        }
+      ],
+      "shots": [
+        "artifacts/hokkaido/walls/toyohira-flat-0.png"
+      ],
+      "errors": []
+    },
+    "maruyama": {
+      "pos": {
+        "x": -2615,
+        "z": 212
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "moiwa": {
+      "pos": {
+        "x": -2088,
+        "z": 4303
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "jozankei": {
+      "pos": {
+        "x": -15043,
+        "z": 10052
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "farm": {
+      "pos": {
+        "x": 9748,
+        "z": -11952
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "ebetsu": {
+      "pos": {
+        "x": 15126,
+        "z": -4896
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "kita": {
+      "pos": {
+        "x": 297,
+        "z": -3514
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "higashi": {
+      "pos": {
+        "x": 2948,
+        "z": -2028
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "shiroishi": {
+      "pos": {
+        "x": 5920,
+        "z": 1595
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "nishi": {
+      "pos": {
+        "x": -6501,
+        "z": 241
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    },
+    "minami": {
+      "pos": {
+        "x": 1789,
+        "z": 6100
+      },
+      "triangles": 0,
+      "clusters": 0,
+      "byMesh": {},
+      "top": [],
+      "shots": [],
+      "errors": []
+    }
+  }
+}

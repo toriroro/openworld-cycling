@@ -1,7 +1,7 @@
 // 北海道の世界の建物・敷地・走らない道の形を作る Worker（北海道の草案 18 章）。
 // メインスレッドで作ると 1 フレームに 10〜50ms かかったため。結果は転送できる配列で返す（概要仕様 9.5 #3）。
 
-import { HOKKAIDO_BASE, type HokkaidoBuildings, type HokkaidoSidewalks, type HokkaidoStreets, type HokkaidoTerrain, rectOfCells } from "../shared/world/hokkaido.ts";
+import { HOKKAIDO_BASE, type HokkaidoBuildings, type HokkaidoSidewalks, type HokkaidoStreets, type HokkaidoTerrain, rectOfCells, type StreetPiece } from "../shared/world/hokkaido.ts";
 import { buildFar, buildNear, buildStreets, withoutExcluded } from "../render/city-build.ts";
 import type { MeshArrays } from "../render/building/mesher.ts";
 import { cityStores, loadHokkaidoTerrain, loadTerrainMeta, pageLoader } from "./hokkaido-load.ts";
@@ -80,7 +80,7 @@ function handle(req: Exclude<CityRequest, { type: "init" | "exclude" }>) {
     if (!terrain) throw new Error("地形を読めていない");
     if (req.type === "streets") {
       if (!streets) throw new Error("走らない道を読めていない");
-      const pieces: [number, number, number, number][] = [];
+      const pieces: StreetPiece[] = [];
       for (const k of req.cells) for (const p of streets.index.pieces[k] ?? []) pieces.push(p);
       const runs: [number, number][] = [];
       if (sidewalks) for (const k of req.subCells ?? req.cells) for (const p of sidewalks.index.sidewalks[k] ?? []) runs.push(p);

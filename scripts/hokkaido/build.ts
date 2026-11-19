@@ -9,7 +9,7 @@
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { convertBuildings, type Seg } from "./buildings.ts";
 import { BUILDING_REC } from "../../src/shared/world/hokkaido.ts";
-import { buildSidewalks, buildingCoverage, coverageAt } from "./sidewalks.ts";
+import { buildSidewalks, buildingCoverage, coverageAt, junctionShapesOf, PadIndex } from "./sidewalks.ts";
 import { buildPoles } from "./poles.ts";
 import { buildSigns, type WayInfo } from "./signs.ts";
 import { buildStreets } from "./streets.ts";
@@ -387,7 +387,9 @@ const coverage = buildingCoverage(buildingOut?.data ?? new Float32Array(0), { x0
 // 店・ビル・集合住宅・低い店舗だけの込み具合（舗装の多い街の中心。家の多い所は庭と草地にする）
 const commercial = buildingCoverage(buildingOut?.data ?? new Float32Array(0), { x0: X0, z0: Z0, step: 10, nx, nz }, 110, new Set([2, 3, 4, 5, 6, 7]));
 // 走らない道（見た目だけ。北海道の草案 17 章）。等級 2・3 の道は市街地の中の部分を走らない道として描くので、道の番号では除かず、走る道の路面の上を切り取るだけにする
-const streetOut = buildStreets(rd, dem5, rideSegs, new Set(built.roads.filter((r) => !r.minor).flatMap((r) => r.ways)), 250, (x, z) => coverageAt(coverage, x, z));
+// 接続点の舗装面（走らない道をここでも切る。北海道の草案 31 章）
+const pads = new PadIndex(junctionShapesOf(built.roads, built.junctions));
+const streetOut = buildStreets(rd, dem5, rideSegs, new Set(built.roads.filter((r) => !r.minor).flatMap((r) => r.ways)), 250, (x, z) => coverageAt(coverage, x, z), pads);
 lap(`走らない道 ${streetOut.stats.km.join("km・")}km`);
 // 幹線の歩道と街路樹
 const sidewalkOut = buildSidewalks(built.roads, built.junctions, buildingOut?.data ?? new Float32Array(0), coverage, 250, streetOut);
@@ -437,7 +439,7 @@ const landAt = (x: number, z: number) => {
   if (i < 0 || j < 0 || i >= nx || j >= nz) return 0;
   return water.data[j * nx + i] ? -1 : landuse.data[j * nx + i];
 };
-const signOut = buildSigns(built.roads, sidewalkOut.shapes, sidewalkOut.cross, sidewalkOut.roadIndex, sidewalkOut.roadside, streetOut, sidewalkOut.indexes, coverage, wayInfo, 250, landAt);
+const signOut = buildSigns(built.roads, sidewalkOut.shapes, sidewalkOut.cross, sidewalkOut.roadIndex, sidewalkOut.roadside, streetOut, sidewalkOut.indexes, coverage, wayInfo, 250, landAt, pads);
 lap(`標識 ${JSON.stringify(signOut.stats)}`);
 
 // ---- 書き出し（北海道の草案 20 章: 地形・建物・走らない道・歩道は 2km 四方の頁に分ける） ----

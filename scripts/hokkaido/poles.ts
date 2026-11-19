@@ -172,7 +172,7 @@ export function buildPoles(
       }
       const off = q.walk > 0 ? hw + 0.45 : hw + 0.6;
       const x = q.x + q.nx * off, z = q.z + q.nz * off;
-      if (bidx.inside(x, z, 0.4) || ridx.onOther(x, z, ri, 0.5) || (sidx && sidx.on(x, z, 0.6)) || nearTree(x, z, 2.5)) {
+      if (bidx.inside(x, z, 0.4) || ridx.onOther(x, z, ri, 0.5) || ridx.inside(x, z, -0.3) || (sidx && sidx.on(x, z, 0.6)) || nearTree(x, z, 2.5)) {
         nextS = q.s + 4;
         continue;
       }
@@ -195,7 +195,7 @@ export function buildPoles(
           continue;
         }
         const x = q.x + q.nx * (hw + 0.45), z = q.z + q.nz * (hw + 0.45);
-        if (bidx.inside(x, z, 0.4) || ridx.onOther(x, z, ri, 0.5) || nearTree(x, z, 2.5) || nearPlaced(x, z, 5)) {
+        if (bidx.inside(x, z, 0.4) || ridx.onOther(x, z, ri, 0.5) || ridx.inside(x, z, -0.3) || nearTree(x, z, 2.5) || nearPlaced(x, z, 5)) {
           next = q.s + 4;
           continue;
         }

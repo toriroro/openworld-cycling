@@ -328,6 +328,33 @@ export class RoadClient {
     return best;
   }
 
+  /**
+   * (x, z) が、道路 except 以外の道路の路面（半幅 + margin）の上で、その高さが y から tol 以内か。
+   * 橋の欄干・ガードレールを、ほかの道の路面の上に立てないため（北海道の草案 30 章）
+   */
+  onOtherSurface(x: number, z: number, except: string, y: number, margin = 0.3, tol = 2): boolean {
+    for (const s of this.segsAt(x, z) ?? []) {
+      const road = s.e.road;
+      if (road.id === except) continue;
+      const hw = road.width / 2 + Math.min(margin, SEG_PAD);
+      const P = road.points;
+      const ox = road.origin[0];
+      const oz = road.origin[1];
+      for (let i = s.i0; i < s.i1; i++) {
+        const ax = P[i * 3] + ox, az = P[i * 3 + 2] + oz;
+        if (Math.abs(ax - x) > hw + 3 || Math.abs(az - z) > hw + 3) continue;
+        const bx = P[i * 3 + 3] + ox, bz = P[i * 3 + 5] + oz;
+        const dx = bx - ax, dz = bz - az;
+        const l2 = dx * dx + dz * dz || 1;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
+        const ex = ax + dx * t - x, ez = az + dz * t - z;
+        if (ex * ex + ez * ez > hw * hw) continue;
+        if (Math.abs(P[i * 3 + 1] + (P[i * 3 + 4] - P[i * 3 + 1]) * t - y) <= tol) return true;
+      }
+    }
+    return false;
+  }
+
   /** rect（とその外 margin）にかかる道路の点列を、rect の左上からの相対で詰める。stride 点ごとに間引く */
   pack(r: Rect, margin: number, stride: number): PackedRoads {
     const x0 = r.x0 - margin, z0 = r.z0 - margin, x1 = r.x1 + margin, z1 = r.z1 + margin;

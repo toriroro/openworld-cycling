@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-11-19T10:55:08.084Z",
+  "builtAt": "2026-11-19T12:22:40.009Z",
   "area": {
     "x0": -30000,
     "x1": 30000,
@@ -256,21 +256,21 @@
   },
   "buildings": {
     "input": 741629,
-    "kept": 704258,
+    "kept": 704217,
     "tooSmall": 36432,
-    "onRoad": 844,
+    "onRoad": 885,
     "skipped": 95,
     "byStyle": {
-      "apartment": 63886,
-      "strip": 71100,
-      "tenant": 3143,
-      "mansion": 13128,
+      "apartment": 63884,
+      "strip": 71077,
+      "tenant": 3134,
+      "mansion": 13124,
       "house": 437008,
-      "shop": 5032,
-      "oldhouse": 109604,
+      "shop": 5030,
+      "oldhouse": 109603,
       "oldshop": 1357
     },
-    "withLevels": 11434
+    "withLevels": 11427
   },
   "streets": {
     "ways": 161717,
@@ -278,42 +278,44 @@
       14257.5,
       7217.3
     ],
-    "pieces": 243596,
-    "clippedPoints": 1004696
+    "pieces": 241203,
+    "clippedPoints": 1030621
   },
   "sidewalks": {
-    "km": 2882,
-    "trees": 91625,
-    "runs": 61327,
-    "cornerKm": 137.9,
-    "corners": 9430,
-    "crosswalks": 7469,
-    "junctionsWithCrosswalks": 2419,
-    "ramps": 7469
+    "km": 2882.5,
+    "trees": 91694,
+    "runs": 61396,
+    "cornerKm": 135.4,
+    "corners": 9484,
+    "crosswalks": 7470,
+    "junctionsWithCrosswalks": 2418,
+    "ramps": 7470
   },
   "poles": {
-    "poles": 317741,
-    "lamps": 146704,
-    "transformers": 79412,
-    "streetlights": 50463,
-    "wireKm": 7768.4,
-    "MB": 8.8
+    "poles": 317115,
+    "lamps": 146046,
+    "transformers": 79300,
+    "streetlights": 50474,
+    "wireKm": 7753.9,
+    "MB": 8.7
   },
   "signs": {
-    "stop": 3653,
-    "streetStop": 26106,
-    "crosswalk": 14927,
+    "stop": 3648,
+    "streetStop": 25581,
+    "crosswalk": 14928,
     "oneway": 235,
     "noEntry": 229,
-    "speed": 11101,
-    "speedFromOsm": 900,
+    "speed": 11103,
+    "speedFromOsm": 901,
     "guide": 327,
     "guideSkippedNear": 17,
-    "yabane": 96967,
-    "fencePanels": 21039,
-    "fenceKm": 83.9,
-    "stopLine": 26106,
-    "MB": 6.1
+    "yabane": 97491,
+    "fencePanels": 21040,
+    "fenceKm": 84,
+    "stopLine": 25013,
+    "rideStopLine": 2185,
+    "roadText": 26127,
+    "MB": 7
   },
   "coverage": {
     "over06": 0.114,
@@ -327,7 +329,7 @@
     "buildingsMB": 45.4,
     "buildingPages": 565,
     "streetsMB": 9.5,
-    "sidewalksMB": 38,
+    "sidewalksMB": 39,
     "roadsMB": 36.6,
     "worldJsonMB": 6.7
   }

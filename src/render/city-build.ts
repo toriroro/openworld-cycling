@@ -2,7 +2,7 @@
 // 出来るのは型付きの配列（MeshArrays）だけ。メインスレッドがそれを描画の形にする（real-buildings.ts・real-streets.ts）。
 
 import { insidePolygon } from "../shared/world/landmarks.ts";
-import { BUILDING_REC, BUILDING_ROOFS, BUILDING_STYLES, type HokkaidoBuildings, type HokkaidoSidewalks, type HokkaidoStreets } from "../shared/world/hokkaido.ts";
+import { BUILDING_REC, BUILDING_ROOFS, BUILDING_STYLES, type HokkaidoBuildings, type HokkaidoSidewalks, type HokkaidoStreets, type StreetPiece } from "../shared/world/hokkaido.ts";
 import type { TerrainLike } from "../shared/world/terrain.ts";
 import { atlasLayout } from "./building/atlas-layout.ts";
 import type { Kit, Out, SurfaceKind } from "./building/kit.ts";
@@ -338,26 +338,27 @@ function sidewalkStrip(walk: Mesher, curb: Mesher, P: Float32Array, off: number,
 export function buildStreets(
   streets: HokkaidoStreets,
   heights: TerrainLike,
-  pieces: [number, number, number, number][],
+  pieces: StreetPiece[],
   ox: number,
   oz: number,
   sidewalks?: { data: HokkaidoSidewalks; runs: [number, number][] },
 ): { mesh: MeshArrays | null; groups: [number, number, number][]; triangles: number } {
   const g = [new Mesher(), new Mesher(), new Mesher()];
   if (sidewalks) for (const [off, count] of sidewalks.runs) sidewalkStrip(g[2], g[1], sidewalks.data.pts, off, count, ox, oz);
-  for (const [off, count, w10, kind] of pieces) {
+  for (const [off, count, w10, kind, ends = 0] of pieces) {
     const p = resampleStreet(streets, heights, off, count, STREET_STEP);
     const n = p.length / 3;
     if (n < 2) continue;
     const m = g[kind === 0 ? 0 : 1];
     const col = kind === 0 ? C_STREET : C_PATH;
     const hw = w10 / 20;
-    // 端は半幅だけ伸ばして、交わる所の隙間をなくす
+    // 端は半幅だけ伸ばして、交わる所の隙間をなくす。走る道に出る端は伸ばさない（走る道の上に住宅街の道がはみ出した。北海道の草案 31 章）
     const ext = kind === 0 ? hw : 0.3;
+    const ext0 = ends & 1 ? 0 : ext, ext1 = ends & 2 ? 0 : ext;
     // 交わる所で同じ高さの路面が重なってちらつかないよう、折れ線ごとに少しずらす
     const lift = STREET_LIFT + ((off * 2654435761) % 4) * 0.008;
     const base = m.pos.length / 3;
-    let s = -ext;
+    let s = -ext0;
     for (let i = 0; i < n; i++) {
       const a = Math.max(0, i - 1);
       const b = Math.min(n - 1, i + 1);
@@ -367,11 +368,11 @@ export function buildStreets(
       tx /= tl;
       tz /= tl;
       if (i > 0) s += Math.hypot(p[i * 3] - p[(i - 1) * 3], p[i * 3 + 2] - p[(i - 1) * 3 + 2]);
-      const e = i === 0 ? -ext : i === n - 1 ? ext : 0;
+      const e = i === 0 ? -ext0 : i === n - 1 ? ext1 : 0;
       const x = p[i * 3] + tx * e - ox;
       const z = p[i * 3 + 2] + tz * e - oz;
       const y = p[i * 3 + 1] + lift;
-      const v = (s + (i === n - 1 ? ext : 0)) / 4;
+      const v = (s + (i === n - 1 ? ext1 : 0)) / 4;
       m.pos.push(x - tz * hw, y, z + tx * hw, x + tz * hw, y, z - tx * hw);
       m.nor.push(0, 1, 0, 0, 1, 0);
       m.col.push(col[0], col[1], col[2], col[0], col[1], col[2]);

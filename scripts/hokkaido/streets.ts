@@ -71,7 +71,16 @@ function simplify(run: number[], a: number, b: number, tol: number): number[] {
  * coverage を渡すと、込み具合 0.06 以上の所では走る道から 5m 以内の歩道・小道を描かない
  * （走る道の両側に縁石付きの歩道を作るので、OSM の歩道と二重になるのを避ける。sidewalks.ts）
  */
-export function buildStreets(d: OsmData, dem: Grid, rideSegs: Seg[], rideWayIds: Set<number>, cell: number, coverage?: (x: number, z: number) => number) {
+export function buildStreets(
+  d: OsmData,
+  dem: Grid,
+  rideSegs: Seg[],
+  rideWayIds: Set<number>,
+  cell: number,
+  coverage?: (x: number, z: number) => number,
+  /** 接続点の舗装面（ここでも切る。北海道の草案 31 章） */
+  pads?: { inside(x: number, z: number, margin: number): boolean },
+) {
   // 走る道の線分の索引（切り取り用）
   const C = 40;
   const grid = new Map<string, Seg[]>();
@@ -90,14 +99,15 @@ export function buildStreets(d: OsmData, dem: Grid, rideSegs: Seg[], rideWayIds:
       const t = Math.max(0, Math.min(1, ((x - s.ax) * dx + (z - s.az) * dz) / l2));
       if (Math.hypot(s.ax + dx * t - x, s.az + dz * t - z) < s.hw + extra) return true;
     }
-    return false;
+    return !!pads && pads.inside(x, z, extra);
   };
   const gx1 = dem.x0 + (dem.nx - 1) * dem.step;
   const gz1 = dem.z0 + (dem.nz - 1) * dem.step;
   const pts: number[] = [];
   const index: HokkaidoStreetIndex = { cell, kinds: [...HOKKAIDO_STREET_KINDS], pieces: {} };
   const stats = { ways: 0, km: [0, 0], pieces: 0, clippedPoints: 0 };
-  const emit = (run: number[], width: number, kind: number) => {
+  /** flags: 1 = run の始め、2 = 終わりが走る道（接続点の舗装面を含む）に出る */
+  const emit = (run: number[], width: number, kind: number, flags = 0) => {
     // run: [x, y, z, ...]。区画の境で切る
     let start = 0;
     const cellOf = (i: number) => `${Math.floor(run[i * 3] / cell)},${Math.floor(run[i * 3 + 2] / cell)}`;
@@ -108,7 +118,8 @@ export function buildStreets(d: OsmData, dem: Grid, rideSegs: Seg[], rideWayIds:
       const keep = simplify(run, a, b, 0.15);
       const off = pts.length / 2;
       for (const i of keep) pts.push(Math.round(run[i * 3] * 100) / 100, Math.round(run[i * 3 + 2] * 100) / 100);
-      (index.pieces[key] ??= []).push([off, keep.length, Math.round(width * 10), kind]);
+      const ends = (a === 0 ? flags & 1 : 0) | (b === n - 1 ? flags & 2 : 0);
+      (index.pieces[key] ??= []).push(ends ? [off, keep.length, Math.round(width * 10), kind, ends] : [off, keep.length, Math.round(width * 10), kind]);
       stats.pieces++;
     };
     let cur = cellOf(0);
@@ -151,29 +162,49 @@ export function buildStreets(d: OsmData, dem: Grid, rideSegs: Seg[], rideWayIds:
     const extraOf = (x: number, z: number) => (spec.kind === 1 && coverage && coverage(x, z) >= 0.06 ? 5 : 0.5 + (spec.kind === 0 ? 0 : spec.width / 2));
     const edgeOf = (x: number, z: number) => (spec.kind === 0 ? -0.2 : extraOf(x, z));
     const inRange = (x: number, z: number) => x >= dem.x0 && x <= gx1 && z >= dem.z0 && z <= gz1;
-    const kept = xs.map((x, i) => inRange(x, zs[i]) && !onRide(x, zs[i], extraOf(x, zs[i])));
+    // 車の通る道は、中心だけでなく両側の縁も調べる（浅い角度で走る道に寄る所で、縁が先に路面に載っていた。北海道の草案 31 章）
+    const hwS = spec.width / 2;
+    const hits = (x: number, z: number, tx: number, tz: number, extra: number) =>
+      onRide(x, z, extra) || (spec.kind === 0 && (onRide(x - tz * hwS, z + tx * hwS, extra) || onRide(x + tz * hwS, z - tx * hwS, extra)));
+    const dirAt = (i: number) => {
+      const a = Math.max(0, i - 1), b = Math.min(xs.length - 1, i + 1);
+      const tx = xs[b] - xs[a], tz = zs[b] - zs[a];
+      const l = Math.hypot(tx, tz) || 1;
+      return [tx / l, tz / l];
+    };
+    const kept = xs.map((x, i) => {
+      if (!inRange(x, zs[i])) return false;
+      const [tx, tz] = dirAt(i);
+      return !hits(x, zs[i], tx, tz, extraOf(x, zs[i]));
+    });
     /** a（残す点）から b（切る点）へ、走る道の縁（edgeOf）の手前の一番遠い点 */
     const edgePoint = (a: number, b: number): [number, number, number] | null => {
       if (!inRange(xs[b], zs[b])) return null;
       let lo = 0;
       let hi = 1;
+      const sl = Math.hypot(xs[b] - xs[a], zs[b] - zs[a]) || 1;
+      const tx = (xs[b] - xs[a]) / sl, tz = (zs[b] - zs[a]) / sl;
       for (let it = 0; it < 10; it++) {
         const t = (lo + hi) / 2;
         const x = xs[a] + (xs[b] - xs[a]) * t;
         const z = zs[a] + (zs[b] - zs[a]) * t;
-        if (onRide(x, z, edgeOf(x, z))) hi = t;
+        if (hits(x, z, tx, tz, edgeOf(x, z))) hi = t;
         else lo = t;
       }
       if (lo < 0.02) return null;
       return [xs[a] + (xs[b] - xs[a]) * lo, sm[a] + (sm[b] - sm[a]) * lo, zs[a] + (zs[b] - zs[a]) * lo];
     };
     let run: number[] = [];
+    let flags = 0;
     for (let i = 0; i < xs.length; i++) {
       if (kept[i]) {
         if (!run.length && i > 0) {
           const e = edgePoint(i, i - 1);
           if (e) run.push(...e);
+          // 前の点が範囲の中で切られた = 走る道（か接続点の舗装面）から出る
+          flags = inRange(xs[i - 1], zs[i - 1]) ? 1 : 0;
         }
+        if (!run.length) flags = 0;
         run.push(xs[i], sm[i], zs[i]);
         continue;
       }
@@ -181,11 +212,13 @@ export function buildStreets(d: OsmData, dem: Grid, rideSegs: Seg[], rideWayIds:
       if (run.length && i > 0 && kept[i - 1]) {
         const e = edgePoint(i - 1, i);
         if (e) run.push(...e);
+        if (inRange(xs[i], zs[i])) flags |= 2;
       }
-      if (run.length >= 6) emit(run, spec.width, spec.kind);
+      if (run.length >= 6) emit(run, spec.width, spec.kind, flags);
       run = [];
+      flags = 0;
     }
-    if (run.length >= 6) emit(run, spec.width, spec.kind);
+    if (run.length >= 6) emit(run, spec.width, spec.kind, flags);
     let km = 0;
     for (let i = 1; i < xs.length; i++) km += Math.hypot(xs[i] - xs[i - 1], zs[i] - zs[i - 1]);
     stats.km[spec.kind] += km / 1000;

@@ -110,6 +110,13 @@ export class RideIndex {
     });
   }
   /** (x, z) がほかの道（except 以外）の路面 + margin の中か */
+  /**
+   * (x, z) が、どれかの道（自分の道も含む）の路面の内側（端から margin より内）か。
+   * 急に曲がる道の曲がりの内側では、法線の向きにずらした点が自分の道の別の所の路面に戻ってしまう（北海道の草案 30 章）
+   */
+  inside(x: number, z: number, margin: number): boolean {
+    return this.onOther(x, z, -1, -margin);
+  }
   onOther(x: number, z: number, except: number | Set<number>, margin: number): boolean {
     for (const s of this.cells.get(`${Math.floor(x / this.cell)},${Math.floor(z / this.cell)}`) ?? []) {
       if (typeof except === "number" ? s.r === except : except.has(s.r)) continue;
@@ -156,6 +163,69 @@ export class StreetIndex {
 }
 
 export const CURB = 0.15;
+
+/** 実行時と同じ接続点の形（道のりは world.json と同じ丸めにする。口の点の番号が同じになるように） */
+export function junctionShapesOf(roads: BuiltRoad[], junctions: BuiltJunction[]): JunctionShape[] {
+  const asRoad = new Map<string, Road>();
+  for (const r of roads) asRoad.set(r.id, { ...r, length: +r.length.toFixed(3) });
+  const onRoad = new Map<string, { junction: Junction; s: number }[]>();
+  for (const j of junctions) for (const a of j.arms) (onRoad.get(a.road) ?? onRoad.set(a.road, []).get(a.road)!).push({ junction: j, s: a.s });
+  for (const l of onRoad.values()) l.sort((a, b) => a.s - b.s);
+  const net = { roads: asRoad, junctionsOn: (id: string) => onRoad.get(id) ?? [] };
+  return junctions.map((j) => junctionShape(net, j));
+}
+
+/**
+ * 接続点の舗装面（腕の口と隅切りの曲線で囲んだ形。road-meshes.ts の junctionPatch と同じ外周）の索引。
+ * 走らない道をここでも切る（腕の道の路面の外の、角の舗装面の上へ住宅街の道が延びて、交差点に道が生えて見えた。北海道の草案 31 章）
+ */
+export class PadIndex {
+  private cells = new Map<string, number[][]>();
+  constructor(
+    shapes: JunctionShape[],
+    private cell = 40,
+  ) {
+    for (const sh of shapes) {
+      if (sh.arms.length < 2) continue;
+      const ring: number[] = [];
+      sh.arms.forEach((a, i) => {
+        ring.push(a.minus.x, a.minus.z, a.plus.x, a.plus.z);
+        const e = sh.edges[i];
+        for (let q = 1; q < e.length - 1; q++) ring.push(e[q].x, e[q].z);
+      });
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+      for (let k = 0; k < ring.length; k += 2) {
+        x0 = Math.min(x0, ring[k]);
+        x1 = Math.max(x1, ring[k]);
+        z0 = Math.min(z0, ring[k + 1]);
+        z1 = Math.max(z1, ring[k + 1]);
+      }
+      for (let i = Math.floor((x0 - 2) / cell); i <= Math.floor((x1 + 2) / cell); i++)
+        for (let j = Math.floor((z0 - 2) / cell); j <= Math.floor((z1 + 2) / cell); j++) {
+          const k = i + "," + j;
+          (this.cells.get(k) ?? this.cells.set(k, []).get(k)!).push(ring);
+        }
+    }
+  }
+  /** (x, z) が舗装面の上か。margin が正なら外周から margin まで広げ、負なら外周から −margin より内だけ */
+  inside(x: number, z: number, margin: number): boolean {
+    for (const ring of this.cells.get(Math.floor(x / this.cell) + "," + Math.floor(z / this.cell)) ?? []) {
+      const n = ring.length / 2;
+      let inPoly = false;
+      let dmin = Infinity;
+      for (let i = 0, j = n - 1; i < n; j = i++) {
+        const ax = ring[j * 2], az = ring[j * 2 + 1], bx = ring[i * 2], bz = ring[i * 2 + 1];
+        if (bz > z !== az > z && x < ((ax - bx) * (z - bz)) / (az - bz) + bx) inPoly = !inPoly;
+        const dx = bx - ax, dz = bz - az;
+        const l2 = dx * dx + dz * dz || 1;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
+        dmin = Math.min(dmin, Math.hypot(ax + dx * t - x, az + dz * t - z));
+      }
+      if (margin >= 0 ? inPoly || dmin < margin : inPoly && dmin >= -margin) return true;
+    }
+    return false;
+  }
+}
 
 function hashUnit(s: string): number {
   let h = 2166136261;
@@ -282,7 +352,16 @@ export function buildSidewalks(
         let w = c >= 0.25 ? 3 : c >= 0.06 ? 2.4 : 0;
         if (w > 0 && inSpan(i * ds)) w = 0;
         // ほかの道の上（交差点の中）
-        if (w > 0 && (ridx.onOther(x + nx * (hw + 0.3), z + nz * (hw + 0.3), ri, 0.5) || ridx.onOther(x + nx * (hw + w), z + nz * (hw + w), ri, 0.3))) w = 0;
+        // 中ほども調べる（同じ 2 つの接続点の間を 2 本の道が重なって通る所で、歩道が隣の道の路面に載っていた。北海道の草案 30 章）
+        if (
+          w > 0 &&
+          (ridx.onOther(x + nx * (hw + 0.3), z + nz * (hw + 0.3), ri, 0.5) ||
+            ridx.onOther(x + nx * (hw + w * 0.5), z + nz * (hw + w * 0.5), ri, 0.3) ||
+            ridx.onOther(x + nx * (hw + w), z + nz * (hw + w), ri, 0.3) ||
+            ridx.inside(x + nx * (hw + w * 0.5), z + nz * (hw + w * 0.5), 0.3) ||
+            ridx.inside(x + nx * (hw + w), z + nz * (hw + w), 0.3))
+        )
+          w = 0;
         // 住宅街の道・敷地の道の口（縁石で道を塞がない）
         if (w > 0 && sidx && (sidx.on(x + nx * (hw + 0.6), z + nz * (hw + 0.6), 0.8) || sidx.on(x + nx * (hw + w * 0.5), z + nz * (hw + w * 0.5), 0.8))) w = 0;
         // 建物に当たる所は狭める
@@ -318,7 +397,7 @@ export function buildSidewalks(
         if (treeRoad && c >= 0.12 && w >= 2.2 && runLen > 6 && runLen - lastTree >= pitch) {
           const px = x + nx * (hw + 0.9);
           const pz = z + nz * (hw + 0.9);
-          if (!bidx.inside(px, pz, 1.8) && !ridx.onOther(px, pz, ri, 2)) {
+          if (!bidx.inside(px, pz, 1.8) && !ridx.onOther(px, pz, ri, 2) && !ridx.inside(px, pz, 0)) {
             const tk = `${Math.floor(px / cell)},${Math.floor(pz / cell)}`;
             const toff = trees.length / 5;
             trees.push(Math.round(px * 100) / 100, Math.round(y * 100) / 100, Math.round(pz * 100) / 100, 0.85 + 0.3 * rand(), rand() * 6.283);
@@ -387,6 +466,8 @@ export function buildSidewalks(
         if (w > 0) {
           if (sidx && (sidx.on(x + nx * 0.6, z + nz * 0.6, 0.8) || sidx.on(x + nx * w * 0.5, z + nz * w * 0.5, 0.8))) w = 0;
           else if (ridx.onOther(x + nx * w, z + nz * w, armRoads, 0.3)) w = 0;
+          // 腕の道の路面の内側（端から 0.3m より内）に入る所も切る（腕が浅い角度で交わる角で、歩道が路面へ張り出していた。北海道の草案 30 章）
+          else if (ridx.onOther(x + nx * w * 0.5, z + nz * w * 0.5, -1, -0.3) || ridx.onOther(x + nx * w, z + nz * w, -1, -0.3)) w = 0;
           while (w > 0.3 && (bidx.inside(x + nx * w, z + nz * w, 0.15) || bidx.inside(x + nx * w * 0.5, z + nz * w * 0.5, 0.15))) w -= 0.4;
           if (w < 0.3) {
             flush();

@@ -7,7 +7,7 @@
 //       索引の位置は頁の中の位置（実行時に読み込んだ先の位置へずらす）。
 
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { HOKKAIDO_PAGE, POLE_REC, SIGN_REC, SIGN_TYPES, type HokkaidoBuildingIndex, type HokkaidoSidewalkIndex, type HokkaidoStreetIndex } from "../../src/shared/world/hokkaido.ts";
+import { HOKKAIDO_PAGE, POLE_REC, SIGN_REC, SIGN_TYPES, type StreetPiece, type HokkaidoBuildingIndex, type HokkaidoSidewalkIndex, type HokkaidoStreetIndex } from "../../src/shared/world/hokkaido.ts";
 
 export const PAGE = HOKKAIDO_PAGE;
 
@@ -146,9 +146,9 @@ export function writeStreetPages(dir: string, g: GridInfo, pts: Float32Array, in
     const pieces: HokkaidoStreetIndex["pieces"] = {};
     let o = 0;
     for (const k of keys)
-      pieces[k] = index.pieces[k].map(([off, count, w, kind]) => {
+      pieces[k] = index.pieces[k].map(([off, count, w, kind, ends]) => {
         parts.push(pts.subarray(off * 2, (off + count) * 2));
-        const r: [number, number, number, number] = [o, count, w, kind];
+        const r: StreetPiece = ends ? [o, count, w, kind, ends] : [o, count, w, kind];
         o += count;
         return r;
       });

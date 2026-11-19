@@ -2,7 +2,7 @@
 // 返ってくる間に欲しい組が変わったら、返事は捨てて新しい組を頼み直す（古い組を作り続けて待たせないため）。
 // Worker が使えない時は、同じ関数をメインスレッドで動かす（止まるが、絵は出る）。
 
-import type { HokkaidoBuildings, HokkaidoStreets, HokkaidoTerrain } from "../shared/world/hokkaido.ts";
+import type { HokkaidoBuildings, HokkaidoStreets, HokkaidoTerrain, StreetPiece } from "../shared/world/hokkaido.ts";
 import type { CityRequest, CityResponse } from "../workers/city.worker.ts";
 import { buildFar, buildNear, buildStreets, withoutExcluded } from "./city-build.ts";
 
@@ -88,7 +88,7 @@ export class CityClient {
     const t0 = performance.now();
     const { buildings, streets, terrain } = this.local;
     if (kind === "streets") {
-      const pieces: [number, number, number, number][] = [];
+      const pieces: StreetPiece[] = [];
       for (const k of cells) for (const p of streets?.index.pieces[k] ?? []) pieces.push(p);
       const r = buildStreets(streets!, terrain, pieces, ox, oz);
       return { type: "streets", id, ...r, pieces: pieces.length, ms: performance.now() - t0 };

@@ -3,6 +3,7 @@
 // 案内標識の板は、近い順に 16 枚まで、文字を描いた絵の表（canvas）の枠に描いて 1 つの形にする。描画命令は 2。
 // 文字は標識の決まった文字（止まれ・一方通行・数字）と、案内標識の道路名だけ。
 // 北海道の草案 28 章: 矢羽根（固定式視線誘導柱）、防雪柵、住宅街の道の停止線も同じ形に焼く。
+// 北海道の草案 29 章: 矢羽根と防雪柵は、標識の範囲の外も遠くの範囲（farRange）まで、もう 1 つの形に焼いて描く（開けた農地で途中から消えないように）。
 
 import * as THREE from "three";
 import { type HokkaidoSidewalks, SIGN_REC, SIGN_TYPES } from "../shared/world/hokkaido.ts";
@@ -26,6 +27,7 @@ const CELLS = {
   backCircle: [3, 2],
   yabane: [0, 3],
   louver: [1, 3],
+  roadStop: [2, 3],
 } as const;
 const speedCell = (v: number): [number, number] => {
   let best = 0;
@@ -214,6 +216,15 @@ function drawRegulation(): HTMLCanvasElement {
       c.fillRect(x, y + 4 + k * 21 + 11, CELL, 2);
     }
   }
+  // 路面の「止まれ」（白い文字。道に沿って縦に伸ばして貼る）
+  {
+    const [x, y] = at(CELLS.roadStop);
+    c.fillStyle = "#f2f2ee";
+    c.font = `bold 44px ${FONT}`;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText("止まれ", x + CELL / 2, y + CELL / 2, CELL - 6);
+  }
   // 裏（灰色の形）
   c.fillStyle = BACK;
   {
@@ -393,22 +404,31 @@ const WHITE_UV = (() => {
   return [u, v, u, v] as [number, number, number, number];
 })();
 
-interface CellBake {
-  bx: number;
-  bz: number;
+interface Arrays {
   p: Float32Array;
   n: Float32Array;
   uv: Float32Array;
   c: Float32Array;
+}
+
+interface CellBake extends Arrays {
+  bx: number;
+  bz: number;
+  /** 矢羽根と防雪柵だけ（遠くの範囲で描く） */
+  far: Arrays;
   count: number;
   provisional: boolean;
 }
+
+const arraysOf = (b: Buf): Arrays => ({ p: Float32Array.from(b.p), n: Float32Array.from(b.n), uv: Float32Array.from(b.uv), c: Float32Array.from(b.c) });
 
 export class RealSigns {
   readonly group = new THREE.Group();
   /** 規制標識と案内標識を描く範囲 (m)【初期値】 */
   range = 300;
   guideRange = 450;
+  /** 矢羽根と防雪柵を描く範囲 (m)【初期値】 */
+  farRange = 1000;
   readonly material: THREE.MeshStandardMaterial;
   readonly guideMaterial: THREE.MeshStandardMaterial;
   private readonly guideCanvas: HTMLCanvasElement;
@@ -448,6 +468,7 @@ export class RealSigns {
   setQuality(light: boolean) {
     this.range = light ? 180 : 300;
     this.guideRange = light ? 300 : 450;
+    this.farRange = light ? 500 : 1000;
     this.key = "";
     this.lastT = 0;
   }
@@ -477,17 +498,18 @@ export class RealSigns {
     this.lastT = now;
     const cells = this.cellsWithin(cx, cz, this.range);
     const gcells = this.cellsWithin(cx, cz, this.guideRange);
+    const fcells = this.cellsWithin(cx, cz, this.farRange);
     const C = this.data.index.cell;
     let pending = 0;
-    for (const k of cells) {
+    for (const k of fcells) {
       const b = this.cellCache.get(k);
       if (b?.provisional && this.terrainReady(b.bx + C / 2, b.bz + C / 2)) pending++;
     }
     // 案内標識は近い順に枠へ入れるので、50m 動くごとに見直す
-    const key = `${cells.join("|")}#${gcells.join("|")}#${Math.round(cx / 50)},${Math.round(cz / 50)}`;
+    const key = `${cells.join("|")}#${gcells.join("|")}#${fcells.join("|")}#${Math.round(cx / 50)},${Math.round(cz / 50)}`;
     if (key === this.key && !pending) return;
     this.key = key;
-    this.rebuild(cells, gcells, cx, cz, Math.round(cx / 256) * 256, Math.round(cz / 256) * 256);
+    this.rebuild(cells, gcells, fcells, cx, cz, Math.round(cx / 256) * 256, Math.round(cz / 256) * 256);
   }
 
   /** 区画 1 つの規制標識と、案内標識の柱・腕・裏を焼き込む（区画の隅からの相対） */
@@ -500,6 +522,7 @@ export class RealSigns {
     const provisional = !this.terrainReady(bx + C / 2, bz + C / 2);
     const D = this.data.signs;
     const b = new Buf();
+    const fb = new Buf();
     let count = 0;
     for (const t of this.data.index.signs[k]) {
       const o = t * SIGN_REC;
@@ -510,13 +533,15 @@ export class RealSigns {
       const type = D[o + 5];
       count++;
       if (type === SIGN_TYPES.yabane) {
-        // 柱（路肩の外）と、道の方への腕、道の端の上に下がる矢印（両面。板は道に沿う向きに見える）
+        // 柱（路肩の外）と、道の方への腕、道の端の上に下がる矢印（両面。板は道に沿う向きに見える）。遠くの形にも
         const reach = D[o + 7];
-        b.prism(x, y - 0.3, z, fx, fz, 0.08, 0.08, 5.6, POST, WHITE_UV);
-        b.beam(x, y + 5.2, z, fx, fz, reach + 0.12, 0.06, POST, WHITE_UV);
-        const ax = x + fx * reach, az = z + fz * reach;
-        b.plate(ax, y + 4.6, az, -fz, fx, 0.42, 1.1, cellUv(CELLS.yabane));
-        b.plate(ax, y + 4.6, az, fz, -fx, 0.42, 1.1, cellUv(CELLS.yabane));
+        for (const q of [b, fb]) {
+          q.prism(x, y - 0.3, z, fx, fz, 0.08, 0.08, 5.6, POST, WHITE_UV);
+          q.beam(x, y + 5.2, z, fx, fz, reach + 0.12, 0.06, POST, WHITE_UV);
+          const ax = x + fx * reach, az = z + fz * reach;
+          q.plate(ax, y + 4.6, az, -fz, fx, 0.42, 1.1, cellUv(CELLS.yabane));
+          q.plate(ax, y + 4.6, az, fz, -fx, 0.42, 1.1, cellUv(CELLS.yabane));
+        }
         continue;
       }
       if (type === SIGN_TYPES.fence) {
@@ -526,16 +551,19 @@ export class RealSigns {
         const y1 = this.heights.height(wx + fx * L, wz + fz * L);
         const uv = cellUv(CELLS.louver);
         const a0 = [x, y + 0.9, z], a1 = [x1, y1 + 0.9, z1], t1 = [x1, y1 + 4, z1], t0 = [x, y + 4, z];
-        b.quad(a0, a1, t1, t0, [-fz, 0, fx], uv, WHITE);
-        b.quad(a1, a0, t0, t1, [fz, 0, -fx], [uv[2], uv[1], uv[0], uv[3]], WHITE);
-        b.prism(x, y - 0.3, z, fx, fz, 0.12, 0.12, 4.4, FENCE_POST, WHITE_UV);
+        for (const q of [b, fb]) {
+          q.quad(a0, a1, t1, t0, [-fz, 0, fx], uv, WHITE);
+          q.quad(a1, a0, t0, t1, [fz, 0, -fx], [uv[2], uv[1], uv[0], uv[3]], WHITE);
+          q.prism(x, y - 0.3, z, fx, fz, 0.12, 0.12, 4.4, FENCE_POST, WHITE_UV);
+        }
         continue;
       }
       if (type === SIGN_TYPES.stopLine) {
         // 道の幅いっぱい（両端 0.2m あける）、進む向きに 0.45m の白い線
-        const hw = Math.max(0.5, D[o + 6] / 2 - 0.2), hd = 0.225;
+        // 長さは値（両端は置く側であける）、進む向きに 0.45m の白い線。上げは張り出し（0 なら住宅街の道の上げ）
+        const hw = Math.max(0.5, D[o + 6] / 2), hd = 0.225;
         const rx = -fz, rz = fx;
-        const yl = y + STOP_LINE_LIFT;
+        const yl = y + (D[o + 7] > 0 ? D[o + 7] : STOP_LINE_LIFT);
         b.quad(
           [x - rx * hw - fx * hd, yl, z - rz * hw - fz * hd],
           [x + rx * hw - fx * hd, yl, z + rz * hw - fz * hd],
@@ -543,6 +571,22 @@ export class RealSigns {
           [x - rx * hw + fx * hd, yl, z - rz * hw + fz * hd],
           [0, 1, 0],
           WHITE_UV,
+          WHITE,
+        );
+        continue;
+      }
+      if (type === SIGN_TYPES.roadText) {
+        // 路面の文字: 幅は値、長さは幅の 2.2 倍（道に沿って縦長）。文字の上が進む向き
+        const hw = D[o + 6] / 2, hl = D[o + 6] * 1.1;
+        const rx = -fz, rz = fx;
+        const yl = y + (D[o + 7] > 0 ? D[o + 7] : STOP_LINE_LIFT);
+        b.quad(
+          [x - rx * hw - fx * hl, yl, z - rz * hw - fz * hl],
+          [x + rx * hw - fx * hl, yl, z + rz * hw - fz * hl],
+          [x + rx * hw + fx * hl, yl, z + rz * hw + fz * hl],
+          [x - rx * hw + fx * hl, yl, z - rz * hw + fz * hl],
+          [0, 1, 0],
+          cellUv(CELLS.roadStop),
           WHITE,
         );
         continue;
@@ -581,7 +625,7 @@ export class RealSigns {
         b.plate(x - nx * 0.05, y + 2.0, z - nz * 0.05, -nx, -nz, 0.9, 0.9, cellUv(CELLS.onewayLeft));
       }
     }
-    const bake: CellBake = { bx, bz, p: Float32Array.from(b.p), n: Float32Array.from(b.n), uv: Float32Array.from(b.uv), c: Float32Array.from(b.c), count, provisional };
+    const bake: CellBake = { bx, bz, ...arraysOf(b), far: arraysOf(fb), count, provisional };
     this.cellCache.delete(k);
     this.cellCache.set(k, bake);
     if (this.cellCache.size > 600) {
@@ -594,7 +638,38 @@ export class RealSigns {
     return bake;
   }
 
-  private rebuild(cells: string[], gcells: string[], cx: number, cz: number, ox: number, oz: number) {
+  /** 区画ごとの形を 1 つの形につなぐ（ox, oz からの相対） */
+  private concat(list: { b: CellBake; a: Arrays }[], ox: number, oz: number, name: string) {
+    let nv = 0;
+    for (const { a } of list) nv += a.p.length / 3;
+    if (!nv) return;
+    const P = new Float32Array(nv * 3), N = new Float32Array(nv * 3), UV = new Float32Array(nv * 2), Cl = new Float32Array(nv * 3);
+    let v = 0;
+    for (const { b, a } of list) {
+      const dx = b.bx - ox, dz = b.bz - oz;
+      const n = a.p.length / 3;
+      for (let i = 0; i < n; i++) {
+        P[(v + i) * 3] = a.p[i * 3] + dx;
+        P[(v + i) * 3 + 1] = a.p[i * 3 + 1];
+        P[(v + i) * 3 + 2] = a.p[i * 3 + 2] + dz;
+      }
+      N.set(a.n, v * 3);
+      UV.set(a.uv, v * 2);
+      Cl.set(a.c, v * 3);
+      v += n;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(P, 3));
+    g.setAttribute("normal", new THREE.BufferAttribute(N, 3));
+    g.setAttribute("uv", new THREE.BufferAttribute(UV, 2));
+    g.setAttribute("color", new THREE.BufferAttribute(Cl, 3));
+    g.computeBoundingSphere();
+    const m = new THREE.Mesh(g, this.material);
+    m.name = name;
+    this.objects.push(m);
+  }
+
+  private rebuild(cells: string[], gcells: string[], fcells: string[], cx: number, cz: number, ox: number, oz: number) {
     const t0 = performance.now();
     for (const o of this.objects) {
       this.group.remove(o);
@@ -605,38 +680,25 @@ export class RealSigns {
     // 規制標識と案内標識の柱など（案内標識の柱は案内標識の範囲の区画も焼く）
     const all = [...new Set([...cells, ...gcells])];
     const bakes = all.map((k) => this.bake(k));
-    let nv = 0;
     let signs = 0;
-    for (const b of bakes) {
-      nv += b.p.length / 3;
-      signs += b.count;
-    }
-    if (nv) {
-      const P = new Float32Array(nv * 3), N = new Float32Array(nv * 3), UV = new Float32Array(nv * 2), Cl = new Float32Array(nv * 3);
-      let v = 0;
-      for (const b of bakes) {
-        const dx = b.bx - ox, dz = b.bz - oz;
-        const n = b.p.length / 3;
-        for (let i = 0; i < n; i++) {
-          P[(v + i) * 3] = b.p[i * 3] + dx;
-          P[(v + i) * 3 + 1] = b.p[i * 3 + 1];
-          P[(v + i) * 3 + 2] = b.p[i * 3 + 2] + dz;
-        }
-        N.set(b.n, v * 3);
-        UV.set(b.uv, v * 2);
-        Cl.set(b.c, v * 3);
-        v += n;
-      }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute("position", new THREE.BufferAttribute(P, 3));
-      g.setAttribute("normal", new THREE.BufferAttribute(N, 3));
-      g.setAttribute("uv", new THREE.BufferAttribute(UV, 2));
-      g.setAttribute("color", new THREE.BufferAttribute(Cl, 3));
-      g.computeBoundingSphere();
-      const m = new THREE.Mesh(g, this.material);
-      m.name = "real-signs";
-      this.objects.push(m);
-    }
+    for (const b of bakes) signs += b.count;
+    this.concat(
+      bakes.map((b) => ({ b, a: b })),
+      ox,
+      oz,
+      "real-signs",
+    );
+    // 矢羽根と防雪柵: 近くの形に入っていない区画を遠くの範囲まで
+    const near = new Set(all);
+    this.concat(
+      fcells.filter((k) => !near.has(k)).map((k) => {
+        const b = this.bake(k);
+        return { b, a: b.far };
+      }),
+      ox,
+      oz,
+      "real-signs:far",
+    );
     // 案内標識の板: 近い順に枠へ
     const D = this.data.signs;
     const list: { o: number; d: number; gi: number }[] = [];

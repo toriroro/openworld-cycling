@@ -179,20 +179,14 @@ export function convertBuildings(raw: RawBuilding[], dem: Grid, segs: Seg[], cel
     const cx = o.cx;
     const cz = o.cz;
     let angle = o.angle;
-    // 走る道に重なる建物は捨てる（角・辺の中点・中心が路面の端から 0.5m 以内）
+    // 走る道に重なる建物は捨てる（長方形の上に 4m 以下の間隔で並べた点のどれかが路面の端から 0.5m 以内）。
+    // 前は角・辺の中点・中心の 9 点だけで、長い建物（365m の商店街の屋根など）が、点の間を横切る道を塞いでいた（北海道の草案 30 章）
     const ca = Math.cos(angle);
     const sa = Math.sin(angle);
-    const probe = [
-      [0, 0],
-      [w / 2, d / 2],
-      [-w / 2, d / 2],
-      [w / 2, -d / 2],
-      [-w / 2, -d / 2],
-      [w / 2, 0],
-      [-w / 2, 0],
-      [0, d / 2],
-      [0, -d / 2],
-    ];
+    const probe: [number, number][] = [];
+    const nu = Math.max(2, Math.ceil(w / 4) + 1), nv = Math.max(2, Math.ceil(d / 4) + 1);
+    for (let iu = 0; iu < nu; iu++) for (let iv = 0; iv < nv; iv++) probe.push([-w / 2 + (w * iu) / (nu - 1), -d / 2 + (d * iv) / (nv - 1)]);
+    probe.push([0, 0]);
     let hit = false;
     for (const [u, v] of probe) {
       const n = idx.nearest(cx + u * ca - v * sa, cz + u * sa + v * ca, 0.5, true);

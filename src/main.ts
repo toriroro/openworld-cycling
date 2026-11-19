@@ -1,10 +1,12 @@
 // 入口。起動画面から走るゲームを始める。
 // 世界: ?world=hokkaido|generated（省くと最後に選んだ世界。北海道の草案 2.1）。
 // 開発・検証用: ?mode=m2（M2 の道路に沿って進むカメラ）、?notitle=1（起動画面を出さない）、?fresh=1（保存を使わない）、?x=&z=（場所を指定）、?time=&weather=（時刻・天候を決める）。
+// 計測の表示: ?perf=1（フレーム時間・三角形・描画命令。スマホの実機で読むため）。
 // 計測・検証用の窓口 window.__dev は、開発サーバー・?dev=1・自動操作のブラウザ（navigator.webdriver）の時だけ置く。
 
 import "./ui/game.css";
 import { startM2 } from "./dev/m2-camera.ts";
+import { startPerfOverlay } from "./ui/perf-overlay.ts";
 import { Game } from "./game.ts";
 import { platform } from "./platform/index.ts";
 import { groundProbe, rayCheck } from "./render/raycheck.ts";
@@ -70,6 +72,7 @@ if (q.get("mode") === "m2" && devTools) {
   const title = (q.get("title") === "1" || !navigator.webdriver) && q.get("notitle") !== "1" && resume;
   const game = new Game(view, roads, { x: startX, z: startZ }, { resume, title });
   game.title.onWorld = (id) => void switchWorld(id);
+  if (q.get("perf") === "1") startPerfOverlay(view, game);
   // 検証用: ?time= と ?weather=clear|cloudy|fog で時刻・天候を決める（保存しない）
   if (q.has("time") || skyWeather) {
     const w = skyWeather === "clear" || skyWeather === "cloudy" || skyWeather === "fog" ? skyWeather : undefined;
