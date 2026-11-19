@@ -29,6 +29,11 @@ export interface Road {
   /** 両端の接続点 */
   start: string;
   end: string;
+  /**
+   * 道路網の一番大きなつながりに入らない（北海道の世界。変換の時に道路網の全体で決める）。
+   * 自転車の通れない道を除いた残りの切れ端など（藻岩山観光自動車道の上の部分）。行き先の点に選ばない
+   */
+  island?: boolean;
 }
 
 export interface JunctionArm {

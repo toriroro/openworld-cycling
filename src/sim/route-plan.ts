@@ -17,10 +17,14 @@ export interface RoutePlan {
   goal: { road: string; s: number };
 }
 
-/** (x, z) に最も近い道路上の点 */
-export function nearestOnNetwork(net: RoadNetwork, x: number, z: number): { road: string; s: number; d: number } | null {
+/**
+ * (x, z) に最も近い道路上の点。skipIslands で、道路網の一番大きなつながりに入らない道路（Road.island）を除く
+ * （その上に行き先を置くと、つながっていないので経路が無い）
+ */
+export function nearestOnNetwork(net: RoadNetwork, x: number, z: number, skipIslands = false): { road: string; s: number; d: number } | null {
   let best: { road: string; s: number; d: number } | null = null;
   for (const r of net.roads.values()) {
+    if (skipIslands && r.island) continue;
     const n = r.points.length / 3;
     const ds = r.length / (n - 1);
     for (let i = 0; i < n; i += 4) {
@@ -33,9 +37,13 @@ export function nearestOnNetwork(net: RoadNetwork, x: number, z: number): { road
   return best ? { ...best, d: Math.sqrt(best.d) } : null;
 }
 
+/** 行き先と接続点の位置の比べで許す誤差 (m) */
+const GOAL_EPS = 0.5;
+
 /** 今の位置から行き先までの経路。行けなければ null */
 export function planRoute(net: RoadNetwork, from: RoadPosition, goalX: number, goalZ: number): RoutePlan | null {
-  const goal = nearestOnNetwork(net, goalX, goalZ);
+  // 今いる道路が切れ端の上でなければ、行き先も切れ端の上に置かない
+  const goal = nearestOnNetwork(net, goalX, goalZ, !net.roads.get(from.road)?.island);
   if (!goal) return null;
   // 頂点: 接続点と、そこへ来た道路・向き（来た道をそのまま戻る経路を作らないため）。始点は "@start"、終点は "@goal"
   const dist = new Map<string, number>();
@@ -82,10 +90,11 @@ export function planRoute(net: RoadNetwork, from: RoadPosition, goalX: number, g
   prev.set("@start", null);
   push(0, "@start");
   const relax = (fromV: string, base: number, road: string, s: number, dir: 1 | -1, junction: string, arm: JunctionArm | null) => {
-    // 行き先が同じ道路のこの向きの先にあれば終点へ
-    if (road === goal.road && (goal.s - s) * dir >= 0) {
+    // 行き先が同じ道路のこの向きの先にあれば終点へ。
+    // 0.5m の誤差を許す（行き止まりの端に行き先があると、端の接続点の s と行き先の s が丸めで 0.001m ずれ、どこからも着けなかった。藻岩山展望台）
+    if (road === goal.road && (goal.s - s) * dir >= -GOAL_EPS) {
       const nj = nextOn(road, s, dir);
-      if (!nj || (nj.s - goal.s) * dir >= 0) {
+      if (!nj || (nj.s - goal.s) * dir >= -GOAL_EPS) {
         const d = base + Math.abs(goal.s - s);
         if (d < (dist.get("@goal") ?? Infinity)) {
           dist.set("@goal", d);

@@ -190,7 +190,28 @@ const keepMinor = (() => {
   return keep;
 })();
 const built = buildRoads(rd, dem5, { ...minorOpt, keepMinorWay: (id) => keepMinor.has(id) });
-lap("道路");
+// 一番大きなつながりに入らない道路に印を付ける（行き先の点に選ばない。自転車の通れない道を除いた残りの切れ端など）
+const islands = (() => {
+  const parent = new Map<string, string>();
+  const find = (a: string): string => {
+    let r = a;
+    while (parent.get(r) && parent.get(r) !== r) r = parent.get(r)!;
+    parent.set(a, r);
+    return r;
+  };
+  for (const r of built.roads) {
+    const a = find(r.start);
+    const b = find(r.end);
+    if (a !== b) parent.set(a, b);
+  }
+  const size = new Map<string, number>();
+  for (const r of built.roads) size.set(find(r.start), (size.get(find(r.start)) ?? 0) + r.length);
+  const main = [...size].sort((a, b) => b[1] - a[1])[0][0];
+  const out = new Set<string>();
+  for (const r of built.roads) if (find(r.start) !== main) out.add(r.id);
+  return out;
+})();
+lap(`道路（一番大きなつながりの外 ${islands.size} 本）`);
 const builtAll = buildRoads(rd, dem5, DEFAULT_ROAD_OPTIONS);
 lap("道路（等級 2・3 を入れた版。数字だけ）");
 
@@ -389,7 +410,7 @@ const all = new Float32Array(total);
 let off = 0;
 const roadMeta = built.roads.map((r) => {
   all.set(r.points, off);
-  const m = { ...r, points: undefined, offset: off, count: r.points.length / 3, length: +r.length.toFixed(3) };
+  const m = { ...r, points: undefined, offset: off, count: r.points.length / 3, length: +r.length.toFixed(3), ...(islands.has(r.id) ? { island: true } : {}) };
   off += r.points.length;
   return m;
 });

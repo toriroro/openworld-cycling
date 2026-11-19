@@ -37,6 +37,8 @@ export interface HokkaidoRoadMeta {
   minor: boolean;
   oneway: boolean;
   ways: number[];
+  /** 道路網の一番大きなつながりに入らない（Road.island） */
+  island?: boolean;
 }
 
 export interface HokkaidoGrid {
@@ -364,6 +366,7 @@ export class HokkaidoWorld {
         start: m.start,
         end: m.end,
       };
+      if (m.island) road.island = true;
       let x0 = Infinity;
       let z0 = Infinity;
       let x1 = -Infinity;
