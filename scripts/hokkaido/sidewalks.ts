@@ -185,7 +185,7 @@ export function buildSidewalks(
   const sidx = streets ? new StreetIndex(streets) : null;
   const pts: number[] = [];
   const trees: number[] = [];
-  const index: HokkaidoSidewalkIndex = { cell, rec: 5, sidewalks: {}, trees: {}, poles: {} };
+  const index: HokkaidoSidewalkIndex = { cell, rec: 5, sidewalks: {}, trees: {}, poles: {}, signs: {} };
   const stats = { km: 0, trees: 0, runs: 0, cornerKm: 0, corners: 0, crosswalks: 0, junctionsWithCrosswalks: 0 };
   let treeSeed = 1;
   const rand = () => {
@@ -406,7 +406,7 @@ export function buildSidewalks(
   }
   stats.km = Math.round(stats.km * 10) / 10;
   stats.cornerKm = Math.round(stats.cornerKm * 10) / 10;
-  return { pts: Float32Array.from(pts), trees: Float32Array.from(trees), index, stats, cross, roadside, indexes: { bidx, ridx, sidx } };
+  return { pts: Float32Array.from(pts), trees: Float32Array.from(trees), index, stats, cross, roadside, shapes, roadIndex, indexes: { bidx, ridx, sidx } };
 }
 
 /** 走る道の側の点（4m ごと）。walk は歩道の幅（無ければ 0） */

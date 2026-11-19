@@ -7,7 +7,7 @@
 //       索引の位置は頁の中の位置（実行時に読み込んだ先の位置へずらす）。
 
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { HOKKAIDO_PAGE, POLE_REC, type HokkaidoBuildingIndex, type HokkaidoSidewalkIndex, type HokkaidoStreetIndex } from "../../src/shared/world/hokkaido.ts";
+import { HOKKAIDO_PAGE, POLE_REC, SIGN_REC, SIGN_TYPES, type HokkaidoBuildingIndex, type HokkaidoSidewalkIndex, type HokkaidoStreetIndex } from "../../src/shared/world/hokkaido.ts";
 
 export const PAGE = HOKKAIDO_PAGE;
 
@@ -73,7 +73,8 @@ export function writeTerrainPages(dir: string, g: GridInfo, h: Int16Array, layer
 
 /** 索引の JSON と Float32 の並びを 1 つの頁ファイルにする */
 function container(index: unknown, arrays: Float32Array[]): Uint8Array {
-  const json = new TextEncoder().encode(JSON.stringify(index));
+  // 読む側（splitPage）は索引を ASCII として読むので、ASCII の外の文字（案内標識の道路名）は \uXXXX の形にする
+  const json = new TextEncoder().encode(JSON.stringify(index).replace(/[\u0080-￿]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`));
   const head = 4 + json.length;
   const pad = (4 - (head % 4)) % 4;
   let total = head + pad;
@@ -162,9 +163,9 @@ export function writeStreetPages(dir: string, g: GridInfo, pts: Float32Array, in
   return writeAll(dir, "streets", files);
 }
 
-export function writeSidewalkPages(dir: string, g: GridInfo, pts: Float32Array, trees: Float32Array, index: HokkaidoSidewalkIndex, poles: { pts: Float32Array; index: Record<string, [number, number][]> }) {
+export function writeSidewalkPages(dir: string, g: GridInfo, pts: Float32Array, trees: Float32Array, index: HokkaidoSidewalkIndex, poles: { pts: Float32Array; index: Record<string, [number, number][]> }, signs: { pts: Float32Array; index: Record<string, number[]>; guides: [string, string, string][] }) {
   const files = new Map<string, Uint8Array>();
-  const all = new Set([...Object.keys(index.sidewalks), ...Object.keys(index.trees), ...Object.keys(poles.index)]);
+  const all = new Set([...Object.keys(index.sidewalks), ...Object.keys(index.trees), ...Object.keys(poles.index), ...Object.keys(signs.index)]);
   const keysOf = groupCells(Object.fromEntries([...all].map((k) => [k, 1])), index.cell, g);
   const TREE = 5;
   for (const [p, keys] of keysOf) {
@@ -174,6 +175,9 @@ export function writeSidewalkPages(dir: string, g: GridInfo, pts: Float32Array, 
     const treeIdx: HokkaidoSidewalkIndex["trees"] = {};
     const poleIdx: HokkaidoSidewalkIndex["poles"] = {};
     const pp: number[] = [];
+    const signIdx: HokkaidoSidewalkIndex["signs"] = {};
+    const sg: number[] = [];
+    const guides: [string, string, string][] = [];
     let o = 0;
     for (const k of keys) {
       if (index.sidewalks[k])
@@ -195,6 +199,17 @@ export function writeSidewalkPages(dir: string, g: GridInfo, pts: Float32Array, 
           for (let i = off * POLE_REC; i < (off + count) * POLE_REC; i++) pp.push(poles.pts[i]);
           return [n, count];
         });
+      if (signs.index[k])
+        signIdx[k] = signs.index[k].map((t) => {
+          const n = sg.length / SIGN_REC;
+          for (let i = 0; i < SIGN_REC; i++) sg.push(signs.pts[t * SIGN_REC + i]);
+          // 案内標識の文字は頁の中の番号にする
+          if (signs.pts[t * SIGN_REC + 5] === SIGN_TYPES.guide) {
+            sg[n * SIGN_REC + 6] = guides.length;
+            guides.push(signs.guides[signs.pts[t * SIGN_REC + 6]]);
+          }
+          return n;
+        });
     }
     const out = new Float32Array(o * index.rec);
     let q = 0;
@@ -202,7 +217,7 @@ export function writeSidewalkPages(dir: string, g: GridInfo, pts: Float32Array, 
       out.set(a, q);
       q += a.length;
     }
-    files.set(p, container({ cell: index.cell, rec: index.rec, sidewalks, trees: treeIdx, poles: poleIdx, ptsLength: out.length, treesLength: tp.length }, [out, Float32Array.from(tp), Float32Array.from(pp)]));
+    files.set(p, container({ cell: index.cell, rec: index.rec, sidewalks, trees: treeIdx, poles: poleIdx, signs: signIdx, guides, ptsLength: out.length, treesLength: tp.length, polesLength: pp.length }, [out, Float32Array.from(tp), Float32Array.from(pp), Float32Array.from(sg)]));
   }
   return writeAll(dir, "sidewalks", files);
 }

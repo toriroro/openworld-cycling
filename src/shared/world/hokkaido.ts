@@ -625,7 +625,24 @@ export interface HokkaidoSidewalkIndex {
   trees: Record<string, number[]>;
   /** "cx,cz" → [最初の電柱・街灯の番号, 数] の並び（北海道の草案 26 章。並びの続く電柱を電線でつなぐ） */
   poles: Record<string, [number, number][]>;
+  /** "cx,cz" → 道路標識の番号の並び（北海道の草案 27 章） */
+  signs: Record<string, number[]>;
 }
+
+/** 道路標識の点 1 つの数: [x, y, z, 表の向き x, z, 種類, 値, 張り出し]。y が NaN なら地形の高さ */
+export const SIGN_REC = 8;
+/** 道路標識の種類 */
+export const SIGN_TYPES = {
+  stop: 1,
+  crosswalk: 2,
+  /** 一方通行（板は道に沿い、(fx, fz) は矢印の向き） */
+  oneway: 3,
+  noEntry: 4,
+  /** 最高速度（値は km/h） */
+  speed: 5,
+  /** 案内標識（値は文字の番号、張り出しは柱から板の中心まで） */
+  guide: 6,
+} as const;
 
 /** 電柱・街灯の点 1 つの数: [x, y, z, tx, tz, 印]。y が NaN なら地形の高さ */
 export const POLE_REC = 6;
@@ -645,9 +662,15 @@ export class HokkaidoSidewalks extends PagedStore {
   private readonly ptsArena = new Arena();
   private readonly treeArena = new Arena();
   private readonly poleArena = new Arena();
+  private readonly signArena = new Arena();
+  /** 案内標識の文字 [左, 直進, 右]（頁を読んだ順に足す） */
+  readonly guides: [string, string, string][] = [];
   constructor(cell: number, grid: HokkaidoGrid, pages: HokkaidoPages, load: HokkaidoPageLoader) {
     super("sidewalks", grid, pages.size, pages.sidewalks, load);
-    this.index = { cell, rec: 5, sidewalks: {}, trees: {}, poles: {} };
+    this.index = { cell, rec: 5, sidewalks: {}, trees: {}, poles: {}, signs: {} };
+  }
+  get signs(): Float32Array {
+    return this.signArena.data;
   }
   get poles(): Float32Array {
     return this.poleArena.data;
@@ -659,12 +682,20 @@ export class HokkaidoSidewalks extends PagedStore {
     return this.treeArena.data;
   }
   protected addPage(index: unknown, floats: Float32Array) {
-    const ix = index as HokkaidoSidewalkIndex & { ptsLength: number; treesLength?: number };
+    const ix = index as HokkaidoSidewalkIndex & { ptsLength: number; treesLength?: number; polesLength?: number; guides?: [string, string, string][] };
     const at = this.ptsArena.push(floats.subarray(0, ix.ptsLength)) / ix.rec;
     // 電柱の無い前の版（treesLength なし）は、残り全部が木
     const tEnd = ix.treesLength === undefined ? floats.length : ix.ptsLength + ix.treesLength;
     const tat = this.treeArena.push(floats.subarray(ix.ptsLength, tEnd)) / 5;
-    const pat = this.poleArena.push(floats.subarray(tEnd)) / POLE_REC;
+    const pEnd = ix.polesLength === undefined ? floats.length : tEnd + ix.polesLength;
+    const pat = this.poleArena.push(floats.subarray(tEnd, pEnd)) / POLE_REC;
+    // 道路標識（案内標識の文字の番号は、この頁の並びから全体の並びへずらす）
+    const sigs = floats.slice(pEnd);
+    const g0 = this.guides.length;
+    for (let o = 0; o < sigs.length; o += SIGN_REC) if (sigs[o + 5] === SIGN_TYPES.guide) sigs[o + 6] += g0;
+    for (const g of ix.guides ?? []) this.guides.push(g);
+    const sat = this.signArena.push(sigs) / SIGN_REC;
+    for (const [k, list] of Object.entries(ix.signs ?? {})) this.index.signs[k] = list.map((t) => t + sat);
     for (const [k, list] of Object.entries(ix.poles ?? {})) this.index.poles[k] = list.map(([o, n]) => [o + pat, n]);
     for (const [k, list] of Object.entries(ix.sidewalks)) this.index.sidewalks[k] = list.map(([o, n]) => [o + at, n]);
     for (const [k, list] of Object.entries(ix.trees)) this.index.trees[k] = list.map((t) => t + tat);

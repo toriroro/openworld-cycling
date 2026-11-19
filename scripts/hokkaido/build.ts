@@ -11,6 +11,7 @@ import { convertBuildings, type Seg } from "./buildings.ts";
 import { BUILDING_REC } from "../../src/shared/world/hokkaido.ts";
 import { buildSidewalks, buildingCoverage, coverageAt } from "./sidewalks.ts";
 import { buildPoles } from "./poles.ts";
+import { buildSigns, type WayInfo } from "./signs.ts";
 import { buildStreets } from "./streets.ts";
 import { H0_BOX, H2_BOX, type LatLonBox, SOURCE_DIR } from "./area.ts";
 import { buildGrid, type Grid, gridAt } from "./dem.ts";
@@ -394,6 +395,44 @@ lap(`歩道 ${sidewalkOut.stats.km}km（角 ${sidewalkOut.stats.corners} か所�
 // 電柱・電線と街灯（北海道の草案 26 章）
 const poleOut = buildPoles(built.roads, sidewalkOut.roadside, streetOut, sidewalkOut.indexes, sidewalkOut.trees, coverage, commercial, 250);
 lap(`電柱 ${poleOut.stats.poles}（電線 ${poleOut.stats.wireKm}km）、街灯 ${poleOut.stats.streetlights}`);
+// 道路標識（北海道の草案 27 章）。最高速度は OSM の maxspeed（道の way の多い方）、一方通行の向きは way の点の並びと道路の道のりを比べる
+const wayInfo = (road: BuiltRoad): WayInfo => {
+  const speeds = new Map<number, number>();
+  for (const id of road.ways) {
+    const v = parseInt(rd.ways.get(id)?.tags.maxspeed ?? "", 10);
+    if (v >= 10 && v <= 120) speeds.set(v, (speeds.get(v) ?? 0) + 1);
+  }
+  const maxspeed = speeds.size ? [...speeds].sort((a, b) => b[1] - a[1])[0][0] : null;
+  if (!road.oneway) return { maxspeed, forward: null };
+  const n = road.points.length / 3;
+  const sOf = (x: number, z: number) => {
+    let best = Infinity;
+    let bi = -1;
+    for (let i = 0; i < n; i++) {
+      const d = (road.points[i * 3] + road.origin[0] - x) ** 2 + (road.points[i * 3 + 2] + road.origin[1] - z) ** 2;
+      if (d < best) {
+        best = d;
+        bi = i;
+      }
+    }
+    return best < 25 ? bi : -1;
+  };
+  for (const id of road.ways) {
+    const w = rd.ways.get(id);
+    if (!w || w.nodes.length < 2) continue;
+    const rev = w.tags.oneway === "-1";
+    for (let k = 0; k + 1 < w.nodes.length; k++) {
+      const a = rd.nodes.get(w.nodes[k]), b = rd.nodes.get(w.nodes[k + 1]);
+      if (!a || !b) continue;
+      const ia = sOf(a.x, a.z), ib = sOf(b.x, b.z);
+      if (ia < 0 || ib < 0 || ia === ib) continue;
+      return { maxspeed, forward: ib > ia !== rev };
+    }
+  }
+  return { maxspeed, forward: null };
+};
+const signOut = buildSigns(built.roads, sidewalkOut.shapes, sidewalkOut.cross, sidewalkOut.roadIndex, sidewalkOut.roadside, streetOut, sidewalkOut.indexes, coverage, wayInfo, 250);
+lap(`標識 ${JSON.stringify(signOut.stats)}`);
 
 // ---- 書き出し（北海道の草案 20 章: 地形・建物・走らない道・歩道は 2km 四方の頁に分ける） ----
 rmSync(OUT, { recursive: true, force: true });
@@ -420,7 +459,7 @@ const roadMeta = built.roads.map((r) => {
 });
 writeFileSync(`${OUT}/roads.bin`, new Uint8Array(all.buffer));
 const streetPages = writeStreetPages(OUT, gridInfo, streetOut.pts, streetOut.index);
-const sidewalkPages = writeSidewalkPages(OUT, gridInfo, sidewalkOut.pts, sidewalkOut.trees, sidewalkOut.index, poleOut);
+const sidewalkPages = writeSidewalkPages(OUT, gridInfo, sidewalkOut.pts, sidewalkOut.trees, sidewalkOut.index, poleOut, signOut);
 const buildingPages = buildingOut ? writeBuildingPages(OUT, gridInfo, buildingOut.data, buildingOut.index) : { pages: [], MB: 0 };
 const meta: HokkaidoMeta = {
   version: 2,
@@ -537,6 +576,7 @@ const report = {
   streets: streetOut.stats,
   sidewalks: sidewalkOut.stats,
   poles: poleOut.stats,
+  signs: signOut.stats,
   coverage: {
     over06: +(coverage.v.filter((v) => v >= 0.06).length / coverage.v.length).toFixed(3),
     over25: +(coverage.v.filter((v) => v >= 0.25).length / coverage.v.length).toFixed(3),

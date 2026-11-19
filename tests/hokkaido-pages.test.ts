@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { writeBuildingPages, writeSidewalkPages, writeStreetPages, writeTerrainPages } from "../scripts/hokkaido/pages.ts";
-import { BUILDING_REC, HOKKAIDO_PAGE, POLE_REC, HokkaidoBuildings, HokkaidoSidewalks, HokkaidoStreets, HokkaidoTerrain, type HokkaidoPages } from "../src/shared/world/hokkaido.ts";
+import { BUILDING_REC, HOKKAIDO_PAGE, POLE_REC, SIGN_REC, HokkaidoBuildings, HokkaidoSidewalks, HokkaidoStreets, HokkaidoTerrain, type HokkaidoPages } from "../src/shared/world/hokkaido.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "hokkaido-pages-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -127,7 +127,12 @@ describe("建物・走らない道・歩道の頁", () => {
     const swPts = new Float32Array(Array.from({ length: 30 }, (_, i) => i));
     const trees = new Float32Array(Array.from({ length: 15 }, (_, i) => 100 + i));
     const poles = new Float32Array(Array.from({ length: 18 }, (_, i) => 200 + i));
-    const sw = writeSidewalkPages(dir, g, swPts, trees, { cell, rec: 5, sidewalks: { "-5,-3": [[0, 2]], "3,1": [[2, 4]] }, trees: { "-5,-3": [2], "3,1": [0, 1] }, poles: {} }, { pts: poles, index: { "3,1": [[1, 2]], "-12,-11": [[0, 1]] } });
+    const sw = writeSidewalkPages(dir, g, swPts, trees, { cell, rec: 5, sidewalks: { "-5,-3": [[0, 2]], "3,1": [[2, 4]] }, trees: { "-5,-3": [2], "3,1": [0, 1] }, poles: {}, signs: {} }, { pts: poles, index: { "3,1": [[1, 2]], "-12,-11": [[0, 1]] } }, {
+      // 道路標識（北海道の草案 27 章）: 2 つめは案内標識（値は文字の番号）
+      pts: new Float32Array([1, 2, 3, 0, 1, 1, 0, 0, 4, 5, 6, 1, 0, 6, 1, 2.5]),
+      index: { "3,1": [1], "-5,-3": [0] },
+      guides: [["左", "直進", "右"], ["大通", "", "札幌駅前通"]],
+    });
     const w = new HokkaidoSidewalks(cell, g, { ...pages, sidewalks: sw.pages }, load);
     await w.ensure({ x0: 0, z0: 0, x1: 1000, z1: 500 });
     await w.ensure({ x0: -3010, z0: -2990, x1: 0, z1: 0 });
@@ -140,6 +145,11 @@ describe("建物・走らない道・歩道の頁", () => {
     expect([...w.poles.subarray(po * POLE_REC, (po + pc) * POLE_REC)]).toEqual([...poles.subarray(6, 18)]);
     const [qo] = w.index.poles["-12,-11"][0];
     expect([...w.poles.subarray(qo * POLE_REC, qo * POLE_REC + POLE_REC)]).toEqual([...poles.subarray(0, 6)]);
+    const [si] = w.index.signs["3,1"];
+    expect([...w.signs.subarray(si * SIGN_REC, si * SIGN_REC + 6)]).toEqual([4, 5, 6, 1, 0, 6]);
+    expect(w.guides[w.signs[si * SIGN_REC + 6]]).toEqual(["大通", "", "札幌駅前通"]);
+    const [sj] = w.index.signs["-5,-3"];
+    expect(w.signs[sj * SIGN_REC + 5]).toBe(1);
   });
 });
 

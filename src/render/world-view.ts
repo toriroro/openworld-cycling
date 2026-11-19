@@ -17,6 +17,7 @@ import { TrafficView } from "./traffic/traffic-view.ts";
 import { RealBuildings } from "./real-buildings.ts";
 import { RealStreets } from "./real-streets.ts";
 import { RealPoles } from "./real-poles.ts";
+import { RealSigns } from "./real-signs.ts";
 import { CityClient } from "./city-client.ts";
 import { LandmarkView } from "./landmarks/landmark-view.ts";
 import { loadLandmarks } from "../workers/hokkaido-load.ts";
@@ -49,6 +50,8 @@ export class WorldView {
   readonly realStreets: RealStreets | null = null;
   /** 電柱・電線と街灯（北海道の世界。北海道の草案 26 章） */
   readonly realPoles: RealPoles | null = null;
+  /** 道路標識（北海道の世界。北海道の草案 27 章） */
+  readonly realSigns: RealSigns | null = null;
   /** 北海道の世界の名所の模型（読めるまで null。名所の草案） */
   landmarks: LandmarkView | null = null;
   /** 車とバス停（sim/traffic を読んで描く） */
@@ -151,6 +154,10 @@ export class WorldView {
       this.realPoles = rp;
       this.materials.push(rp.material);
       this.scene.add(rp.group);
+      const rsg = new RealSigns(sw, this.heights, (x, z) => ht.hasPage(x, z), aniso);
+      this.realSigns = rsg;
+      this.materials.push(rsg.material, rsg.guideMaterial);
+      this.scene.add(rsg.group);
     }
     const hb = hbData;
     if (hb && city) {
@@ -196,6 +203,7 @@ export class WorldView {
     this.realBuildings?.setQuality(light);
     this.realStreets?.setQuality(light);
     this.realPoles?.setQuality(light);
+    this.realSigns?.setQuality(light);
     this.landmarks?.setQuality(light);
     this.roadMeshes.range = light ? 900 : 1600;
     this.roadMeshes.detailRange = light ? 250 : 400;
@@ -229,6 +237,7 @@ export class WorldView {
       this.realBuildings?.setOrigin(this.originX, this.originZ);
       this.realStreets?.setOrigin(this.originX, this.originZ);
       this.realPoles?.setOrigin(this.originX, this.originZ);
+      this.realSigns?.setOrigin(this.originX, this.originZ);
       this.landmarks?.setOrigin(this.originX, this.originZ);
       this.rebases++;
     }
@@ -249,6 +258,7 @@ export class WorldView {
     this.realBuildings?.update(eye.x, eye.z);
     this.realStreets?.update(eye.x, eye.z);
     this.realPoles?.update(eye.x, eye.z);
+    this.realSigns?.update(eye.x, eye.z);
     this.landmarks?.update(eye.x, eye.z);
     // 遠くの町の配置を忘れる（道路の保持範囲 10km より少し広く）
     const now = performance.now();
@@ -323,6 +333,7 @@ export class WorldView {
       realBuildings: this.realBuildings?.stats() ?? null,
       realStreets: this.realStreets ? { ...this.realStreets.stats } : null,
       realPoles: this.realPoles ? { ...this.realPoles.stats } : null,
+      realSigns: this.realSigns ? { ...this.realSigns.stats } : null,
       landmarks: this.landmarks ? { ...this.landmarks.stats } : null,
       roads: this.roadMeshes.stats(),
       roadsLoaded: this.roads.net.roads.size,

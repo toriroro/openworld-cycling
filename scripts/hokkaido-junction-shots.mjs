@@ -97,6 +97,38 @@ for (const [k, pole] of (await page.evaluate(() => {
   await page.waitForTimeout(1500);
   await page.screenshot({ path: `${out}/pole${k}${tag}.png` });
 }
+// 標識の種類ごとに一番近いものを、表の正面の目の高さから（北海道の草案 27 章）。一方通行は板の横から
+const SIGN_NAMES = { 1: "stop", 2: "crosswalk", 3: "oneway", 4: "noentry", 5: "speed", 6: "guide" };
+const signShots = await page.evaluate(() => {
+  const d = window.__dev;
+  const p = d.rideInfo();
+  const S = d.view.world.local.sidewalks;
+  const best = {};
+  for (const list of Object.values(S.index.signs))
+    for (const t of list) {
+      const o = t * 8;
+      const type = S.signs[o + 5];
+      const x = S.signs[o], z = S.signs[o + 2];
+      const dd = Math.hypot(x - p.x, z - p.z);
+      if (dd > 1500) continue;
+      const k = type === 1 && Number.isNaN(S.signs[o + 1]) ? "street-stop" : String(type);
+      if (!best[k] || dd < best[k].d) best[k] = { x, z, fx: S.signs[o + 3], fz: S.signs[o + 4], type, d: dd, reach: S.signs[o + 7] };
+    }
+  return best;
+});
+for (const [k, q] of Object.entries(signShots)) {
+  const name = k === "street-stop" ? "street-stop" : SIGN_NAMES[q.type];
+  const y = await page.evaluate((q) => window.__dev.view.surfaceHeight(q.x, q.z), q);
+  const guide = q.type === 6;
+  // 一方通行の板は道に沿うので横 (−fz, fx) から。案内標識は板の中心（腕の先）の 40m 手前
+  const nx = q.type === 3 ? -q.fz : q.fx, nz = q.type === 3 ? q.fx : q.fz;
+  const cx = guide ? q.x + q.fz * q.reach : q.x, cz = guide ? q.z - q.fx * q.reach : q.z;
+  const back = guide ? 40 : 9;
+  const e = { x: cx + nx * back, y: y + 1.6, z: cz + nz * back };
+  await page.evaluate(({ e, t, fov }) => (window.__dev.view._cam = { e, t, fov }), { e, t: { x: cx, y: y + (guide ? 5.5 : 2), z: cz }, fov: guide ? 40 : 50 });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: `${out}/sign-${name}${tag}.png` });
+}
 const stats = await page.evaluate(() => window.__dev.view.stats());
 writeFileSync(`${out}/results${tag}.json`, JSON.stringify({ at: [ax, az], shots, stats, errors }, null, 2));
 console.log(JSON.stringify({ shots: shots.map((s) => ({ id: s.id, x: Math.round(s.x), z: Math.round(s.z), arms: s.arms })), errors }, null, 1));

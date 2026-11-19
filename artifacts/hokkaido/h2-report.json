@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-11-19T09:57:55.423Z",
+  "builtAt": "2026-11-19T10:31:26.810Z",
   "area": {
     "x0": -30000,
     "x1": 30000,
@@ -298,6 +298,17 @@
     "wireKm": 7768.4,
     "MB": 8.8
   },
+  "signs": {
+    "stop": 3653,
+    "streetStop": 26106,
+    "crosswalk": 14927,
+    "oneway": 235,
+    "noEntry": 229,
+    "speed": 11101,
+    "speedFromOsm": 900,
+    "guide": 1806,
+    "MB": 1.8
+  },
   "coverage": {
     "over06": 0.114,
     "over25": 0.038,
@@ -310,7 +321,7 @@
     "buildingsMB": 45.4,
     "buildingPages": 565,
     "streetsMB": 9.5,
-    "sidewalksMB": 30.6,
+    "sidewalksMB": 33,
     "roadsMB": 36.6,
     "worldJsonMB": 6.7
   }
