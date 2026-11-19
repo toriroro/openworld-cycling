@@ -7,7 +7,7 @@
 //       索引の位置は頁の中の位置（実行時に読み込んだ先の位置へずらす）。
 
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { HOKKAIDO_PAGE, type HokkaidoBuildingIndex, type HokkaidoSidewalkIndex, type HokkaidoStreetIndex } from "../../src/shared/world/hokkaido.ts";
+import { HOKKAIDO_PAGE, POLE_REC, type HokkaidoBuildingIndex, type HokkaidoSidewalkIndex, type HokkaidoStreetIndex } from "../../src/shared/world/hokkaido.ts";
 
 export const PAGE = HOKKAIDO_PAGE;
 
@@ -162,9 +162,9 @@ export function writeStreetPages(dir: string, g: GridInfo, pts: Float32Array, in
   return writeAll(dir, "streets", files);
 }
 
-export function writeSidewalkPages(dir: string, g: GridInfo, pts: Float32Array, trees: Float32Array, index: HokkaidoSidewalkIndex) {
+export function writeSidewalkPages(dir: string, g: GridInfo, pts: Float32Array, trees: Float32Array, index: HokkaidoSidewalkIndex, poles: { pts: Float32Array; index: Record<string, [number, number][]> }) {
   const files = new Map<string, Uint8Array>();
-  const all = new Set([...Object.keys(index.sidewalks), ...Object.keys(index.trees)]);
+  const all = new Set([...Object.keys(index.sidewalks), ...Object.keys(index.trees), ...Object.keys(poles.index)]);
   const keysOf = groupCells(Object.fromEntries([...all].map((k) => [k, 1])), index.cell, g);
   const TREE = 5;
   for (const [p, keys] of keysOf) {
@@ -172,6 +172,8 @@ export function writeSidewalkPages(dir: string, g: GridInfo, pts: Float32Array, 
     const tp: number[] = [];
     const sidewalks: HokkaidoSidewalkIndex["sidewalks"] = {};
     const treeIdx: HokkaidoSidewalkIndex["trees"] = {};
+    const poleIdx: HokkaidoSidewalkIndex["poles"] = {};
+    const pp: number[] = [];
     let o = 0;
     for (const k of keys) {
       if (index.sidewalks[k])
@@ -187,6 +189,12 @@ export function writeSidewalkPages(dir: string, g: GridInfo, pts: Float32Array, 
           for (let i = 0; i < TREE; i++) tp.push(trees[t * TREE + i]);
           return n;
         });
+      if (poles.index[k])
+        poleIdx[k] = poles.index[k].map(([off, count]) => {
+          const n = pp.length / POLE_REC;
+          for (let i = off * POLE_REC; i < (off + count) * POLE_REC; i++) pp.push(poles.pts[i]);
+          return [n, count];
+        });
     }
     const out = new Float32Array(o * index.rec);
     let q = 0;
@@ -194,7 +202,7 @@ export function writeSidewalkPages(dir: string, g: GridInfo, pts: Float32Array, 
       out.set(a, q);
       q += a.length;
     }
-    files.set(p, container({ cell: index.cell, rec: index.rec, sidewalks, trees: treeIdx, ptsLength: out.length }, [out, Float32Array.from(tp)]));
+    files.set(p, container({ cell: index.cell, rec: index.rec, sidewalks, trees: treeIdx, poles: poleIdx, ptsLength: out.length, treesLength: tp.length }, [out, Float32Array.from(tp), Float32Array.from(pp)]));
   }
   return writeAll(dir, "sidewalks", files);
 }

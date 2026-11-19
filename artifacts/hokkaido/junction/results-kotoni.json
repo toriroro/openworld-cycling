@@ -1,0 +1,105 @@
+{
+  "at": [
+    -4300,
+    -2300
+  ],
+  "shots": [
+    {
+      "id": "hj431160084",
+      "x": -3970.11201896595,
+      "y": 23.84544308980306,
+      "z": -1924.0570810756083,
+      "d": 411.7856341373192,
+      "arms": 3,
+      "eye": "artifacts/hokkaido/junction/j0-kotoni-eye.png",
+      "above": "artifacts/hokkaido/junction/j0-kotoni-above.png"
+    }
+  ],
+  "stats": {
+    "triangles": 979875,
+    "calls": 223,
+    "geometries": 253,
+    "textures": 38,
+    "programs": 38,
+    "heapMB": 412.69501399993896,
+    "terrain": {
+      "tiles": 225,
+      "meshes": 225,
+      "visible": 209,
+      "pending": 0,
+      "queued": 0,
+      "waitingRoads": 0,
+      "ready": 0,
+      "releasing": 0,
+      "byLevel": [
+        64,
+        92,
+        18,
+        35
+      ]
+    },
+    "vegetation": {
+      "farTrees": 27261,
+      "nearTrees": 51,
+      "shrubs": 1,
+      "rocks": 0,
+      "grass": 57,
+      "bales": 0,
+      "crops": 0
+    },
+    "buildings": {
+      "buildings": 0,
+      "cafes": 2,
+      "triangles": 304,
+      "buildMs": 40
+    },
+    "districts": {
+      "districts": 0,
+      "triangles": 0,
+      "buildMs": 0,
+      "layoutMs": []
+    },
+    "traffic": {
+      "drawn": 6,
+      "stops": 4,
+      "shelters": 0
+    },
+    "realBuildings": {
+      "near": {
+        "buildings": 944,
+        "triangles": 229336,
+        "meshes": 11
+      },
+      "far": {
+        "buildings": 11445,
+        "triangles": 118366
+      },
+      "pending": 0
+    },
+    "realStreets": {
+      "pieces": 5476,
+      "triangles": 175040
+    },
+    "realPoles": {
+      "poles": 350,
+      "streetlights": 231,
+      "spans": 198
+    },
+    "landmarks": {
+      "shown": 4,
+      "triangles": 61008,
+      "trees": 914
+    },
+    "roads": {
+      "chunks": 178,
+      "cells": 86,
+      "wanted": 0,
+      "releasing": 0
+    },
+    "roadsLoaded": 3741,
+    "roadBlocksPending": 0,
+    "rebases": 1,
+    "quality": "standard"
+  },
+  "errors": []
+}

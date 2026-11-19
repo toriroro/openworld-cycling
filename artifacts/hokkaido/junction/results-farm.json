@@ -1,0 +1,105 @@
+{
+  "at": [
+    9752,
+    -11952
+  ],
+  "shots": [
+    {
+      "id": "hj2003780253",
+      "x": 9373.537109375,
+      "y": 3.4880990982055664,
+      "z": -11887.666015625,
+      "d": 379.6254650319819,
+      "arms": 4,
+      "eye": "artifacts/hokkaido/junction/j0-farm-eye.png",
+      "above": "artifacts/hokkaido/junction/j0-farm-above.png"
+    }
+  ],
+  "stats": {
+    "triangles": 510822,
+    "calls": 155,
+    "geometries": 287,
+    "textures": 29,
+    "programs": 30,
+    "heapMB": 214.33198165893555,
+    "terrain": {
+      "tiles": 225,
+      "meshes": 225,
+      "visible": 209,
+      "pending": 0,
+      "queued": 0,
+      "waitingRoads": 0,
+      "ready": 0,
+      "releasing": 0,
+      "byLevel": [
+        64,
+        92,
+        18,
+        35
+      ]
+    },
+    "vegetation": {
+      "farTrees": 39685,
+      "nearTrees": 4389,
+      "shrubs": 27,
+      "rocks": 10,
+      "grass": 286,
+      "bales": 0,
+      "crops": 2623
+    },
+    "buildings": {
+      "buildings": 0,
+      "cafes": 0,
+      "triangles": 0,
+      "buildMs": 0
+    },
+    "districts": {
+      "districts": 0,
+      "triangles": 0,
+      "buildMs": 0,
+      "layoutMs": []
+    },
+    "traffic": {
+      "drawn": 3,
+      "stops": 0,
+      "shelters": 0
+    },
+    "realBuildings": {
+      "near": {
+        "buildings": 5,
+        "triangles": 1350,
+        "meshes": 4
+      },
+      "far": {
+        "buildings": 326,
+        "triangles": 3532
+      },
+      "pending": 0
+    },
+    "realStreets": {
+      "pieces": 134,
+      "triangles": 9402
+    },
+    "realPoles": {
+      "poles": 74,
+      "streetlights": 0,
+      "spans": 63
+    },
+    "landmarks": {
+      "shown": 0,
+      "triangles": 0,
+      "trees": 0
+    },
+    "roads": {
+      "chunks": 110,
+      "cells": 65,
+      "wanted": 0,
+      "releasing": 0
+    },
+    "roadsLoaded": 3505,
+    "roadBlocksPending": 0,
+    "rebases": 1,
+    "quality": "standard"
+  },
+  "errors": []
+}

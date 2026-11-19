@@ -143,6 +143,12 @@ export class HokkaidoTerrain {
     return px * 4096 + pz;
   }
 
+  /** (x, z) の地形の頁を読み終えているか（読んでいない所の高さは縮図の値） */
+  hasPage(x: number, z: number): boolean {
+    const S = this.p.size;
+    return this.pages.has(this.pageKey(Math.floor((x - this.g.x0) / S), Math.floor((z - this.g.z0) / S)));
+  }
+
   /** 矩形にかかる頁を読む（読み終えたら解決） */
   ensure(r: PageRect): Promise<void> {
     const g = this.g;
@@ -617,15 +623,34 @@ export interface HokkaidoSidewalkIndex {
   sidewalks: Record<string, [number, number][]>;
   /** "cx,cz" → 木の番号の並び */
   trees: Record<string, number[]>;
+  /** "cx,cz" → [最初の電柱・街灯の番号, 数] の並び（北海道の草案 26 章。並びの続く電柱を電線でつなぐ） */
+  poles: Record<string, [number, number][]>;
 }
+
+/** 電柱・街灯の点 1 つの数: [x, y, z, tx, tz, 印]。y が NaN なら地形の高さ */
+export const POLE_REC = 6;
+/** 電柱・街灯の印 */
+export const POLE_FLAGS = {
+  transformer: 1,
+  /** 防犯灯（電柱に付ける小さい灯り） */
+  lamp: 2,
+  /** 電線の端だけ（次の区画の電柱。柱は描かない） */
+  anchor: 4,
+  /** 街灯（道路照明）。(tx, tz) は腕の向き */
+  streetlight: 8,
+} as const;
 
 export class HokkaidoSidewalks extends PagedStore {
   readonly index: HokkaidoSidewalkIndex;
   private readonly ptsArena = new Arena();
   private readonly treeArena = new Arena();
+  private readonly poleArena = new Arena();
   constructor(cell: number, grid: HokkaidoGrid, pages: HokkaidoPages, load: HokkaidoPageLoader) {
     super("sidewalks", grid, pages.size, pages.sidewalks, load);
-    this.index = { cell, rec: 5, sidewalks: {}, trees: {} };
+    this.index = { cell, rec: 5, sidewalks: {}, trees: {}, poles: {} };
+  }
+  get poles(): Float32Array {
+    return this.poleArena.data;
   }
   get pts(): Float32Array {
     return this.ptsArena.data;
@@ -634,9 +659,13 @@ export class HokkaidoSidewalks extends PagedStore {
     return this.treeArena.data;
   }
   protected addPage(index: unknown, floats: Float32Array) {
-    const ix = index as HokkaidoSidewalkIndex & { ptsLength: number };
+    const ix = index as HokkaidoSidewalkIndex & { ptsLength: number; treesLength?: number };
     const at = this.ptsArena.push(floats.subarray(0, ix.ptsLength)) / ix.rec;
-    const tat = this.treeArena.push(floats.subarray(ix.ptsLength)) / 5;
+    // 電柱の無い前の版（treesLength なし）は、残り全部が木
+    const tEnd = ix.treesLength === undefined ? floats.length : ix.ptsLength + ix.treesLength;
+    const tat = this.treeArena.push(floats.subarray(ix.ptsLength, tEnd)) / 5;
+    const pat = this.poleArena.push(floats.subarray(tEnd)) / POLE_REC;
+    for (const [k, list] of Object.entries(ix.poles ?? {})) this.index.poles[k] = list.map(([o, n]) => [o + pat, n]);
     for (const [k, list] of Object.entries(ix.sidewalks)) this.index.sidewalks[k] = list.map(([o, n]) => [o + at, n]);
     for (const [k, list] of Object.entries(ix.trees)) this.index.trees[k] = list.map((t) => t + tat);
   }

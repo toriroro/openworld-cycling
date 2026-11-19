@@ -8,6 +8,7 @@ import type { TerrainLike } from "../shared/world/terrain.ts";
 import type { Junction, Road } from "../shared/world/types.ts";
 import { hashString } from "../shared/world/hash.ts";
 import { junctionShape, type JunctionShape, roadFrame, type Vec3 } from "../sim/junction-shape.ts";
+import { sampleRoad } from "../sim/road-network.ts";
 import { rectDist, type RoadClient } from "../workers/road-client.ts";
 import { buildAsphaltSurface } from "./asphalt-profile.ts";
 import { buildGravelSurface } from "./gravel-profile.ts";
@@ -74,7 +75,13 @@ interface Cell {
 interface Gap {
   from: number;
   to: number;
+  /** 区画線だけを切る（横断歩道の上。北海道の草案 26 章） */
+  linesOnly?: boolean;
 }
+
+/** 横断歩道の口からの位置 (m)。口の外 CROSSWALK_FROM〜CROSSWALK_TO に帯を引き、その間の区画線を切る */
+const CROSSWALK_FROM = 0.8;
+const CROSSWALK_TO = CROSSWALK_FROM + 4;
 
 /** [i0, i1] の点のうち切れ目の内側にない点の連続（2点以上） */
 function runsOf(cut: boolean[]): [number, number][] {
@@ -476,8 +483,10 @@ export class RoadMeshes {
     const cut: boolean[] = [];
     for (let j = 0; j < cnt; j++) {
       const s = sOf(j);
-      cut.push(gaps.some((g) => s > g.from + 1e-3 && s < g.to - 1e-3));
+      cut.push(gaps.some((g) => !g.linesOnly && s > g.from + 1e-3 && s < g.to - 1e-3));
     }
+    // 区画線は横断歩道の上でも切る
+    const lineCut = cut.map((c, j) => c || gaps.some((g) => g.linesOnly && sOf(j) > g.from - 1e-3 && sOf(j) < g.to + 1e-3));
     const runs = runsOf(cut);
     // 遠くの段: 橋・トンネルの無い区間だけ（橋・トンネルは形が崩れないよう細かいまま）
     let structure = false;
@@ -538,7 +547,7 @@ export class RoadMeshes {
         run = [];
       };
       for (let j = 0; j < cnt; j++) {
-        const on = !cut[j] && (!dashed || Math.floor(sOf(j) / 5) % 2 === 0);
+        const on = !lineCut[j] && (!dashed || Math.floor(sOf(j) / 5) % 2 === 0);
         if (on) run.push(j);
         else flush();
       }
@@ -925,6 +934,10 @@ export class RoadMeshes {
       for (const a of shape.arms) {
         if (a.arm.road !== road.id) continue;
         gaps.push({ from: Math.min(a.arm.s, a.mouthS), to: Math.max(a.arm.s, a.mouthS) });
+        if (junction.cross?.[junction.arms.indexOf(a.arm)]) {
+          const far = a.mouthS + a.arm.dir * CROSSWALK_TO;
+          gaps.push({ from: Math.min(a.mouthS, far), to: Math.max(a.mouthS, far), linesOnly: true });
+        }
       }
     }
     gaps.sort((p, q) => p.from - q.from);
@@ -938,7 +951,7 @@ export class RoadMeshes {
     const s1 = (k + 1) * CHUNK_LENGTH + 4;
     return this.gapsOf(road)
       .filter((g) => g.to >= s0 && g.from <= s1)
-      .map((g) => `${g.from.toFixed(2)}-${g.to.toFixed(2)}`)
+      .map((g) => `${g.from.toFixed(2)}-${g.to.toFixed(2)}${g.linesOnly ? "L" : ""}`)
       .join(",");
   }
 
@@ -1080,6 +1093,60 @@ export class RoadMeshes {
         lines.strip(l2, l1, C_LINE);
       }
     });
+
+    // 横断歩道と停止線（北海道の世界。変換で印を付けた腕だけ。北海道の草案 26 章）
+    const marks = sh.junction.cross;
+    if (marks)
+      for (const a of sh.arms) {
+        const m = marks[sh.junction.arms.indexOf(a.arm)];
+        if (!m) continue;
+        this.crosswalk(a, m === 2, ox, oz, lines);
+      }
+  }
+
+  /**
+   * 腕の口の外に横断歩道（道に沿う向きの白い帯。幅 0.45m・間 0.45m、長さ 4m）、その外に停止線（幅 0.45m、接続点へ入る側の車線）。
+   * 帯は区画線（0.012m）より少し上に置き、中央線の上にも重ねる
+   */
+  private crosswalk(a: JunctionShape["arms"][number], stop: boolean, ox: number, oz: number, lines: GeoBuilder) {
+    const r = a.road;
+    const dir = a.arm.dir;
+    const hw = a.hw;
+    // 道のり s の点と、道のりが増える向きに見て右 (−dz, dx)
+    const at = (s: number, off: number, dy: number) => {
+      const p = sampleRoad(r, s);
+      return [p.x - p.dz * off - ox, p.y + dy, p.z + p.dx * off - oz];
+    };
+    // 口から外へ d0..d1 m の帯（lateral は道のりの向きに見て右への距離）。道のりの増える順に並べる
+    const band = (d0: number, d1: number, l0: number, l1: number, dy: number) => {
+      const s0 = a.mouthS + dir * d0;
+      const s1 = a.mouthS + dir * d1;
+      const lo = Math.min(s0, s1);
+      const hi = Math.max(s0, s1);
+      const L: number[][] = [], R: number[][] = [];
+      for (let k = 0; k <= 2; k++) {
+        const s = lo + ((hi - lo) * k) / 2;
+        L.push(at(s, l0, dy));
+        R.push(at(s, l1, dy));
+      }
+      lines.strip(L, R, C_LINE);
+    };
+    const CW0 = CROSSWALK_FROM;
+    const CW1 = CROSSWALK_TO;
+    const STRIPE = 0.45;
+    const span = 2 * hw - 1;
+    const count = Math.floor((span + STRIPE) / (2 * STRIPE));
+    const first = -((count * 2 - 1) * STRIPE) / 2;
+    for (let k = 0; k < count; k++) {
+      const l = first + k * 2 * STRIPE;
+      band(CW0, CW1, l, l + STRIPE, 0.016);
+    }
+    if (stop) {
+      // 接続点へ入る車は口へ向かって左側を走る = 外向きに見て右（+r）= 道のりの向きに見て dir の側
+      const l0 = dir > 0 ? 0.1 : -(hw - 0.3);
+      const l1 = dir > 0 ? hw - 0.3 : -0.1;
+      band(CW1 + 1.5, CW1 + 1.95, l0, l1, 0.016);
+    }
   }
 }
 

@@ -954,7 +954,9 @@ export class Game {
     this.updateTraffic(dt, pose);
     this.view.frame(eye, target, fov, () => {
       const env = this.view.env;
-      this.view.trafficView.update(this.traffic, this.view.originX, this.view.originZ, 2.2 * Math.max(1 - env.daylight, env.mist * 0.7), eye.x, eye.z);
+      const lights = 2.2 * Math.max(1 - env.daylight, env.mist * 0.7);
+      this.view.trafficView.update(this.traffic, this.view.originX, this.view.originZ, lights, eye.x, eye.z);
+      this.view.realPoles?.setLights(lights);
       this.player.group.visible = !!pose;
       if (pose && ride) {
         this.player.update(

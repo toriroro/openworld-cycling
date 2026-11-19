@@ -1,0 +1,130 @@
+{
+  "at": [
+    240,
+    40
+  ],
+  "shots": [
+    {
+      "id": "hj436200019",
+      "x": 202.95636105651306,
+      "y": 21.3363618850708,
+      "z": 112.39069132520561,
+      "d": 62.1398745249949,
+      "arms": 4,
+      "eye": "artifacts/hokkaido/junction/j0-before-eye.png",
+      "above": "artifacts/hokkaido/junction/j0-before-above.png"
+    },
+    {
+      "id": "hj391378453",
+      "x": 178.75581162367,
+      "y": 20.347702503204346,
+      "z": -16.494388086607472,
+      "d": 69.21457177326889,
+      "arms": 4,
+      "eye": "artifacts/hokkaido/junction/j1-before-eye.png",
+      "above": "artifacts/hokkaido/junction/j1-before-above.png"
+    },
+    {
+      "id": "hj794322677",
+      "x": 74.70974961313397,
+      "y": 21.135746002197266,
+      "z": 135.61205303486992,
+      "d": 140.57323192758372,
+      "arms": 4,
+      "eye": "artifacts/hokkaido/junction/j2-before-eye.png",
+      "above": "artifacts/hokkaido/junction/j2-before-above.png"
+    },
+    {
+      "id": "hj343317860",
+      "x": 50.35959243774414,
+      "y": 20.42155170440674,
+      "z": 5.576728820800781,
+      "d": 145.11545729835996,
+      "arms": 4,
+      "eye": "artifacts/hokkaido/junction/j3-before-eye.png",
+      "above": "artifacts/hokkaido/junction/j3-before-above.png"
+    }
+  ],
+  "stats": {
+    "triangles": 1024112,
+    "calls": 246,
+    "geometries": 360,
+    "textures": 39,
+    "programs": 37,
+    "heapMB": 285.6957893371582,
+    "terrain": {
+      "tiles": 180,
+      "meshes": 180,
+      "visible": 168,
+      "pending": 0,
+      "queued": 0,
+      "waitingRoads": 0,
+      "ready": 0,
+      "releasing": 0,
+      "byLevel": [
+        64,
+        60,
+        12,
+        32
+      ]
+    },
+    "vegetation": {
+      "farTrees": 9968,
+      "nearTrees": 128,
+      "shrubs": 13,
+      "rocks": 3,
+      "grass": 363,
+      "bales": 0,
+      "crops": 238
+    },
+    "buildings": {
+      "buildings": 0,
+      "cafes": 4,
+      "triangles": 608,
+      "buildMs": 5
+    },
+    "districts": {
+      "districts": 0,
+      "triangles": 0,
+      "buildMs": 0,
+      "layoutMs": []
+    },
+    "traffic": {
+      "drawn": 5,
+      "stops": 2,
+      "shelters": 0
+    },
+    "realBuildings": {
+      "near": {
+        "buildings": 288,
+        "triangles": 148350,
+        "meshes": 11
+      },
+      "far": {
+        "buildings": 6156,
+        "triangles": 63890
+      },
+      "pending": 0
+    },
+    "realStreets": {
+      "pieces": 4310,
+      "triangles": 171352
+    },
+    "landmarks": {
+      "shown": 8,
+      "triangles": 128794,
+      "trees": 2612
+    },
+    "roads": {
+      "chunks": 1070,
+      "cells": 140,
+      "wanted": 0,
+      "releasing": 0
+    },
+    "roadsLoaded": 4091,
+    "roadBlocksPending": 0,
+    "rebases": 0,
+    "quality": "standard"
+  },
+  "errors": []
+}

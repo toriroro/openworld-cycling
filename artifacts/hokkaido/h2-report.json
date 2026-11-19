@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-11-18T13:43:41.986Z",
+  "builtAt": "2026-11-19T09:57:55.423Z",
   "area": {
     "x0": -30000,
     "x1": 30000,
@@ -282,9 +282,21 @@
     "clippedPoints": 1004696
   },
   "sidewalks": {
-    "km": 2868,
-    "trees": 95583,
-    "runs": 53126
+    "km": 2882,
+    "trees": 91625,
+    "runs": 61327,
+    "cornerKm": 137.9,
+    "corners": 9430,
+    "crosswalks": 7469,
+    "junctionsWithCrosswalks": 2419
+  },
+  "poles": {
+    "poles": 317741,
+    "lamps": 146704,
+    "transformers": 79412,
+    "streetlights": 50463,
+    "wireKm": 7768.4,
+    "MB": 8.8
   },
   "coverage": {
     "over06": 0.114,
@@ -298,8 +310,8 @@
     "buildingsMB": 45.4,
     "buildingPages": 565,
     "streetsMB": 9.5,
-    "sidewalksMB": 18.4,
+    "sidewalksMB": 30.6,
     "roadsMB": 36.6,
-    "worldJsonMB": 6.6
+    "worldJsonMB": 6.7
   }
 }

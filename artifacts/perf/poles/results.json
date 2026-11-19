@@ -1,0 +1,377 @@
+{
+  "quality": "standard",
+  "seconds": 20,
+  "scale": 2,
+  "places": {
+    "odori": {
+      "loadSec": 7.901,
+      "metersPerSec": 10.2,
+      "frames": 1203,
+      "p50": 16.7,
+      "p95": 16.8,
+      "p99": 16.9,
+      "max": 283.6,
+      "longTasks": 0,
+      "longTaskMs": 0,
+      "longTop": [],
+      "heapMB": 326,
+      "triangles": 1176319,
+      "calls": 248,
+      "odometer": 215.52062554655473,
+      "cpu": {
+        "totalMs": 20316,
+        "idlePct": 71.8,
+        "topFunctions": [
+          [
+            "(native):(program)",
+            695
+          ],
+          [
+            "three.module-DFtsUDDU.js:updateWorldMatrix",
+            251
+          ],
+          [
+            "three.module-DFtsUDDU.js:multiplyMatrices",
+            215
+          ],
+          [
+            "three.module-DFtsUDDU.js:intersectsFrustum",
+            207
+          ],
+          [
+            "three.module-DFtsUDDU.js:setProgram",
+            183
+          ],
+          [
+            "three.module-DFtsUDDU.js:getParameters",
+            181
+          ],
+          [
+            "(native):bindVertexArray",
+            171
+          ],
+          [
+            "(native):(garbage collector)",
+            169
+          ],
+          [
+            "three.module-DFtsUDDU.js:projectObject",
+            161
+          ],
+          [
+            "three.module-DFtsUDDU.js:updateMatrixWorld",
+            156
+          ],
+          [
+            "three.module-DFtsUDDU.js:WebGLRenderer.renderBufferDirect",
+            140
+          ],
+          [
+            "three.module-DFtsUDDU.js:update",
+            126
+          ],
+          [
+            "traffic.ts:scanRoads",
+            121
+          ],
+          [
+            "three.module-DFtsUDDU.js:renderObject",
+            118
+          ],
+          [
+            "three.module-DFtsUDDU.js:setValue",
+            111
+          ],
+          [
+            "three.module-DFtsUDDU.js:getBindingState",
+            100
+          ],
+          [
+            "(native):bufferData",
+            95
+          ],
+          [
+            "three.module-DFtsUDDU.js:needsUpdate",
+            85
+          ],
+          [
+            "three.module-DFtsUDDU.js:copyArray",
+            82
+          ],
+          [
+            "three.module-DFtsUDDU.js:getProgram",
+            81
+          ],
+          [
+            "(native):uniformMatrix4fv",
+            80
+          ],
+          [
+            "three.module-DFtsUDDU.js:refreshUniformsCommon",
+            65
+          ],
+          [
+            "three.module-DFtsUDDU.js:arraysEqual",
+            61
+          ],
+          [
+            "minimap.ts:draw",
+            52
+          ],
+          [
+            "rider.ts:update",
+            46
+          ]
+        ],
+        "topFiles": [
+          [
+            "(native)",
+            16065
+          ],
+          [
+            "three.module-DFtsUDDU.js",
+            3205
+          ],
+          [
+            "traffic.ts",
+            234
+          ],
+          [
+            "road-meshes.ts",
+            160
+          ],
+          [
+            "minimap.ts",
+            95
+          ],
+          [
+            "game.ts",
+            93
+          ],
+          [
+            "rider.ts",
+            63
+          ],
+          [
+            "road-client.ts",
+            57
+          ],
+          [
+            "road-network.ts",
+            42
+          ],
+          [
+            "asphalt-profile.ts",
+            42
+          ],
+          [
+            "real-poles.ts",
+            32
+          ],
+          [
+            "ride.ts",
+            28
+          ],
+          [
+            "world-view.ts",
+            22
+          ],
+          [
+            "vegetation.ts",
+            22
+          ],
+          [
+            "terrain-streamer.ts",
+            18
+          ]
+        ]
+      },
+      "errors": []
+    },
+    "kotoni": {
+      "loadSec": 5.933,
+      "metersPerSec": 12.7,
+      "frames": 1203,
+      "p50": 16.7,
+      "p95": 16.8,
+      "p99": 16.9,
+      "max": 216.8,
+      "longTasks": 0,
+      "longTaskMs": 0,
+      "longTop": [],
+      "heapMB": 271,
+      "triangles": 903525,
+      "calls": 193,
+      "odometer": 262.3441965190989,
+      "cpu": {
+        "totalMs": 20243,
+        "idlePct": 73.8,
+        "topFunctions": [
+          [
+            "(native):(program)",
+            641
+          ],
+          [
+            "three.module-DFtsUDDU.js:updateWorldMatrix",
+            264
+          ],
+          [
+            "three.module-DFtsUDDU.js:multiplyMatrices",
+            211
+          ],
+          [
+            "three.module-DFtsUDDU.js:intersectsFrustum",
+            194
+          ],
+          [
+            "(native):(garbage collector)",
+            186
+          ],
+          [
+            "three.module-DFtsUDDU.js:getParameters",
+            157
+          ],
+          [
+            "three.module-DFtsUDDU.js:updateMatrixWorld",
+            156
+          ],
+          [
+            "three.module-DFtsUDDU.js:setProgram",
+            150
+          ],
+          [
+            "(native):bindVertexArray",
+            136
+          ],
+          [
+            "three.module-DFtsUDDU.js:projectObject",
+            126
+          ],
+          [
+            "three.module-DFtsUDDU.js:update",
+            124
+          ],
+          [
+            "three.module-DFtsUDDU.js:WebGLRenderer.renderBufferDirect",
+            116
+          ],
+          [
+            "(native):bufferData",
+            111
+          ],
+          [
+            "traffic.ts:scanRoads",
+            106
+          ],
+          [
+            "three.module-DFtsUDDU.js:renderObject",
+            87
+          ],
+          [
+            "road-meshes.ts:strip",
+            85
+          ],
+          [
+            "three.module-DFtsUDDU.js:setValue",
+            82
+          ],
+          [
+            "three.module-DFtsUDDU.js:getProgram",
+            79
+          ],
+          [
+            "three.module-DFtsUDDU.js:getBindingState",
+            77
+          ],
+          [
+            "three.module-DFtsUDDU.js:needsUpdate",
+            77
+          ],
+          [
+            "real-poles.ts:rebuild",
+            71
+          ],
+          [
+            "(native):uniformMatrix4fv",
+            69
+          ],
+          [
+            "three.module-DFtsUDDU.js:arraysEqual",
+            63
+          ],
+          [
+            "three.module-DFtsUDDU.js:refreshUniformsCommon",
+            60
+          ],
+          [
+            "three.module-DFtsUDDU.js:copyArray",
+            57
+          ]
+        ],
+        "topFiles": [
+          [
+            "(native)",
+            16284
+          ],
+          [
+            "three.module-DFtsUDDU.js",
+            2912
+          ],
+          [
+            "road-meshes.ts",
+            198
+          ],
+          [
+            "traffic.ts",
+            140
+          ],
+          [
+            "real-poles.ts",
+            104
+          ],
+          [
+            "minimap.ts",
+            82
+          ],
+          [
+            "rider.ts",
+            78
+          ],
+          [
+            "game.ts",
+            70
+          ],
+          [
+            "road-client.ts",
+            59
+          ],
+          [
+            "asphalt-profile.ts",
+            59
+          ],
+          [
+            "terrain-streamer.ts",
+            43
+          ],
+          [
+            "vegetation.ts",
+            37
+          ],
+          [
+            "hash.ts",
+            20
+          ],
+          [
+            "noise.ts",
+            16
+          ],
+          [
+            "cyclist.ts",
+            15
+          ]
+        ]
+      },
+      "errors": []
+    }
+  }
+}

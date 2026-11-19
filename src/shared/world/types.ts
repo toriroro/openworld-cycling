@@ -51,6 +51,11 @@ export interface Junction {
   arms: JunctionArm[];
   /** 結節点に当たる場合 */
   node?: string;
+  /**
+   * 腕ごとの路面の標示（arms と同じ並び。北海道の世界だけ、変換で決める。北海道の草案 26 章）:
+   * 0 なし、1 横断歩道、2 横断歩道と、接続点へ入る側の車線の停止線
+   */
+  cross?: (0 | 1 | 2)[];
 }
 
 export type PoiKind = "cafe" | "viewpoint" | "pass";

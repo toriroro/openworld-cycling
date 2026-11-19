@@ -10,6 +10,7 @@ import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { convertBuildings, type Seg } from "./buildings.ts";
 import { BUILDING_REC } from "../../src/shared/world/hokkaido.ts";
 import { buildSidewalks, buildingCoverage, coverageAt } from "./sidewalks.ts";
+import { buildPoles } from "./poles.ts";
 import { buildStreets } from "./streets.ts";
 import { H0_BOX, H2_BOX, type LatLonBox, SOURCE_DIR } from "./area.ts";
 import { buildGrid, type Grid, gridAt } from "./dem.ts";
@@ -388,8 +389,11 @@ const commercial = buildingCoverage(buildingOut?.data ?? new Float32Array(0), { 
 const streetOut = buildStreets(rd, dem5, rideSegs, new Set(built.roads.filter((r) => !r.minor).flatMap((r) => r.ways)), 250, (x, z) => coverageAt(coverage, x, z));
 lap(`走らない道 ${streetOut.stats.km.join("km・")}km`);
 // 幹線の歩道と街路樹
-const sidewalkOut = buildSidewalks(built.roads, buildingOut?.data ?? new Float32Array(0), coverage, 250, streetOut);
-lap(`歩道 ${sidewalkOut.stats.km}km、街路樹 ${sidewalkOut.stats.trees}`);
+const sidewalkOut = buildSidewalks(built.roads, built.junctions, buildingOut?.data ?? new Float32Array(0), coverage, 250, streetOut);
+lap(`歩道 ${sidewalkOut.stats.km}km（角 ${sidewalkOut.stats.corners} か所）、街路樹 ${sidewalkOut.stats.trees}、横断歩道 ${sidewalkOut.stats.crosswalks}`);
+// 電柱・電線と街灯（北海道の草案 26 章）
+const poleOut = buildPoles(built.roads, sidewalkOut.roadside, streetOut, sidewalkOut.indexes, sidewalkOut.trees, coverage, commercial, 250);
+lap(`電柱 ${poleOut.stats.poles}（電線 ${poleOut.stats.wireKm}km）、街灯 ${poleOut.stats.streetlights}`);
 
 // ---- 書き出し（北海道の草案 20 章: 地形・建物・走らない道・歩道は 2km 四方の頁に分ける） ----
 rmSync(OUT, { recursive: true, force: true });
@@ -416,7 +420,7 @@ const roadMeta = built.roads.map((r) => {
 });
 writeFileSync(`${OUT}/roads.bin`, new Uint8Array(all.buffer));
 const streetPages = writeStreetPages(OUT, gridInfo, streetOut.pts, streetOut.index);
-const sidewalkPages = writeSidewalkPages(OUT, gridInfo, sidewalkOut.pts, sidewalkOut.trees, sidewalkOut.index);
+const sidewalkPages = writeSidewalkPages(OUT, gridInfo, sidewalkOut.pts, sidewalkOut.trees, sidewalkOut.index, poleOut);
 const buildingPages = buildingOut ? writeBuildingPages(OUT, gridInfo, buildingOut.data, buildingOut.index) : { pages: [], MB: 0 };
 const meta: HokkaidoMeta = {
   version: 2,
@@ -430,7 +434,8 @@ const meta: HokkaidoMeta = {
   pages: { ...terrainPages.pages, buildings: buildingPages.pages, streets: streetPages.pages, sidewalks: sidewalkPages.pages },
   overview: terrainPages.overview,
   roads: roadMeta.map(({ points: _p, ...r }) => r),
-  junctions: built.junctions,
+  // 横断歩道の印（北海道の草案 26 章）は印のある接続点だけに付ける
+  junctions: built.junctions.map((j) => (sidewalkOut.cross[j.id] ? { ...j, cross: sidewalkOut.cross[j.id] } : j)),
   nodes,
   pois,
 };
@@ -531,6 +536,7 @@ const report = {
   buildings: buildingOut?.stats ?? null,
   streets: streetOut.stats,
   sidewalks: sidewalkOut.stats,
+  poles: poleOut.stats,
   coverage: {
     over06: +(coverage.v.filter((v) => v >= 0.06).length / coverage.v.length).toFixed(3),
     over25: +(coverage.v.filter((v) => v >= 0.25).length / coverage.v.length).toFixed(3),

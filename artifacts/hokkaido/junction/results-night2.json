@@ -1,0 +1,105 @@
+{
+  "at": [
+    -3700,
+    -1700
+  ],
+  "shots": [
+    {
+      "id": "hj431160082",
+      "x": -3647.6046978089144,
+      "y": 20.552100499471027,
+      "z": -1664.6246298826582,
+      "d": 59.52990962999362,
+      "arms": 3,
+      "eye": "artifacts/hokkaido/junction/j0-night2-eye.png",
+      "above": "artifacts/hokkaido/junction/j0-night2-above.png"
+    }
+  ],
+  "stats": {
+    "triangles": 811394,
+    "calls": 151,
+    "geometries": 234,
+    "textures": 37,
+    "programs": 30,
+    "heapMB": 265.9879608154297,
+    "terrain": {
+      "tiles": 209,
+      "meshes": 209,
+      "visible": 194,
+      "pending": 0,
+      "queued": 0,
+      "waitingRoads": 0,
+      "ready": 0,
+      "releasing": 0,
+      "byLevel": [
+        80,
+        59,
+        20,
+        35
+      ]
+    },
+    "vegetation": {
+      "farTrees": 23822,
+      "nearTrees": 57,
+      "shrubs": 6,
+      "rocks": 0,
+      "grass": 71,
+      "bales": 0,
+      "crops": 0
+    },
+    "buildings": {
+      "buildings": 0,
+      "cafes": 5,
+      "triangles": 760,
+      "buildMs": 5
+    },
+    "districts": {
+      "districts": 0,
+      "triangles": 0,
+      "buildMs": 0,
+      "layoutMs": []
+    },
+    "traffic": {
+      "drawn": 7,
+      "stops": 6,
+      "shelters": 1
+    },
+    "realBuildings": {
+      "near": {
+        "buildings": 1222,
+        "triangles": 277640,
+        "meshes": 11
+      },
+      "far": {
+        "buildings": 10761,
+        "triangles": 111912
+      },
+      "pending": 0
+    },
+    "realStreets": {
+      "pieces": 5656,
+      "triangles": 180252
+    },
+    "realPoles": {
+      "poles": 286,
+      "streetlights": 167,
+      "spans": 161
+    },
+    "landmarks": {
+      "shown": 5,
+      "triangles": 74520,
+      "trees": 954
+    },
+    "roads": {
+      "chunks": 186,
+      "cells": 86,
+      "wanted": 0,
+      "releasing": 0
+    },
+    "roadsLoaded": 3491,
+    "roadBlocksPending": 0,
+    "rebases": 1,
+    "quality": "standard"
+  },
+  "errors": []
+}

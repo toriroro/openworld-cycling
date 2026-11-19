@@ -16,6 +16,7 @@ import { Towns } from "./towns.ts";
 import { TrafficView } from "./traffic/traffic-view.ts";
 import { RealBuildings } from "./real-buildings.ts";
 import { RealStreets } from "./real-streets.ts";
+import { RealPoles } from "./real-poles.ts";
 import { CityClient } from "./city-client.ts";
 import { LandmarkView } from "./landmarks/landmark-view.ts";
 import { loadLandmarks } from "../workers/hokkaido-load.ts";
@@ -46,6 +47,8 @@ export class WorldView {
   readonly realBuildings: RealBuildings | null = null;
   /** 北海道の世界の走らない道（見た目だけ。無ければ null） */
   readonly realStreets: RealStreets | null = null;
+  /** 電柱・電線と街灯（北海道の世界。北海道の草案 26 章） */
+  readonly realPoles: RealPoles | null = null;
   /** 北海道の世界の名所の模型（読めるまで null。名所の草案） */
   landmarks: LandmarkView | null = null;
   /** 車とバス停（sim/traffic を読んで描く） */
@@ -141,6 +144,14 @@ export class WorldView {
       this.terrain.extraRoads = (r, margin, stride) => rs.pack(r, margin, stride);
       this.scene.add(rs.group);
     }
+    const sw = this.world.local?.sidewalks;
+    if (sw) {
+      const ht = this.world.local!.terrain;
+      const rp = new RealPoles(sw, this.heights, (x, z) => ht.hasPage(x, z));
+      this.realPoles = rp;
+      this.materials.push(rp.material);
+      this.scene.add(rp.group);
+    }
     const hb = hbData;
     if (hb && city) {
       const rb = new RealBuildings(hb, this.buildings, city);
@@ -184,6 +195,7 @@ export class WorldView {
     this.trafficView?.setQuality(light);
     this.realBuildings?.setQuality(light);
     this.realStreets?.setQuality(light);
+    this.realPoles?.setQuality(light);
     this.landmarks?.setQuality(light);
     this.roadMeshes.range = light ? 900 : 1600;
     this.roadMeshes.detailRange = light ? 250 : 400;
@@ -216,6 +228,7 @@ export class WorldView {
       this.districts.setOrigin(this.originX, this.originZ);
       this.realBuildings?.setOrigin(this.originX, this.originZ);
       this.realStreets?.setOrigin(this.originX, this.originZ);
+      this.realPoles?.setOrigin(this.originX, this.originZ);
       this.landmarks?.setOrigin(this.originX, this.originZ);
       this.rebases++;
     }
@@ -235,6 +248,7 @@ export class WorldView {
     this.districts.update(eye.x, eye.z);
     this.realBuildings?.update(eye.x, eye.z);
     this.realStreets?.update(eye.x, eye.z);
+    this.realPoles?.update(eye.x, eye.z);
     this.landmarks?.update(eye.x, eye.z);
     // 遠くの町の配置を忘れる（道路の保持範囲 10km より少し広く）
     const now = performance.now();
@@ -308,6 +322,7 @@ export class WorldView {
       traffic: { ...this.trafficView.stats },
       realBuildings: this.realBuildings?.stats() ?? null,
       realStreets: this.realStreets ? { ...this.realStreets.stats } : null,
+      realPoles: this.realPoles ? { ...this.realPoles.stats } : null,
       landmarks: this.landmarks ? { ...this.landmarks.stats } : null,
       roads: this.roadMeshes.stats(),
       roadsLoaded: this.roads.net.roads.size,

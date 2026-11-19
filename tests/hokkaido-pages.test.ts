@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { writeBuildingPages, writeSidewalkPages, writeStreetPages, writeTerrainPages } from "../scripts/hokkaido/pages.ts";
-import { BUILDING_REC, HOKKAIDO_PAGE, HokkaidoBuildings, HokkaidoSidewalks, HokkaidoStreets, HokkaidoTerrain, type HokkaidoPages } from "../src/shared/world/hokkaido.ts";
+import { BUILDING_REC, HOKKAIDO_PAGE, POLE_REC, HokkaidoBuildings, HokkaidoSidewalks, HokkaidoStreets, HokkaidoTerrain, type HokkaidoPages } from "../src/shared/world/hokkaido.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "hokkaido-pages-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -126,7 +126,8 @@ describe("建物・走らない道・歩道の頁", () => {
 
     const swPts = new Float32Array(Array.from({ length: 30 }, (_, i) => i));
     const trees = new Float32Array(Array.from({ length: 15 }, (_, i) => 100 + i));
-    const sw = writeSidewalkPages(dir, g, swPts, trees, { cell, rec: 5, sidewalks: { "-5,-3": [[0, 2]], "3,1": [[2, 4]] }, trees: { "-5,-3": [2], "3,1": [0, 1] } });
+    const poles = new Float32Array(Array.from({ length: 18 }, (_, i) => 200 + i));
+    const sw = writeSidewalkPages(dir, g, swPts, trees, { cell, rec: 5, sidewalks: { "-5,-3": [[0, 2]], "3,1": [[2, 4]] }, trees: { "-5,-3": [2], "3,1": [0, 1] }, poles: {} }, { pts: poles, index: { "3,1": [[1, 2]], "-12,-11": [[0, 1]] } });
     const w = new HokkaidoSidewalks(cell, g, { ...pages, sidewalks: sw.pages }, load);
     await w.ensure({ x0: 0, z0: 0, x1: 1000, z1: 500 });
     await w.ensure({ x0: -3010, z0: -2990, x1: 0, z1: 0 });
@@ -134,6 +135,11 @@ describe("建物・走らない道・歩道の頁", () => {
     expect([...w.pts.subarray(o * 5, (o + c) * 5)]).toEqual([...swPts.subarray(10, 30)]);
     const t = w.index.trees["-5,-3"][0];
     expect([...w.trees.subarray(t * 5, t * 5 + 5)]).toEqual([...trees.subarray(10, 15)]);
+    // 電柱・街灯（北海道の草案 26 章）
+    const [po, pc] = w.index.poles["3,1"][0];
+    expect([...w.poles.subarray(po * POLE_REC, (po + pc) * POLE_REC)]).toEqual([...poles.subarray(6, 18)]);
+    const [qo] = w.index.poles["-12,-11"][0];
+    expect([...w.poles.subarray(qo * POLE_REC, qo * POLE_REC + POLE_REC)]).toEqual([...poles.subarray(0, 6)]);
   });
 });
 
