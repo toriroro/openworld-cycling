@@ -2,6 +2,7 @@
 // 規制標識は 1 枚の絵の表（canvas に描く。外部の素材は使わない）を貼った板と柱を、区画ごとに焼いて 1 つの形につなぐ。
 // 案内標識の板は、近い順に 16 枚まで、文字を描いた絵の表（canvas）の枠に描いて 1 つの形にする。描画命令は 2。
 // 文字は標識の決まった文字（止まれ・一方通行・数字）と、案内標識の道路名だけ。
+// 北海道の草案 28 章: 矢羽根（固定式視線誘導柱）、防雪柵、住宅街の道の停止線も同じ形に焼く。
 
 import * as THREE from "three";
 import { type HokkaidoSidewalks, SIGN_REC, SIGN_TYPES } from "../shared/world/hokkaido.ts";
@@ -23,6 +24,8 @@ const CELLS = {
   backSquare: [1, 2],
   backRect: [2, 2],
   backCircle: [3, 2],
+  yabane: [0, 3],
+  louver: [1, 3],
 } as const;
 const speedCell = (v: number): [number, number] => {
   let best = 0;
@@ -171,6 +174,46 @@ function drawRegulation(): HTMLCanvasElement {
     c.font = `bold 52px ${FONT}`;
     c.fillText(String(v), x + CELL / 2, y + CELL / 2 + 3);
   });
+  // 矢羽根（下向きの矢印に赤と白の斜めの縞。細長い板に縦に伸ばして貼る）
+  {
+    const [x, y] = at(CELLS.yabane);
+    c.save();
+    c.beginPath();
+    c.moveTo(x + 8, y + 2);
+    c.lineTo(x + CELL - 8, y + 2);
+    c.lineTo(x + CELL - 8, y + 86);
+    c.lineTo(x + CELL / 2, y + CELL - 2);
+    c.lineTo(x + 8, y + 86);
+    c.closePath();
+    c.clip();
+    c.fillStyle = "#fff";
+    c.fillRect(x, y, CELL, CELL);
+    c.fillStyle = RED;
+    for (let k = -4; k < 8; k++) {
+      c.beginPath();
+      const y0 = y + k * 26;
+      c.moveTo(x, y0);
+      c.lineTo(x + CELL, y0 + 40);
+      c.lineTo(x + CELL, y0 + 53);
+      c.lineTo(x, y0 + 13);
+      c.closePath();
+      c.fill();
+    }
+    c.restore();
+  }
+  // 防雪柵の板（横の羽板と、羽板の間のすき間）
+  {
+    const [x, y] = at(CELLS.louver);
+    c.fillStyle = "#7d8186";
+    c.fillRect(x, y, 4, CELL);
+    c.fillRect(x + CELL - 4, y, 4, CELL);
+    for (let k = 0; k < 6; k++) {
+      c.fillStyle = "#8e9297";
+      c.fillRect(x, y + 4 + k * 21, CELL, 13);
+      c.fillStyle = "#6f7378";
+      c.fillRect(x, y + 4 + k * 21 + 11, CELL, 2);
+    }
+  }
   // 裏（灰色の形）
   c.fillStyle = BACK;
   {
@@ -335,6 +378,9 @@ class Buf {
 const WHITE = [1, 1, 1];
 const POST = [0.6, 0.61, 0.6];
 const GUIDE_BACK = [0.55, 0.56, 0.55];
+const FENCE_POST = [0.5, 0.52, 0.54];
+/** 住宅街の道の路面の上げ（city-build.ts の STREET_LIFT と、折れ線ごとのずらしの最大）より少し上 */
+const STOP_LINE_LIFT = 0.075;
 
 /** 規制標識の絵の表の枠の uv（少し内側。v は下が 0） */
 function cellUv([i, j]: readonly [number, number] | [number, number]): [number, number, number, number] {
@@ -463,6 +509,44 @@ export class RealSigns {
       const fx = D[o + 3], fz = D[o + 4];
       const type = D[o + 5];
       count++;
+      if (type === SIGN_TYPES.yabane) {
+        // 柱（路肩の外）と、道の方への腕、道の端の上に下がる矢印（両面。板は道に沿う向きに見える）
+        const reach = D[o + 7];
+        b.prism(x, y - 0.3, z, fx, fz, 0.08, 0.08, 5.6, POST, WHITE_UV);
+        b.beam(x, y + 5.2, z, fx, fz, reach + 0.12, 0.06, POST, WHITE_UV);
+        const ax = x + fx * reach, az = z + fz * reach;
+        b.plate(ax, y + 4.6, az, -fz, fx, 0.42, 1.1, cellUv(CELLS.yabane));
+        b.plate(ax, y + 4.6, az, fz, -fx, 0.42, 1.1, cellUv(CELLS.yabane));
+        continue;
+      }
+      if (type === SIGN_TYPES.fence) {
+        // 1 枚: (x, z) から (fx, fz) へ値 m。下を 0.9m あけ、高さ 3.1m（両面）。始めに柱
+        const L = D[o + 6];
+        const x1 = x + fx * L, z1 = z + fz * L;
+        const y1 = this.heights.height(wx + fx * L, wz + fz * L);
+        const uv = cellUv(CELLS.louver);
+        const a0 = [x, y + 0.9, z], a1 = [x1, y1 + 0.9, z1], t1 = [x1, y1 + 4, z1], t0 = [x, y + 4, z];
+        b.quad(a0, a1, t1, t0, [-fz, 0, fx], uv, WHITE);
+        b.quad(a1, a0, t0, t1, [fz, 0, -fx], [uv[2], uv[1], uv[0], uv[3]], WHITE);
+        b.prism(x, y - 0.3, z, fx, fz, 0.12, 0.12, 4.4, FENCE_POST, WHITE_UV);
+        continue;
+      }
+      if (type === SIGN_TYPES.stopLine) {
+        // 道の幅いっぱい（両端 0.2m あける）、進む向きに 0.45m の白い線
+        const hw = Math.max(0.5, D[o + 6] / 2 - 0.2), hd = 0.225;
+        const rx = -fz, rz = fx;
+        const yl = y + STOP_LINE_LIFT;
+        b.quad(
+          [x - rx * hw - fx * hd, yl, z - rz * hw - fz * hd],
+          [x + rx * hw - fx * hd, yl, z + rz * hw - fz * hd],
+          [x + rx * hw + fx * hd, yl, z + rz * hw + fz * hd],
+          [x - rx * hw + fx * hd, yl, z - rz * hw + fz * hd],
+          [0, 1, 0],
+          WHITE_UV,
+          WHITE,
+        );
+        continue;
+      }
       if (type === SIGN_TYPES.guide) {
         // 柱・道の上へ張り出す腕・板の裏（板の表は案内標識の形）
         const ax = fz, az = -fx;

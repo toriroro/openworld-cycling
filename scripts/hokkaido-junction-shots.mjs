@@ -98,7 +98,7 @@ for (const [k, pole] of (await page.evaluate(() => {
   await page.screenshot({ path: `${out}/pole${k}${tag}.png` });
 }
 // 標識の種類ごとに一番近いものを、表の正面の目の高さから（北海道の草案 27 章）。一方通行は板の横から
-const SIGN_NAMES = { 1: "stop", 2: "crosswalk", 3: "oneway", 4: "noentry", 5: "speed", 6: "guide" };
+const SIGN_NAMES = { 1: "stop", 2: "crosswalk", 3: "oneway", 4: "noentry", 5: "speed", 6: "guide", 7: "yabane", 8: "fence", 9: "stopline" };
 const signShots = await page.evaluate(() => {
   const d = window.__dev;
   const p = d.rideInfo();
@@ -120,12 +120,14 @@ for (const [k, q] of Object.entries(signShots)) {
   const name = k === "street-stop" ? "street-stop" : SIGN_NAMES[q.type];
   const y = await page.evaluate((q) => window.__dev.view.surfaceHeight(q.x, q.z), q);
   const guide = q.type === 6;
-  // 一方通行の板は道に沿うので横 (−fz, fx) から。案内標識は板の中心（腕の先）の 40m 手前
-  const nx = q.type === 3 ? -q.fz : q.fx, nz = q.type === 3 ? q.fx : q.fz;
+  // 案内標識は板の中心（腕の先）の 40m 手前
+  // 一方通行・防雪柵は板が道や柵に沿うので横から、矢羽根は道に沿って。停止線は後ろから（進む向きの逆へ下がる）
+  const side = q.type === 3 || q.type === 7 || q.type === 8;
+  const nx = side ? -q.fz : q.type === 9 ? -q.fx : q.fx, nz = side ? q.fx : q.type === 9 ? -q.fz : q.fz;
   const cx = guide ? q.x + q.fz * q.reach : q.x, cz = guide ? q.z - q.fx * q.reach : q.z;
-  const back = guide ? 40 : 9;
+  const back = guide ? 40 : q.type === 8 ? 25 : q.type === 7 ? 14 : 9;
   const e = { x: cx + nx * back, y: y + 1.6, z: cz + nz * back };
-  await page.evaluate(({ e, t, fov }) => (window.__dev.view._cam = { e, t, fov }), { e, t: { x: cx, y: y + (guide ? 5.5 : 2), z: cz }, fov: guide ? 40 : 50 });
+  await page.evaluate(({ e, t, fov }) => (window.__dev.view._cam = { e, t, fov }), { e, t: { x: cx, y: y + (guide ? 5.5 : q.type === 9 ? 0 : q.type === 7 ? 3.5 : 2), z: cz }, fov: guide ? 40 : 50 });
   await page.waitForTimeout(1500);
   await page.screenshot({ path: `${out}/sign-${name}${tag}.png` });
 }

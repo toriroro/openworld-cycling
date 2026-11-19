@@ -431,7 +431,13 @@ const wayInfo = (road: BuiltRoad): WayInfo => {
   }
   return { maxspeed, forward: null };
 };
-const signOut = buildSigns(built.roads, sidewalkOut.shapes, sidewalkOut.cross, sidewalkOut.roadIndex, sidewalkOut.roadside, streetOut, sidewalkOut.indexes, coverage, wayInfo, 250);
+// 土地利用（水の上は −1）。防雪柵・矢羽根の置き場所（北海道の草案 28 章）
+const landAt = (x: number, z: number) => {
+  const i = Math.round((x - X0) / 10), j = Math.round((z - Z0) / 10);
+  if (i < 0 || j < 0 || i >= nx || j >= nz) return 0;
+  return water.data[j * nx + i] ? -1 : landuse.data[j * nx + i];
+};
+const signOut = buildSigns(built.roads, sidewalkOut.shapes, sidewalkOut.cross, sidewalkOut.roadIndex, sidewalkOut.roadside, streetOut, sidewalkOut.indexes, coverage, wayInfo, 250, landAt);
 lap(`標識 ${JSON.stringify(signOut.stats)}`);
 
 // ---- 書き出し（北海道の草案 20 章: 地形・建物・走らない道・歩道は 2km 四方の頁に分ける） ----

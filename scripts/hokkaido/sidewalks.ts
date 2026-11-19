@@ -186,15 +186,21 @@ export function buildSidewalks(
   const pts: number[] = [];
   const trees: number[] = [];
   const index: HokkaidoSidewalkIndex = { cell, rec: 5, sidewalks: {}, trees: {}, poles: {}, signs: {} };
-  const stats = { km: 0, trees: 0, runs: 0, cornerKm: 0, corners: 0, crosswalks: 0, junctionsWithCrosswalks: 0 };
+  const stats = { km: 0, trees: 0, runs: 0, cornerKm: 0, corners: 0, crosswalks: 0, junctionsWithCrosswalks: 0, ramps: 0 };
   let treeSeed = 1;
   const rand = () => {
     treeSeed = (Math.imul(treeSeed, 1103515245) + 12345) >>> 0;
     return treeSeed / 4294967296;
   };
-  const emitRun = (run: number[], key: string) => {
+  /** 横断歩道の所で縁石を下げる点（"道路|端|側" → [歩道の点の番号, 下げる割合]）。北海道の草案 28 章 */
+  const ramp = new Map<string, [number, number][]>();
+  const emitRun = (run: number[], key: string, tags?: ([string, number] | null)[]) => {
     if (run.length < 10) return false;
     const off = pts.length / 5;
+    if (tags)
+      tags.forEach((t, k) => {
+        if (t) (ramp.get(t[0]) ?? ramp.set(t[0], []).get(t[0])!).push([off + k, t[1]]);
+      });
     for (const v of run) pts.push(Math.round(v * 100) / 100);
     (index.sidewalks[key] ??= []).push([off, run.length / 5]);
     stats.runs++;
@@ -245,12 +251,14 @@ export function buildSidewalks(
     idxs.push(i1);
     for (const side of [1, -1] as const) {
       let run: number[] = [];
+      let tags: ([string, number] | null)[] = [];
       let runKey = "";
       let runLen = 0;
       let lastTree = -Infinity;
       const flush = () => {
-        if (run.length) emitRun(run, runKey);
+        if (run.length) emitRun(run, runKey, tags);
         run = [];
+        tags = [];
         runLen = 0;
         lastTree = -Infinity;
       };
@@ -290,12 +298,16 @@ export function buildSidewalks(
         if (run.length && key !== runKey) {
           // 区画の境: 最後の点を次の組の最初にも使う
           const last = run.slice(-5);
-          emitRun(run, runKey);
+          const lastTag = tags.slice(-1);
+          emitRun(run, runKey, tags);
           run = last;
+          tags = lastTag;
         }
         runKey = key;
         const y = P[i * 3 + 1] + CURB;
         run.push(x + nx * hw, z + nz * hw, x + nx * (hw + w), z + nz * (hw + w), y);
+        // 口から 4m 以内の点（横断歩道の所。印が付いたら縁石を下げる）
+        tags.push(i - i0 <= 2 ? [`${road.id}|0|${side}`, 1] : i1 - i <= 2 ? [`${road.id}|1|${side}`, 1] : null);
         if (run.length > 5) {
           const lx = run[run.length - 10], lz = run[run.length - 9];
           const step = Math.hypot(x + nx * hw - lx, z + nz * hw - lz);
@@ -350,14 +362,19 @@ export function buildSidewalks(
       outN[0] = [-a.oz, a.ox];
       outN[L - 1] = [b.oz, -b.ox];
       let run: number[] = [];
+      let tags: ([string, number] | null)[] = [];
       let len = 0;
+      // 両端の 3 点は、その腕に横断歩道があれば縁石を下げる（端から 1・2/3・1/3）
+      const tagA = `${a.road.id}|${endOf(a.arm.dir)}|${a.arm.dir}`;
+      const tagB = `${b.road.id}|${endOf(b.arm.dir)}|${b.arm.dir === 1 ? -1 : 1}`;
       const flush = () => {
-        if (run.length >= 10 && emitRun(run, `${Math.floor(run[0] / cell)},${Math.floor(run[1] / cell)}`)) {
+        if (run.length >= 10 && emitRun(run, `${Math.floor(run[0] / cell)},${Math.floor(run[1] / cell)}`, tags)) {
           stats.corners++;
           stats.km += len / 1000;
           stats.cornerKm += len / 1000;
         }
         run = [];
+        tags = [];
         len = 0;
       };
       for (let q = 0; q < L; q++) {
@@ -378,6 +395,7 @@ export function buildSidewalks(
         }
         if (run.length) len += Math.hypot(x - run[run.length - 5], z - run[run.length - 4]);
         run.push(x, z, x + nx * w, z + nz * w, e[q].y + CURB);
+        tags.push(q <= 2 ? [tagA, 1 - q / 3] : L - 1 - q <= 2 ? [tagB, 1 - (L - 1 - q) / 3] : null);
         // 細めて 0 になった端で終わる
         if (w === 0) flush();
       }
@@ -395,6 +413,9 @@ export function buildSidewalks(
         const k = sh.junction.arms.indexOf(a.arm);
         if (k < 0) continue;
         marks[k] = roads[roadIndex.get(a.road.id)!].oneway ? 1 : 2;
+        // 横断歩道の両側の歩道の縁石を、路面より 3cm 高い所まで下げる
+        for (const side of [1, -1]) for (const [pi, wgt] of ramp.get(`${a.road.id}|${endOf(a.arm.dir)}|${side}`) ?? []) pts[pi * 5 + 4] = Math.round((pts[pi * 5 + 4] - wgt * (CURB - 0.03)) * 100) / 100;
+        stats.ramps++;
         any = true;
         stats.crosswalks++;
       }

@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-11-19T10:31:26.810Z",
+  "builtAt": "2026-11-19T10:55:08.084Z",
   "area": {
     "x0": -30000,
     "x1": 30000,
@@ -288,7 +288,8 @@
     "cornerKm": 137.9,
     "corners": 9430,
     "crosswalks": 7469,
-    "junctionsWithCrosswalks": 2419
+    "junctionsWithCrosswalks": 2419,
+    "ramps": 7469
   },
   "poles": {
     "poles": 317741,
@@ -306,8 +307,13 @@
     "noEntry": 229,
     "speed": 11101,
     "speedFromOsm": 900,
-    "guide": 1806,
-    "MB": 1.8
+    "guide": 327,
+    "guideSkippedNear": 17,
+    "yabane": 96967,
+    "fencePanels": 21039,
+    "fenceKm": 83.9,
+    "stopLine": 26106,
+    "MB": 6.1
   },
   "coverage": {
     "over06": 0.114,
@@ -321,7 +327,7 @@
     "buildingsMB": 45.4,
     "buildingPages": 565,
     "streetsMB": 9.5,
-    "sidewalksMB": 33,
+    "sidewalksMB": 38,
     "roadsMB": 36.6,
     "worldJsonMB": 6.7
   }

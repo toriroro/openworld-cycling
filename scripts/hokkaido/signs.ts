@@ -8,6 +8,8 @@
 //   (fx, fz) は板の表の向き（向かってくる車の方）。一方通行だけは矢印の向き（板は道に沿う）。
 //   y が NaN なら高さは描く側が地形から取る（住宅街の道の止まれ）。
 //   値は最高速度 (km/h) か、案内標識の文字の番号（guides の [左, 直進, 右]）。張り出しは案内標識の柱から板の中心まで (m)
+// 北海道の草案 28 章: 案内標識は幹線どうしの交差点だけにし、同じ向きの案内標識を 300m 以内に重ねない。
+//   町の外の道の端に矢羽根（固定式視線誘導柱）、開けた農地・草地の道の北西側に防雪柵、住宅街の道の止まれに停止線
 
 import { SIGN_REC, SIGN_TYPES, type HokkaidoStreetIndex } from "../../src/shared/world/hokkaido.ts";
 import type { JunctionShape } from "../../src/sim/junction-shape.ts";
@@ -26,6 +28,15 @@ const SPEED_EVERY = 1000;
 const SPEED_MIN_ROAD = 200;
 /** 案内標識の、接続点の口からの距離 (m)【初期値】 */
 const GUIDE_AHEAD = 50;
+/** 同じ向きの案内標識の間の下限 (m)【初期値】 */
+const GUIDE_SPACING = 300;
+/** 矢羽根の間隔 (m)【初期値】 */
+const YABANE_PITCH = 48;
+/** 防雪柵: 道の端からの距離、続く長さの下限 (m)【初期値】 */
+const FENCE_OFFSET = 6;
+const FENCE_MIN_RUN = 120;
+/** 冬の季節風の吹いてくる向き（北西。世界座標の北は −z） */
+const WIND = [-Math.SQRT1_2, -Math.SQRT1_2];
 
 export function buildSigns(
   roads: BuiltRoad[],
@@ -38,11 +49,28 @@ export function buildSigns(
   cov: CoverageGrid,
   wayInfo: (road: BuiltRoad) => WayInfo,
   cell: number,
+  /** (x, z) の土地利用（HOKKAIDO_LANDUSE の番号、無ければ 0）。水の上は −1 */
+  land: (x: number, z: number) => number,
 ) {
   const pts: number[] = [];
   const index: Record<string, number[]> = {};
   const guides: [string, string, string][] = [];
-  const stats = { stop: 0, streetStop: 0, crosswalk: 0, oneway: 0, noEntry: 0, speed: 0, speedFromOsm: 0, guide: 0 };
+  const stats = { stop: 0, streetStop: 0, crosswalk: 0, oneway: 0, noEntry: 0, speed: 0, speedFromOsm: 0, guide: 0, guideSkippedNear: 0, yabane: 0, fencePanels: 0, fenceKm: 0, stopLine: 0 };
+  // 置いた案内標識（同じ向きのものを近くに重ねない）
+  const guideGrid = new Map<string, number[]>();
+  const guideNear = (x: number, z: number, fx: number, fz: number) => {
+    const G = GUIDE_SPACING;
+    for (let i = Math.floor(x / G) - 1; i <= Math.floor(x / G) + 1; i++)
+      for (let j = Math.floor(z / G) - 1; j <= Math.floor(z / G) + 1; j++) {
+        const l = guideGrid.get(i + "," + j) ?? [];
+        for (let q = 0; q + 3 < l.length; q += 4) if (Math.hypot(l[q] - x, l[q + 1] - z) < G && l[q + 2] * fx + l[q + 3] * fz > 0.7) return true;
+      }
+    return false;
+  };
+  const guideMark = (x: number, z: number, fx: number, fz: number) => {
+    const k = Math.floor(x / GUIDE_SPACING) + "," + Math.floor(z / GUIDE_SPACING);
+    (guideGrid.get(k) ?? guideGrid.set(k, []).get(k)!).push(x, z, fx, fz);
+  };
   const { bidx, ridx } = idx;
   const info = roads.map((r) => wayInfo(r));
   const push = (x: number, y: number, z: number, fx: number, fz: number, type: number, value = 0, extra = 0) => {
@@ -80,9 +108,9 @@ export function buildSigns(
     if (n < 3) continue;
     const minCls = Math.min(...sh.arms.map((a) => a.road.cls));
     const marks = cross[sh.junction.id];
-    // 案内標識を立てる接続点: 幹線を含み、等級 1 以上の腕に名前が 2 つ以上
-    const names = new Set(sh.arms.filter((a) => a.road.cls <= 1 && a.road.name).map((a) => a.road.name));
-    const guideJunction = minCls === 0 && names.size >= 2;
+    // 案内標識を立てる接続点: 名前の違う幹線が 2 本以上交わる所（北海道の草案 28 章。前は幹線と名前のある一般道でも立て、碁盤の目の中心部でほぼ全部の交差点に立った）
+    const names = new Set(sh.arms.filter((a) => a.road.cls === 0 && a.road.name).map((a) => a.road.name));
+    const guideJunction = names.size >= 2;
     for (const a of sh.arms) {
       const ri = roadIndex.get(a.road.id);
       if (ri === undefined) continue;
@@ -131,6 +159,11 @@ export function buildSigns(
         }
         const filled = slot.filter(Boolean);
         if (filled.length < 2 || filled.every((q) => q!.name === a.road.name)) continue;
+        if (guideNear(p.x, p.z, ox, oz)) {
+          stats.guideSkippedNear++;
+          continue;
+        }
+        guideMark(p.x, p.z, ox, oz);
         seen.push(s);
         guideAt.set(gk, seen);
         // 板の中心は左の車線の上（道の中心から半幅の半分）
@@ -178,6 +211,68 @@ export function buildSigns(
         stats.noEntry++;
       }
     }
+    // 矢羽根: 町の外の舗装の道の両側に。柱は路肩の外、矢印は道の端の上
+    if (road.cls <= 2 && road.surface === "paved")
+      for (const side of [1, -1] as const) {
+        const list = roadside.get(ri + "|" + side);
+        if (!list) continue;
+        const hw = road.width / 2;
+        let next = first + 10 + (side > 0 ? 0 : YABANE_PITCH / 2);
+        for (const q of list) {
+          if (q.s < next || q.s > last - 10) continue;
+          if (q.walk > 0 || q.span || coverageAt(cov, q.x, q.z) >= 0.03) {
+            next = q.s + 4;
+            continue;
+          }
+          const x = q.x + q.nx * (hw + 1.0), z = q.z + q.nz * (hw + 1.0);
+          if (bidx.inside(x, z, 0.3) || ridx.onOther(x, z, ri, 0.5) || (idx.sidx && idx.sidx.on(x, z, 0.5)) || land(x, z) < 0) {
+            next = q.s + 4;
+            continue;
+          }
+          push(x, q.y - 0.04, z, -q.nx, -q.nz, SIGN_TYPES.yabane, 0, 1.25);
+          stats.yabane++;
+          next = q.s + YABANE_PITCH;
+        }
+      }
+    // 防雪柵: 町の外の幹線・一般道の冬の風上（北西）の側で、道の外 6m と 25m が農地か草地の所が 120m 以上続く所
+    if (road.cls <= 1 && road.surface === "paved")
+      for (const side of [1, -1] as const) {
+        const list = roadside.get(ri + "|" + side);
+        if (!list || list.length < 3) continue;
+        const hw = road.width / 2;
+        const openLand = (x: number, z: number) => {
+          const l = land(x, z);
+          return l === 2 || l === 4;
+        };
+        const ok = list.map((q) => {
+          if (q.walk > 0 || q.span || q.nx * WIND[0] + q.nz * WIND[1] < 0.35 || coverageAt(cov, q.x, q.z) >= 0.03) return false;
+          const fx = q.x + q.nx * (hw + FENCE_OFFSET), fz = q.z + q.nz * (hw + FENCE_OFFSET);
+          if (!openLand(fx, fz) || !openLand(q.x + q.nx * (hw + 25), q.z + q.nz * (hw + 25))) return false;
+          return !bidx.inside(fx, fz, 8) && !ridx.onOther(fx, fz, ri, 3) && !(idx.sidx && idx.sidx.on(fx, fz, 2));
+        });
+        for (let k = 0; k < list.length; ) {
+          if (!ok[k]) {
+            k++;
+            continue;
+          }
+          let e = k;
+          while (e + 1 < list.length && ok[e + 1]) e++;
+          // 端は 8m ずつ空ける
+          const a = k + 2, b = e - 2;
+          if (b > a && list[b].s - list[a].s >= FENCE_MIN_RUN)
+            for (let m = a; m < b; m++) {
+              const q0 = list[m], q1 = list[m + 1];
+              const x0 = q0.x + q0.nx * (hw + FENCE_OFFSET), z0 = q0.z + q0.nz * (hw + FENCE_OFFSET);
+              const x1 = q1.x + q1.nx * (hw + FENCE_OFFSET), z1 = q1.z + q1.nz * (hw + FENCE_OFFSET);
+              const l = Math.hypot(x1 - x0, z1 - z0);
+              if (l < 0.5) continue;
+              push(x0, Number.NaN, z0, (x1 - x0) / l, (z1 - z0) / l, SIGN_TYPES.fence, Math.round(l * 100) / 100);
+              stats.fencePanels++;
+              stats.fenceKm += l / 1000;
+            }
+          k = e + 1;
+        }
+      }
     if (road.cls <= 1 && road.surface === "paved" && last - first >= SPEED_MIN_ROAD) {
       const town = coverageAt(cov, s0[0].x, s0[0].z) >= 0.06;
       const osm = info[ri].maxspeed;
@@ -219,8 +314,11 @@ export function buildSigns(
         if (bidx.inside(x, z, 0.2) || ridx.onOther(x, z, -1, 0.3)) continue;
         push(x, Number.NaN, z, -dx, -dz, SIGN_TYPES.stop);
         stats.streetStop++;
+        // 停止線: 止まれの横、道の幅いっぱい（住宅街の道は中央線が無い）
+        push(ex - dx * 2.2, Number.NaN, ez - dz * 2.2, dx, dz, SIGN_TYPES.stopLine, w10 / 10);
+        stats.stopLine++;
       }
     }
 
-  return { pts: Float32Array.from(pts), index, guides, stats: { ...stats, MB: +((pts.length * 4) / 1048576).toFixed(1) } };
+  return { pts: Float32Array.from(pts), index, guides, stats: { ...stats, fenceKm: Math.round(stats.fenceKm * 10) / 10, MB: +((pts.length * 4) / 1048576).toFixed(1) } };
 }
