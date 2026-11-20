@@ -37,6 +37,8 @@ import { type BleDevice, DEFAULT_CW, type DeviceRole, TrainerLink } from "./sim/
 import { smoothedGrade, trainerGrade } from "./sim/trainer/grade.ts";
 import { VirtualDevice } from "./sim/trainer/virtual.ts";
 import { TrainerPanel, type TrainerSettings } from "./ui/trainer-panel.ts";
+import { RideRecorder } from "./sim/trainer/recorder.ts";
+import { fitFileName, recorderToFit } from "./ride-export.ts";
 
 /** カメラの近い面の既定 (m)。一人称だけ手前にする（camera-rig.ts） */
 const NEAR_DEFAULT = 0.8;
@@ -156,6 +158,14 @@ export class Game {
   private trainerPanelT = 0;
   /** 開発用の仮想の機器（window.__dev から出力を変えたり切ったりする） */
   readonly virtualDevices: Partial<Record<DeviceRole, VirtualDevice>> = {};
+  /** トレーナーで走った記録（トレーナー連携の草案 6章）。世界ごとに 1 つ */
+  recorder: RideRecorder;
+  private recordLoaded = false;
+  private recordSaveT = 0;
+  /** 記録を消す確認（1 回目に押した時刻） */
+  private clearArmedAt = -Infinity;
+  /** 最後に書き出したファイルの名前（確認用） */
+  lastExport = "";
 
   constructor(
     private view: WorldView,
@@ -254,6 +264,19 @@ export class Game {
       this.refreshTrainer();
     };
     if (opts.dev) this.trainerPanel.onVirtual = (role) => void this.attachVirtual(role);
+    this.trainerPanel.onExport = () => void this.exportRecord();
+    this.trainerPanel.onClearRecord = () => this.clearRecord();
+    this.recorder = new RideRecorder(view.world.id);
+    void platform.storage.load(this.recordKey).then((text) => {
+      try {
+        const r = text ? RideRecorder.fromJSON(JSON.parse(text)) : null;
+        if (r && r.world === view.world.id) this.recorder = r;
+      } catch {
+        /* 壊れた記録は使わない */
+      }
+      this.recordLoaded = true;
+      this.refreshTrainer();
+    });
     this.trainerPanel.onSettings = (t) => {
       if (t.effect !== undefined) this.settings.trainerEffect = t.effect;
       if (t.bodyMass !== undefined) this.settings.bodyMass = t.bodyMass;
@@ -315,9 +338,13 @@ export class Game {
       if (document.hidden) {
         this.paused = true;
         void this.save();
+        void this.saveRecord();
       }
     });
-    addEventListener("pagehide", () => void this.save());
+    addEventListener("pagehide", () => {
+      void this.save();
+      void this.saveRecord();
+    });
     this.ready =
       opts.resume === false
         ? Promise.resolve(null)
@@ -690,7 +717,83 @@ export class Game {
       signal: this.trainer.power.signal,
       busy: this.trainerBusy,
       error: this.trainerError,
+      record: {
+        seconds: this.recorder.timerSeconds,
+        distance: this.recorder.totalDistance,
+        samples: this.recorder.length,
+        full: this.recorder.full,
+        clearArmed: performance.now() - this.clearArmedAt <= 3000,
+      },
     });
+  }
+
+  private get recordKey() {
+    return `ride-log-${this.view.world.id}`;
+  }
+
+  /**
+   * 記録（トレーナー連携の草案 6.1）: トレーナーで走っている間、1 秒に 1 回。最初に出力が 0 より大きくなった時に始める。
+   * 一時停止・立ち寄り・タブが隠れている・トレーナーが外れている間は残さず、その間に進んだ道のりも数えない。30 秒ごとに保存する
+   */
+  private updateRecord() {
+    const rec = this.recorder;
+    const ride = this.ride;
+    const ok = this.recordLoaded && !!ride?.road && ride.power === this.trainer.power && !this.paused && !this.stop && !document.hidden;
+    if (ride && ok && (rec.length > 0 || this.trainer.power.watts > 0)) {
+      const p = ride.pose();
+      rec.record({
+        now: Date.now(),
+        odometer: ride.odometer,
+        climb: ride.climb,
+        speed: ride.speed,
+        power: this.trainer.power.watts,
+        cadence: this.trainer.cadenceRpm,
+        heartRate: this.trainer.heartRate,
+        altitude: p.y,
+        grade: ride.grade,
+        x: p.x,
+        z: p.z,
+      });
+    } else rec.gap();
+    const now = performance.now();
+    if (rec.dirty && now - this.recordSaveT > 30000) {
+      this.recordSaveT = now;
+      void this.saveRecord();
+    }
+  }
+
+  async saveRecord() {
+    if (!this.recordLoaded || !this.recorder.dirty) return;
+    this.recorder.dirty = false;
+    if (this.recorder.length) await platform.storage.save(this.recordKey, JSON.stringify(this.recorder.toJSON()));
+    else await platform.storage.remove(this.recordKey);
+  }
+
+  /** FIT で書き出して、記録を区切る（草案 6.1） */
+  async exportRecord(): Promise<string | null> {
+    const rec = this.recorder;
+    if (!rec.length) return null;
+    const name = fitFileName(rec);
+    await platform.saveFile(name, recorderToFit(rec), "application/vnd.ant.fit");
+    this.lastExport = name;
+    rec.clear();
+    await this.saveRecord();
+    this.refreshTrainer();
+    return name;
+  }
+
+  /** 記録を消す（3 秒以内にもう一度押した時だけ） */
+  clearRecord() {
+    const now = performance.now();
+    if (now - this.clearArmedAt > 3000) {
+      this.clearArmedAt = now;
+      this.refreshTrainer();
+      return;
+    }
+    this.clearArmedAt = -Infinity;
+    this.recorder.clear();
+    void this.saveRecord();
+    this.refreshTrainer();
   }
 
   /** 走行中の表示に出すトレーナーの状態（問題がある時だけ） */
@@ -1021,6 +1124,7 @@ export class Game {
       }
       if (n >= maxSteps) this.acc = 0;
     }
+    this.updateRecord();
 
     let eye = { x: this.anchor.x, y: this.view.heights.height(this.anchor.x, this.anchor.z) + 40, z: this.anchor.z };
     let target = { x: this.anchor.x + 10, y: eye.y - 5, z: this.anchor.z };

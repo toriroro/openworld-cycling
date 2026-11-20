@@ -20,6 +20,8 @@ export interface Platform {
   openExternal(url: string): void;
   /** トレーナー・心拍計（トレーナー連携の草案 2.3） */
   bluetooth: BluetoothPort;
+  /** ファイルを端末に保存する（ウェブはダウンロード。iOS は共有の画面を後で。トレーナー連携の草案 6.2） */
+  saveFile(name: string, bytes: Uint8Array, type: string): Promise<void>;
 }
 
 const PREFIX = "owc:";
@@ -111,6 +113,18 @@ function webPlatform(): Platform {
       globalThis.open?.(url, "_blank", "noopener");
     },
     bluetooth: webBluetooth(),
+    async saveFile(name, bytes, type) {
+      const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // ダウンロードが始まるまで待ってから消す
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    },
   };
 }
 

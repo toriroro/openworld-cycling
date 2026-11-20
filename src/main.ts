@@ -213,6 +213,15 @@ if (q.get("mode") === "m2" && devTools) {
         awake: platform.awake,
       };
     },
+    /** 走行の記録（トレーナー連携の草案 6章） */
+    recordInfo() {
+      const r = game.recorder;
+      return { world: r.world, samples: r.length, seconds: r.timerSeconds, distance: r.totalDistance, ascent: r.ascent, full: r.full, lastExport: game.lastExport };
+    },
+    async saveRecord() {
+      game.recorder.dirty = true;
+      await game.saveRecord();
+    },
     setTimeScale(k: number) {
       game.timeScale = k;
     },

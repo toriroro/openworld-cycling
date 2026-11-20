@@ -1,0 +1,178 @@
+{
+  "generated": {
+    "errors": [],
+    "record": {
+      "beforePause": {
+        "world": "generated",
+        "samples": 31,
+        "seconds": 30,
+        "distance": 223.22104408679633,
+        "ascent": 0,
+        "full": false,
+        "lastExport": ""
+      },
+      "duringPause": {
+        "world": "generated",
+        "samples": 31,
+        "seconds": 30,
+        "distance": 223.22104408679633,
+        "ascent": 0,
+        "full": false,
+        "lastExport": ""
+      },
+      "afterRide": {
+        "world": "generated",
+        "samples": 62,
+        "seconds": 60,
+        "distance": 548.0388280035432,
+        "ascent": 0,
+        "full": false,
+        "lastExport": ""
+      },
+      "rideOdometer": 548.9024847158628
+    },
+    "reload": {
+      "world": "generated",
+      "samples": 62,
+      "seconds": 60,
+      "distance": 548,
+      "ascent": 0,
+      "full": false,
+      "lastExport": ""
+    },
+    "download": {
+      "suggested": "openworld-cycling-20261121-0135.fit",
+      "afterExport": {
+        "world": "generated",
+        "samples": 0,
+        "seconds": 0,
+        "distance": 0,
+        "ascent": 0,
+        "full": false,
+        "lastExport": "openworld-cycling-20261121-0135.fit"
+      }
+    },
+    "fit": {
+      "bytes": 1598,
+      "headerCrcOk": true,
+      "fileCrcOk": true,
+      "records": 62,
+      "events": [
+        0,
+        4,
+        0,
+        4
+      ],
+      "start": "2026-11-20T16:35:04.000Z",
+      "sport": 2,
+      "subSport": 58,
+      "elapsed": 68,
+      "timer": 60,
+      "distance": 547.1,
+      "avgPower": 200,
+      "avgCadence": 85,
+      "avgHeartRate": 150,
+      "ascent": 0,
+      "firstPos": [
+        null,
+        null
+      ],
+      "lastPos": [
+        null,
+        null
+      ],
+      "altitude": [
+        124.20000000000005,
+        118.79999999999995
+      ]
+    }
+  },
+  "hokkaido": {
+    "errors": [],
+    "record": {
+      "beforePause": {
+        "world": "hokkaido",
+        "samples": 30,
+        "seconds": 29,
+        "distance": 107.77991597154333,
+        "ascent": 6.139374113226836,
+        "full": false,
+        "lastExport": ""
+      },
+      "duringPause": {
+        "world": "hokkaido",
+        "samples": 30,
+        "seconds": 29,
+        "distance": 107.77991597154333,
+        "ascent": 6.139374113226836,
+        "full": false,
+        "lastExport": ""
+      },
+      "afterRide": {
+        "world": "hokkaido",
+        "samples": 61,
+        "seconds": 59,
+        "distance": 203.80425307321227,
+        "ascent": 9.829199051128626,
+        "full": false,
+        "lastExport": ""
+      },
+      "rideOdometer": 203.83872642617322
+    },
+    "reload": {
+      "world": "hokkaido",
+      "samples": 61,
+      "seconds": 59,
+      "distance": 203.9,
+      "ascent": 9.8,
+      "full": false,
+      "lastExport": ""
+    },
+    "download": {
+      "suggested": "openworld-cycling-20261121-0136.fit",
+      "afterExport": {
+        "world": "hokkaido",
+        "samples": 0,
+        "seconds": 0,
+        "distance": 0,
+        "ascent": 0,
+        "full": false,
+        "lastExport": "openworld-cycling-20261121-0136.fit"
+      }
+    },
+    "fit": {
+      "bytes": 2073,
+      "headerCrcOk": true,
+      "fileCrcOk": true,
+      "records": 61,
+      "events": [
+        0,
+        4,
+        0,
+        4
+      ],
+      "start": "2026-11-20T16:36:22.000Z",
+      "sport": 2,
+      "subSport": 58,
+      "elapsed": 67,
+      "timer": 59,
+      "distance": 199.2,
+      "avgPower": 200,
+      "avgCadence": 85,
+      "avgHeartRate": 150,
+      "ascent": 10,
+      "firstPos": [
+        42.85631778649986,
+        141.09620930626988
+      ],
+      "lastPos": [
+        42.857283633202314,
+        141.09824007377028
+      ],
+      "altitude": [
+        828.4000000000001,
+        838
+      ]
+    }
+  }
+}

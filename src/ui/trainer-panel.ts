@@ -29,6 +29,15 @@ export interface TrainerView {
   busy: DeviceRole | null;
   /** 最後の失敗（無ければ空） */
   error: string;
+  /** 走行の記録（トレーナー連携の草案 6章） */
+  record: { seconds: number; distance: number; samples: number; full: boolean; clearArmed: boolean };
+}
+
+function fmtDuration(t: number) {
+  const s = Math.floor(t);
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  return `${hh}:${String(mm).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
 const ROLE_LABEL: Record<DeviceRole, string> = { trainer: "トレーナー", heart: "心拍計" };
@@ -52,6 +61,9 @@ export class TrainerPanel {
   /** 開発用: 仮想の機器をつなぐ */
   onVirtual: ((role: DeviceRole) => void) | null = null;
   onSettings: (s: Partial<TrainerSettings>) => void = () => {};
+  onExport: () => void = () => {};
+  onClearRecord: () => void = () => {};
+  private rec: { state: HTMLElement; exp: HTMLButtonElement; clear: HTMLButtonElement };
 
   constructor(settings: TrainerSettings, dev: boolean) {
     this.root = h("div", "stamp-book trainer-panel hidden");
@@ -84,6 +96,19 @@ export class TrainerPanel {
       }
       this.rows[role] = { name, state, connect, drop, virtual };
     }
+    // 記録: トレーナーで走っている間に残す。書き出すと区切る
+    const ri = h("div", "stamp-item", "", body);
+    const rt = h("div", "stamp-text", "", ri);
+    h("div", "stamp-name", "記録", rt);
+    const recState = h("div", "stamp-meta", "", rt);
+    const rb = h("div", "landmark-btns", "", ri);
+    const exp = h("button", "btn", "FIT で書き出す", rb);
+    exp.type = "button";
+    exp.addEventListener("click", () => this.onExport());
+    const clear = h("button", "btn", "記録を消す", rb);
+    clear.type = "button";
+    clear.addEventListener("click", () => this.onClearRecord());
+    this.rec = { state: recState, exp, clear };
     const settingsBox = h("div", "trainer-settings", "", body);
     const row = (label: string) => {
       const r = h("label", "menu-row", "", settingsBox);
@@ -160,5 +185,12 @@ export class TrainerPanel {
       r.drop.disabled = !s;
       if (r.virtual) r.virtual.disabled = v.busy !== null;
     }
+    const rc = v.record;
+    this.rec.state.textContent = rc.samples
+      ? `${fmtDuration(rc.seconds)}・${(rc.distance / 1000).toFixed(2)} km${rc.full ? "・上限の 12 時間に達した" : ""}`
+      : "記録なし（トレーナーで走ると残る）";
+    this.rec.exp.disabled = !rc.samples;
+    this.rec.clear.disabled = !rc.samples;
+    this.rec.clear.textContent = rc.clearArmed ? "もう一度押すと消す" : "記録を消す";
   }
 }
