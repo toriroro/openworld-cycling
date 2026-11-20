@@ -29,6 +29,13 @@ export interface HudState {
   hour?: number;
   /** 天候の名前 */
   weather?: string;
+  /** トレーナーのケイデンス (rpm)・心拍 (bpm)。無ければ null で、表示を隠す */
+  cadence?: number | null;
+  heartRate?: number | null;
+  /** トレーナーの状態（問題がある時だけ） */
+  trainerNote?: string | null;
+  /** トレーナーで走っている（漕ぐボタンを隠す） */
+  onTrainer?: boolean;
 }
 
 export interface Settings {
@@ -69,6 +76,7 @@ export class Hud {
   private menuBtn: HTMLButtonElement;
   private pauseEl: HTMLElement;
   private touch: HTMLElement;
+  private pedalBtn!: HTMLButtonElement;
   private uturnBtn: HTMLButtonElement;
   private roadEl: HTMLElement;
   private settingsEls: {
@@ -98,6 +106,8 @@ export class Hud {
       ["dist", "距離", "km"],
       ["climb", "獲得標高", "m"],
       ["time", "走行時間", ""],
+      ["cadence", "ケイデンス", "rpm"],
+      ["heart", "心拍", "bpm"],
     ] as const) {
       const box = h("div", `stat stat-${key}`, "", info);
       h("span", "stat-label", label, box);
@@ -242,6 +252,7 @@ export class Hud {
     const right = h("div", "touch-right", "", this.touch);
     const brake = h("button", "btn touch-btn brake", "ブレーキ", right);
     const pedal = h("button", "btn touch-btn pedal", "漕ぐ", right);
+    this.pedalBtn = pedal;
     this.input.bindHold(pedal, (on) => (this.input.pedalTouch = on));
     this.input.bindHold(brake, (on) => (this.input.brakeTouch = on));
     const left = h("div", "touch-left", "", this.touch);
@@ -321,9 +332,16 @@ export class Hud {
     this.stats.dist.textContent = (st.odometer / 1000).toFixed(2);
     this.stats.climb.textContent = String(Math.round(st.climb));
     this.stats.time.textContent = fmtTime(st.time);
+    const opt = (key: string, v: number | null | undefined) => {
+      this.stats[key].parentElement!.classList.toggle("hidden", v == null);
+      if (v != null) this.stats[key].textContent = String(Math.round(v));
+    };
+    opt("cadence", st.cadence);
+    opt("heart", st.heartRate);
     const sky = st.hour !== undefined ? `  ${fmtHour(st.hour)}${st.weather ? ` ${st.weather}` : ""}` : "";
-    this.roadEl.textContent = `${st.roadName}  標高 ${Math.round(st.elevation)} m${sky}${st.goalDistance != null ? `  ${st.goalName ?? "行き先"}まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}`;
+    this.roadEl.textContent = `${st.roadName}  標高 ${Math.round(st.elevation)} m${sky}${st.goalDistance != null ? `  ${st.goalName ?? "行き先"}まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}${st.trainerNote ? `  ${st.trainerNote}` : ""}`;
     this.pauseEl.classList.toggle("hidden", !st.paused);
+    this.pedalBtn.classList.toggle("hidden", !!st.onTrainer);
     this.uturnBtn.classList.toggle("hidden", !st.canUTurn);
     this.updateBranch(st.upcoming);
   }

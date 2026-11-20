@@ -8,7 +8,7 @@ import { DEFAULT_SETTINGS, parseSave, SAVE_VERSION, type SaveData, type SaveSett
 import { FIXED_WEATHER, type Weather, type WeatherKind, WEATHER_LABELS, weatherAt, worldHour } from "./shared/world/weather.ts";
 import { RiddenLog } from "./sim/ridden.ts";
 import { watchChoice } from "./sim/watch.ts";
-import { DT } from "./sim/bicycle.ts";
+import { CRR, DT } from "./sim/bicycle.ts";
 import { AutoPower, ManualPower } from "./sim/power.ts";
 import { Ride } from "./sim/ride.ts";
 import { type Rider, TRAFFIC_LIGHT, TRAFFIC_STANDARD, Traffic } from "./sim/traffic/traffic.ts";
@@ -33,6 +33,10 @@ import { compass, LandmarkBook } from "./ui/landmark-book.ts";
 import { arrivedAt, isLandmarkStamp, type LandmarkData, landmarkStampId } from "./shared/world/landmarks.ts";
 import { nearestOnNetwork } from "./sim/route-plan.ts";
 import type { RoadClient } from "./workers/road-client.ts";
+import { type BleDevice, DEFAULT_CW, type DeviceRole, TrainerLink } from "./sim/trainer/link.ts";
+import { smoothedGrade, trainerGrade } from "./sim/trainer/grade.ts";
+import { VirtualDevice } from "./sim/trainer/virtual.ts";
+import { TrainerPanel, type TrainerSettings } from "./ui/trainer-panel.ts";
 
 /** カメラの近い面の既定 (m)。一人称だけ手前にする（camera-rig.ts） */
 const NEAR_DEFAULT = 0.8;
@@ -141,12 +145,23 @@ export class Game {
   private muteSel: HTMLSelectElement;
   private stampBook = new StampBook();
   private fpsSel: HTMLSelectElement;
+  /** トレーナー・心拍計（トレーナー連携の草案）。時刻は実時間（機器の通知と同じ） */
+  readonly trainer = new TrainerLink(() => performance.now());
+  private trainerPanel: TrainerPanel;
+  /** 機器を選ぶ画面・最初の接続の途中の役割 */
+  private trainerBusy: DeviceRole | null = null;
+  private trainerError = "";
+  /** 最後に送ろうとした勾配（効きを掛けた後。接続点を曲がっている間はこれを保つ） */
+  private trainerGradeNow = 0;
+  private trainerPanelT = 0;
+  /** 開発用の仮想の機器（window.__dev から出力を変えたり切ったりする） */
+  readonly virtualDevices: Partial<Record<DeviceRole, VirtualDevice>> = {};
 
   constructor(
     private view: WorldView,
     private roads: RoadClient,
     start: { x: number; z: number } = view.world.origin,
-    opts: { resume?: boolean; title?: boolean } = {},
+    opts: { resume?: boolean; title?: boolean; dev?: boolean } = {},
   ) {
     this.anchor = { ...start };
     this.title = new TitleScreen(view.world);
@@ -230,6 +245,29 @@ export class Game {
         this.openLandmarkBook();
       });
     }
+    // トレーナー（トレーナー連携の草案 5章）
+    this.trainerPanel = new TrainerPanel(this.trainerSettings(), !!opts.dev);
+    this.trainerPanel.onConnect = (role) => void this.connectDevice(role);
+    this.trainerPanel.onDisconnect = (role) => {
+      this.trainer.detach(role);
+      this.trainerError = "";
+      this.refreshTrainer();
+    };
+    if (opts.dev) this.trainerPanel.onVirtual = (role) => void this.attachVirtual(role);
+    this.trainerPanel.onSettings = (t) => {
+      if (t.effect !== undefined) this.settings.trainerEffect = t.effect;
+      if (t.bodyMass !== undefined) this.settings.bodyMass = t.bodyMass;
+      if (t.bikeMass !== undefined) this.settings.bikeMass = t.bikeMass;
+      if (t.route !== undefined) this.settings.trainerRoute = t.route;
+      this.applyMass();
+      void this.save();
+    };
+    this.trainer.onChange = () => this.refreshTrainer();
+    this.hud.addButton("トレーナー", () => {
+      this.hud.toggleMenu(false);
+      this.refreshTrainer();
+      this.trainerPanel.open();
+    });
     // 眺める乗り方の設定（モック仕様 7.2）
     this.routeSel = this.hud.addSelect(
       "眺める進路",
@@ -373,6 +411,7 @@ export class Game {
     this.fpsSel.value = d.settings.fps30 ? "30" : "free";
     this.trafficSel.value = d.settings.traffic;
     this.traffic.level = d.settings.traffic;
+    this.trainerPanel.sync(this.trainerSettings());
     if (d.pos) this.anchor = { x: d.pos.x, z: d.pos.z };
     this.resume = { pos: d.pos, odometer: d.odometer, climb: d.climb, time: d.time, generator: d.generator };
     this.ride = null;
@@ -440,8 +479,9 @@ export class Game {
   }
 
   private startRide(pos: { road: string; s: number; dir: 1 | -1 }) {
-    const ride = new Ride(this.roads.net, pos, this.watching ? this.auto : this.manual);
+    const ride = new Ride(this.roads.net, pos, this.powerSource());
     ride.ridden = this.ridden;
+    ride.bike.mass = this.settings.bodyMass + this.settings.bikeMass;
     const res = this.resume;
     if (res) {
       // 続きから始めた所では、60m 動くまで立ち寄りにしない（店の前で終えた時にもう一度数えないため）
@@ -519,8 +559,8 @@ export class Game {
   /** 眺める乗り方の開始・終了: 自動の入力元、画面の常時点灯（視点は選んだままにする。2026-11-17 ユーザー） */
   setWatching(on: boolean) {
     this.watching = on;
-    if (this.ride) this.ride.power = on ? this.auto : this.manual;
-    platform.keepAwake(on);
+    if (this.ride) this.ride.power = this.powerSource();
+    platform.keepAwake(on || this.trainer.hasTrainer);
     // 終わったら、選んでいた視点に戻す
     if (!on && (CAMERA_MODES as readonly string[]).includes(this.settings.camera)) {
       this.camera = this.settings.camera as CameraMode;
@@ -531,10 +571,13 @@ export class Game {
   /** 眺める乗り方の毎フレームの処理: 進路を選ぶ */
   private updateWatching(t: number) {
     const ride = this.ride;
-    if (!this.watching || !ride) return;
+    if (!ride) return;
+    // トレーナーで走る時も、選んであれば眺める乗り方の進路の選び方を使う（トレーナー連携の草案 11 章の 4）
+    const route = this.watching ? this.settings.watchRoute : ride.power === this.trainer.power && this.settings.trainerRoute !== "manual" ? this.settings.trainerRoute : null;
+    if (!route) return;
     const u = ride.upcoming;
     if (u && u.selected === null && !ride.plan) {
-      const i = watchChoice(u, this.settings.watchRoute, this.ridden, this.roads.net);
+      const i = watchChoice(u, route, this.ridden, this.roads.net);
       if (i !== u.defaultIndex) ride.choose(i);
     }
   }
@@ -581,6 +624,99 @@ export class Game {
     this.hud.root.classList.remove("hidden");
     this.paused = false;
     this.smoothEye = null;
+  }
+
+  /** 推進力の入力元: 眺める乗り方は自動、トレーナーがつながっていればトレーナー、それ以外は手動 */
+  private powerSource() {
+    return this.watching ? this.auto : this.trainer.hasTrainer ? this.trainer.power : this.manual;
+  }
+
+  /** 体重と機材の重さ（トレーナー連携の草案 3.2） */
+  private applyMass() {
+    if (this.ride) this.ride.bike.mass = this.settings.bodyMass + this.settings.bikeMass;
+  }
+
+  private trainerSettings(): TrainerSettings {
+    const st = this.settings;
+    return { effect: st.trainerEffect, bodyMass: st.bodyMass, bikeMass: st.bikeMass, route: st.trainerRoute };
+  }
+
+  /** 機器を選んでつなぐ（押す操作の中から呼ぶ。選ぶ画面を出すまでに await を挟まない） */
+  private async connectDevice(role: DeviceRole) {
+    if (this.trainerBusy) return;
+    this.trainerBusy = role;
+    this.trainerError = "";
+    let chosen: Promise<BleDevice | null>;
+    try {
+      chosen = platform.bluetooth.choose(role);
+    } catch (e) {
+      chosen = Promise.reject(e);
+    }
+    this.refreshTrainer();
+    try {
+      const dev = await chosen;
+      if (dev && !(await this.trainer.attach(role, dev))) this.trainerError = this.trainer.lastError || "機器が応えない";
+    } catch (e) {
+      this.trainerError = e instanceof Error ? e.message : String(e);
+    } finally {
+      this.trainerBusy = null;
+      this.refreshTrainer();
+    }
+  }
+
+  /** 開発用: 仮想の機器をつなぐ */
+  async attachVirtual(role: DeviceRole): Promise<VirtualDevice> {
+    const dev = new VirtualDevice(role);
+    this.virtualDevices[role] = dev;
+    this.trainerBusy = role;
+    this.refreshTrainer();
+    try {
+      await this.trainer.attach(role, dev);
+    } finally {
+      this.trainerBusy = null;
+      this.refreshTrainer();
+    }
+    return dev;
+  }
+
+  /** 機器の状態が変わった: 入力元・常時点灯・画面 */
+  private refreshTrainer() {
+    if (this.ride) this.ride.power = this.powerSource();
+    platform.keepAwake(this.watching || this.trainer.hasTrainer);
+    this.trainerPanel.update({
+      available: platform.bluetooth.available,
+      trainer: this.trainer.info("trainer"),
+      heart: this.trainer.info("heart"),
+      signal: this.trainer.power.signal,
+      busy: this.trainerBusy,
+      error: this.trainerError,
+    });
+  }
+
+  /** 走行中の表示に出すトレーナーの状態（問題がある時だけ） */
+  private trainerNote(): string | null {
+    const i = this.trainer.info("trainer");
+    if (!i) return null;
+    if (i.state !== "connected") return "トレーナー 再接続を待っている";
+    if (!this.trainer.power.signal) return "トレーナー 出力の信号なし";
+    return null;
+  }
+
+  /**
+   * トレーナーへ勾配を送る（トレーナー連携の草案 4章）。前後 15m の平均に効きを掛ける。
+   * 一時停止中・立ち寄り中・眺めている間は 0。接続点を曲がっている間は曲がる前の値を保つ
+   */
+  private updateTrainer() {
+    const link = this.trainer;
+    if (!link.hasTrainer) return;
+    const ride = this.ride;
+    const road = ride?.road;
+    let grade = 0;
+    if (ride && road && !this.paused && !this.stop && !this.watching) {
+      grade = ride.turn ? this.trainerGradeNow : trainerGrade(smoothedGrade(road, ride.pos.s, ride.pos.dir), this.settings.trainerEffect);
+    }
+    this.trainerGradeNow = grade;
+    link.update({ grade, crr: CRR[road?.surface ?? "paved"], cw: DEFAULT_CW });
   }
 
   /** はじめから: 記録（位置・総距離・走った区間・スタンプ）を消して起点から。設定と装いは残す */
@@ -872,6 +1008,8 @@ export class Game {
     const ride = this.ride;
     this.manual.pedal = this.input.pedal;
     this.manual.brake = this.input.brake ? 1 : 0;
+    this.trainer.power.brake = this.manual.brake;
+    this.updateTrainer();
     if (ride && !this.paused && !this.stop) {
       this.acc += dt * this.timeScale;
       let n = 0;
@@ -959,6 +1097,7 @@ export class Game {
       this.view.realPoles?.setLights(lights);
       this.player.group.visible = !!pose;
       if (pose && ride) {
+        this.player.cadenceOverride = ride.power === this.trainer.power ? this.trainer.cadenceRpm : null;
         this.player.update(
           this.paused ? 0 : dt,
           pose.x - this.view.originX,
@@ -1009,9 +1148,19 @@ export class Game {
         goalDistance !== null ? `${goalName ?? "行き先"}まで 直線 ${(goalDistance / 1000).toFixed(1)} km${ride.plan ? "" : "（経路を探索中）"}` : ride.goalReached ? "行き先に着いた" : "地図を押すと行き先を指定",
         !!goal,
       );
+    const onTrainer = ride.power === this.trainer.power;
+    if (this.trainerPanel.isOpen && t - this.trainerPanelT > 500) {
+      this.trainerPanelT = t;
+      this.refreshTrainer();
+    }
     this.hud.update({
       speed: ride.speed,
-      watts: ride.watts,
+      // トレーナーでは機器から受けた出力の 3 秒の平均（カーブの手前の自動減速で物理に渡す出力が 0 の間も）
+      watts: onTrainer ? this.trainer.power.average : ride.watts,
+      cadence: this.trainer.hasTrainer ? this.trainer.cadenceRpm : null,
+      heartRate: this.trainer.heartRate,
+      trainerNote: this.trainerNote(),
+      onTrainer,
       grade: ride.grade,
       odometer: ride.odometer,
       climb: ride.climb,

@@ -4,7 +4,7 @@
 
 - 全体の仕様: [docs/history/specs/2026-11-13-openworld-cycling-overview.md](docs/history/specs/2026-11-13-openworld-cycling-overview.md)
 - モックの仕様: [docs/history/specs/2026-11-13-mock.md](docs/history/specs/2026-11-13-mock.md)
-- 次の段階の草案: [河川](docs/history/specs/2026-11-13-rivers-draft.md)、[都市と交通](docs/history/specs/2026-11-13-urban-and-traffic-draft.md)、[鉄道](docs/history/specs/2026-11-14-railway-draft.md)、[北海道（実在の地図）](docs/history/specs/2026-11-17-hokkaido-draft.md)
+- 次の段階の草案: [河川](docs/history/specs/2026-11-13-rivers-draft.md)、[都市と交通](docs/history/specs/2026-11-13-urban-and-traffic-draft.md)、[鉄道](docs/history/specs/2026-11-14-railway-draft.md)、[北海道（実在の地図）](docs/history/specs/2026-11-17-hokkaido-draft.md)、[トレーナー連携](docs/history/specs/2026-11-20-trainer-draft.md)
 
 ## 起動
 
@@ -87,7 +87,8 @@ npm run deploy
 - **地図**: 世界地図を押すと行き先になり、分岐を経路に沿って自動で選ぶ。走った道は太く描く
 - **喫茶店**: 店の前で止まると立ち寄りになり、スタンプが残る。メニューの「スタンプ帳」から、立ち寄った店を選んでそこから走れる
 - **保存**: 10 秒ごと、タブを隠した時、閉じる時に端末に残す
-- **メニュー**: 一時停止、視点、眺める、自転車と装い、スタンプ帳、地図、操作、タイトルへ。設定は 出力（漕ぐ時と眺める時の W）、視点、画質（標準・軽量）、時刻（世界の時計・固定）、天候（世界の天候・晴れ・曇り・霧に固定）、交通量（標準・少ない・なし）、音量、消音、眺める進路（未走行の道を優先・道なり）、眺める時の fps
+- **トレーナー**: メニューの「トレーナー」から、スマートトレーナー（FTMS）かパワーメーターと、心拍計を Bluetooth でつなぐ。PC・Android の Chrome か Edge だけ（https か localhost）。つなぐとトレーナーの出力で進み、坂の勾配をトレーナーへ送る（勾配の効き 0〜100%、既定 50%）。体重・機材の重さもここで決める。実機ではまだ確かめていない（[トレーナー連携の草案](docs/history/specs/2026-11-20-trainer-draft.md) 12 章）
+- **メニュー**: 一時停止、視点、眺める、自転車と装い、スタンプ帳、地図、トレーナー、操作、タイトルへ。設定は 出力（漕ぐ時と眺める時の W）、視点、画質（標準・軽量）、時刻（世界の時計・固定）、天候（世界の天候・晴れ・曇り・霧に固定）、交通量（標準・少ない・なし）、音量、消音、眺める進路（未走行の道を優先・道なり）、眺める時の fps
 
 ## できていること
 

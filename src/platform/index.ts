@@ -1,6 +1,8 @@
-// 端末の機能の窓口（モック仕様 3.3、概要仕様 9.5 の 5）。保存・画面の常時点灯・振動・外部リンク。
-// ほかの所から localStorage・navigator.wakeLock・navigator.vibrate を直接呼ばない。モックではウェブ用の実装だけを持つ。
+// 端末の機能の窓口（モック仕様 3.3、概要仕様 9.5 の 5）。保存・画面の常時点灯・振動・外部リンク・Bluetooth の機器。
+// ほかの所から localStorage・navigator.wakeLock・navigator.vibrate・navigator.bluetooth を直接呼ばない。モックではウェブ用の実装だけを持つ。
 // iOS アプリではこのファイルの中身をネイティブの実装に差し替える。
+
+import { type BluetoothPort, webBluetooth } from "./bluetooth.ts";
 
 export interface KeyValueStore {
   load(key: string): Promise<string | null>;
@@ -16,6 +18,8 @@ export interface Platform {
   readonly awake: boolean;
   vibrate(ms: number): void;
   openExternal(url: string): void;
+  /** トレーナー・心拍計（トレーナー連携の草案 2.3） */
+  bluetooth: BluetoothPort;
 }
 
 const PREFIX = "owc:";
@@ -106,6 +110,7 @@ function webPlatform(): Platform {
     openExternal(url) {
       globalThis.open?.(url, "_blank", "noopener");
     },
+    bluetooth: webBluetooth(),
   };
 }
 

@@ -669,3 +669,22 @@ html, body {
 .title-world .btn.current {
   background: #2f5f7d;
 }
+
+/* トレーナー（トレーナー連携の草案 5章）: スタンプ帳と同じ形 */
+.trainer-note {
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 196, 0, 0.16);
+  font-size: 13px;
+}
+.trainer-settings {
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.trainer-settings .menu-row {
+  grid-template-columns: 5.5em 1fr auto;
+}
+.trainer-foot {
+  margin-top: 8px;
+}

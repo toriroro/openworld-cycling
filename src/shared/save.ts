@@ -42,6 +42,13 @@ export interface SaveSettings {
   fps30: boolean;
   /** 眺める乗り方の進路: 道なり / 未走行の道を優先 */
   watchRoute: "follow" | "unridden";
+  /** 体重 (kg)・機材の重さ (kg)（トレーナー連携の草案 3.2） */
+  bodyMass: number;
+  bikeMass: number;
+  /** トレーナーの勾配の効き 0〜1（草案 4.1） */
+  trainerEffect: number;
+  /** トレーナーで走る時の分岐: 自分で選ぶ / 道なり / 未走行の道を優先（草案 11 章の 4） */
+  trainerRoute: "manual" | "follow" | "unridden";
 }
 
 export interface SaveData {
@@ -75,7 +82,15 @@ export const DEFAULT_SETTINGS: SaveSettings = {
   muted: false,
   fps30: true,
   watchRoute: "unridden",
+  bodyMass: 75,
+  bikeMass: 8,
+  trainerEffect: 0.5,
+  trainerRoute: "manual",
 };
+
+/** 体重・機材の重さの範囲（草案 3.2【初期値】） */
+export const BODY_MASS = { min: 30, max: 150 } as const;
+export const BIKE_MASS = { min: 5, max: 20 } as const;
 
 const num = (v: unknown, d: number, lo = -Infinity, hi = Infinity) => (typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
 const str = (v: unknown, d: string, max = 200) => (typeof v === "string" && v.length <= max ? v : d);
@@ -97,6 +112,10 @@ export function sanitizeSettings(value: unknown): SaveSettings {
     muted: typeof s.muted === "boolean" ? s.muted : d.muted,
     fps30: typeof s.fps30 === "boolean" ? s.fps30 : d.fps30,
     watchRoute: s.watchRoute === "follow" || s.watchRoute === "unridden" ? s.watchRoute : d.watchRoute,
+    bodyMass: num(s.bodyMass, d.bodyMass, BODY_MASS.min, BODY_MASS.max),
+    bikeMass: num(s.bikeMass, d.bikeMass, BIKE_MASS.min, BIKE_MASS.max),
+    trainerEffect: Math.round(num(s.trainerEffect, d.trainerEffect, 0, 1) * 10) / 10,
+    trainerRoute: s.trainerRoute === "follow" || s.trainerRoute === "unridden" ? s.trainerRoute : "manual",
   };
 }
 

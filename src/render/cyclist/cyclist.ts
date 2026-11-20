@@ -60,6 +60,8 @@ export class CyclistModel {
   /** FTP（W）。力みの始まりを決める。設定ができるまでの【初期値】 */
   /** 体がぶれ始める出力 (W)。設定の「体がぶれ始める出力」 */
   swayFrom = 300;
+  /** トレーナーのケイデンス (rpm)。無ければ null で、出力から決める */
+  cadenceOverride: number | null = null;
   private headYaw = 0;
   private lookSide = 0;
   private lookTime = Infinity;
@@ -156,8 +158,8 @@ export class CyclistModel {
     this.group.rotateY(yaw);
     this.group.rotateX(-Math.atan(grade));
     this.group.rotateZ(-(this.lean + rock));
-    // ケイデンスは出力から（漕いでいない時は止める）
-    const cadence = watts > 0 ? 75 + Math.min(1, watts / 400) * 25 : 0;
+    // ケイデンスは出力から（漕いでいない時は止める）。トレーナーのケイデンスがあればそれを使う（トレーナー連携の草案 3.4）
+    const cadence = this.cadenceOverride ?? (watts > 0 ? 75 + Math.min(1, watts / 400) * 25 : 0);
     this.phase = (this.phase + (cadence / 60) * Math.PI * 2 * dt) % (Math.PI * 2);
     // ときどき自分から後方を確認する（日本は左側通行なので右の肩越しが多い）
     if (speed > 4 && dt > 0) {

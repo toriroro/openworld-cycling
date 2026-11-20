@@ -70,7 +70,7 @@ if (q.get("mode") === "m2" && devTools) {
   // 自動操作のブラウザ（検証スクリプト）と場所を指定した時は起動画面を出さない
   // ?title=1 は自動操作のブラウザでも起動画面を出す（確認用）
   const title = (q.get("title") === "1" || !navigator.webdriver) && q.get("notitle") !== "1" && resume;
-  const game = new Game(view, roads, { x: startX, z: startZ }, { resume, title });
+  const game = new Game(view, roads, { x: startX, z: startZ }, { resume, title, dev: !!devTools });
   game.title.onWorld = (id) => void switchWorld(id);
   if (q.get("perf") === "1") startPerfOverlay(view, game);
   // 検証用: ?time= と ?weather=clear|cloudy|fog で時刻・天候を決める（保存しない）
@@ -178,6 +178,40 @@ if (q.get("mode") === "m2" && devTools) {
     skyInfo() {
       const e = view.env;
       return { hour: e.hour, weather: game.weatherNow, cloud: e.cloud, mist: e.mist, fogNear: e.fog.near, fogFar: e.fog.far, sun: e.sun.intensity, hemi: e.hemi.intensity };
+    },
+    /** 仮想のトレーナー・心拍計をつなぐ（トレーナー連携の草案 2.3） */
+    async virtualTrainer(role: "trainer" | "heart" = "trainer") {
+      await game.attachVirtual(role);
+      return game.trainer.info(role);
+    },
+    /** 仮想の機器の出力を変える・切る */
+    setVirtualWatts(w: number) {
+      const d = game.virtualDevices.trainer;
+      if (d) d.watts = w;
+    },
+    dropVirtual(role: "trainer" | "heart" = "trainer") {
+      game.virtualDevices[role]?.drop();
+    },
+    trainerInfo() {
+      const l = game.trainer;
+      const d = game.virtualDevices.trainer;
+      const r = game.ride;
+      return {
+        trainer: l.info("trainer"),
+        heart: l.info("heart"),
+        onTrainer: !!r && r.power === l.power,
+        watts: l.power.watts,
+        average: l.power.average,
+        signal: l.power.signal,
+        cadence: l.cadenceRpm,
+        heartRate: l.heartRate,
+        lastSent: l.lastSent,
+        sentLog: l.sentLog.slice(),
+        received: d ? d.received.map((p) => ({ ...p })) : [],
+        mass: r?.bike.mass ?? null,
+        rideGrade: r?.grade ?? null,
+        awake: platform.awake,
+      };
     },
     setTimeScale(k: number) {
       game.timeScale = k;
