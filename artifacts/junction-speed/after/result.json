@@ -1,0 +1,39 @@
+{
+  "generated": {
+    "seconds": 180,
+    "distance": 1571.7985223691603,
+    "brakes": 0,
+    "atStraightJunction": 0,
+    "atTurn": 0,
+    "elsewhere": 0,
+    "events": []
+  },
+  "hokkaido": {
+    "seconds": 180,
+    "distance": 1509.1175145132236,
+    "brakes": 2,
+    "atStraightJunction": 1,
+    "atTurn": 1,
+    "elsewhere": 0,
+    "events": [
+      {
+        "v0": 9.557688802057134,
+        "vmin": 8.378484649240798,
+        "odo": 708.050091042107,
+        "nearJunction": true,
+        "angle": 69,
+        "straightOn": false,
+        "drop": 1.18
+      },
+      {
+        "v0": 8.519994087154892,
+        "vmin": 6.556635984239086,
+        "odo": 825.64986150849,
+        "nearJunction": true,
+        "angle": 1,
+        "straightOn": false,
+        "drop": 1.96
+      }
+    ]
+  }
+}

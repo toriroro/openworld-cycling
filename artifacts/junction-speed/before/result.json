@@ -1,0 +1,210 @@
+{
+  "generated": {
+    "seconds": 180,
+    "distance": 1571.798914136075,
+    "brakes": 0,
+    "atStraightJunction": 0,
+    "atTurn": 0,
+    "elsewhere": 0,
+    "events": []
+  },
+  "hokkaido": {
+    "seconds": 180,
+    "distance": 930.902670483041,
+    "brakes": 21,
+    "atStraightJunction": 18,
+    "atTurn": 3,
+    "elsewhere": 0,
+    "events": [
+      {
+        "v0": 6.024722134099565,
+        "vmin": 3.5184224828338513,
+        "odo": 43.88818045600923,
+        "nearJunction": true,
+        "angle": 0,
+        "straightOn": false,
+        "drop": 2.51
+      },
+      {
+        "v0": 5.520056118066217,
+        "vmin": 3.7365955961041197,
+        "odo": 83.62565312014905,
+        "nearJunction": true,
+        "angle": 0,
+        "straightOn": false,
+        "drop": 1.78
+      },
+      {
+        "v0": 6.195270681167467,
+        "vmin": 3.417553980317561,
+        "odo": 130.3451135555047,
+        "nearJunction": true,
+        "angle": 0,
+        "straightOn": false,
+        "drop": 2.78
+      },
+      {
+        "v0": 3.5610863365730325,
+        "vmin": 2.7584462141547936,
+        "odo": 138.3177821831616,
+        "nearJunction": true,
+        "angle": 0,
+        "straightOn": false,
+        "drop": 0.8
+      },
+      {
+        "v0": 5.264741530642814,
+        "vmin": 4.422259296540101,
+        "odo": 166.8720799829344,
+        "nearJunction": true,
+        "angle": 0,
+        "straightOn": false,
+        "drop": 0.84
+      },
+      {
+        "v0": 7.3344758115580015,
+        "vmin": 3.5054766118205962,
+        "odo": 255.9555466557345,
+        "nearJunction": true,
+        "angle": 0,
+        "straightOn": false,
+        "drop": 3.83
+      },
+      {
+        "v0": 3.6582627618490022,
+        "vmin": 2.7636149606571068,
+        "odo": 266.4626255815178,
+        "nearJunction": true,
+        "angle": 1,
+        "straightOn": false,
+        "drop": 0.89
+      },
+      {
+        "v0": 5.742176853731642,
+        "vmin": 4.440235308956856,
+        "odo": 304.1171576344492,
+        "nearJunction": true,
+        "angle": 1,
+        "straightOn": false,
+        "drop": 1.3
+      },
+      {
+        "v0": 7.336514957409739,
+        "vmin": 3.48208419582281,
+        "odo": 389.17783457960513,
+        "nearJunction": true,
+        "angle": 1,
+        "straightOn": false,
+        "drop": 3.85
+      },
+      {
+        "v0": 3.668540400393178,
+        "vmin": 2.7672590598723654,
+        "odo": 399.65673938517574,
+        "nearJunction": true,
+        "angle": 0,
+        "straightOn": false,
+        "drop": 0.9
+      },
+      {
+        "v0": 5.272121335787802,
+        "vmin": 4.428366208101817,
+        "odo": 428.53168809555814,
+        "nearJunction": true,
+        "angle": 0,
+        "straightOn": false,
+        "drop": 0.84
+      },
+      {
+        "v0": 7.4848412513659754,
+        "vmin": 3.5163804113193837,
+        "odo": 521.9589578607417,
+        "nearJunction": true,
+        "angle": 0,
+        "straightOn": false,
+        "drop": 3.97
+      },
+      {
+        "v0": 3.696431343322371,
+        "vmin": 2.771733211186982,
+        "odo": 533.0181203562718,
+        "nearJunction": true,
+        "angle": 0,
+        "straightOn": false,
+        "drop": 0.92
+      },
+      {
+        "v0": 5.208703107449921,
+        "vmin": 4.439091185264445,
+        "odo": 562.1012654490808,
+        "nearJunction": true,
+        "angle": 0,
+        "straightOn": false,
+        "drop": 0.77
+      },
+      {
+        "v0": 7.57361842869467,
+        "vmin": 3.522606795924996,
+        "odo": 658.129893410045,
+        "nearJunction": true,
+        "angle": 0,
+        "straightOn": false,
+        "drop": 4.05
+      },
+      {
+        "v0": 3.7010855143529846,
+        "vmin": 2.7757299333597314,
+        "odo": 669.5877083919011,
+        "nearJunction": true,
+        "angle": -7,
+        "straightOn": false,
+        "drop": 0.93
+      },
+      {
+        "v0": 5.61778962212129,
+        "vmin": 3.7779315875338453,
+        "odo": 710.4214310860417,
+        "nearJunction": true,
+        "angle": 69,
+        "straightOn": false,
+        "drop": 1.84
+      },
+      {
+        "v0": 6.807707726218874,
+        "vmin": 5.855529633720409,
+        "odo": 794.2468757530215,
+        "nearJunction": true,
+        "angle": 69,
+        "straightOn": false,
+        "drop": 0.95
+      },
+      {
+        "v0": 5.843600986904011,
+        "vmin": 3.413432146101815,
+        "odo": 797.4798983517551,
+        "nearJunction": true,
+        "angle": 69,
+        "straightOn": false,
+        "drop": 2.43
+      },
+      {
+        "v0": 3.5561036498655554,
+        "vmin": 2.3463723491999633,
+        "odo": 802.698043949167,
+        "nearJunction": true,
+        "angle": 1,
+        "straightOn": false,
+        "drop": 1.21
+      },
+      {
+        "v0": 4.993724325801856,
+        "vmin": 4.2119310670668195,
+        "odo": 834.2642221305655,
+        "nearJunction": true,
+        "angle": 1,
+        "straightOn": false,
+        "drop": 0.78
+      }
+    ]
+  }
+}

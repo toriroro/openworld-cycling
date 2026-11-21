@@ -560,7 +560,9 @@ export class Ride {
     let s = this.pos.s;
     let dir = this.pos.dir;
     let d = 0;
-    // 曲がっている途中なら、残りの線から
+    // 道路の上の点も、曲がる線と同じく今の車線の位置で取る（中心線で取ると、曲がる線とのつなぎ目で横に跳び、
+    // 急なカーブに見えて直進の交差点でも減速していた。北海道の世界は交差点ごとに道路が分かれるので、ほぼ全部の交差点で起きた）
+    let off = this.offset;
     if (this.turn) {
       const t = this.turn;
       const p = this.turnPoint(t.d);
@@ -578,7 +580,7 @@ export class Ride {
     for (let guard = 0; d <= dist && guard < 200; guard++) {
       if (s < 0 || s > road.length) break;
       const p = sampleRoad(road, s);
-      out.push({ x: p.x, z: p.z, d });
+      out.push({ x: p.x - p.dz * dir * off, z: p.z + p.dx * dir * off, d });
       let ns = s + dir * step;
       // 接続点を越える時は進路の先へ
       const u = this.upcoming;
@@ -596,6 +598,7 @@ export class Ride {
           for (let q = 0; q < line.pts.length; q++) out.push({ x: line.pts[q].x, z: line.pts[q].z, d: base + line.acc[q] });
           road = this.net.roads.get(plan.to.road)!;
           dir = plan.to.dir;
+          off = plan.offOut;
           d = base + line.acc[line.acc.length - 1] + step;
           s = plan.to.s + dir * step;
           continue;
