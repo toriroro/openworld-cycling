@@ -10,7 +10,7 @@ import type { Junction, JunctionArm, Road } from "../shared/world/types.ts";
 import { type BikeParams, CRR, DEFAULT_BIKE, DT, integrateSpeed } from "./bicycle.ts";
 import { cornerCurve, junctionShape, type Vec3 } from "./junction-shape.ts";
 import type { PowerSource } from "./power.ts";
-import { RiddenLog } from "./ridden.ts";
+import { RIDDEN_BIN, RiddenLog } from "./ridden.ts";
 import { type RoadNetwork, type RoadPosition, roadSpacing, sampleRoad } from "./road-network.ts";
 import { planRoute, type RoutePlan } from "./route-plan.ts";
 
@@ -18,6 +18,10 @@ import { planRoute, type RoutePlan } from "./route-plan.ts";
 export const LATERAL_ACCEL = 4;
 /** カーブ手前の減速に使う減速度 (m/s²) */
 export const CURVE_DECEL = 2.5;
+/** 冒険の距離が尽きる所の手前で止まる減速度 (m/s²) と、止まる所の余り (m)、先を見る道のり (m) */
+const ADVENTURE_DECEL = 2.5;
+const EDGE_MARGIN = 0.5;
+const EDGE_LOOK = 120;
 /** 進路の候補を出し始める距離 (m) */
 export const CHOICE_DISTANCE = 150;
 /** 先読みする距離 (m) */
@@ -104,6 +108,10 @@ export class Ride {
   turn: Turn | null = null;
   /** 走った道路の区間 */
   ridden = new RiddenLog();
+  /** 冒険の乗り方（冒険の草案 2.2）: 未走行の道を進む時に使う距離。null なら制限しない（自由・トレーナー） */
+  adventure: { readonly balance: number; spend(d: number): void } | null = null;
+  /** 冒険の距離が無く、未走行の区間の手前で止まっている */
+  blocked = false;
 
   constructor(
     private net: RoadNetwork,
@@ -221,14 +229,24 @@ export class Ride {
       this.curveT = 0.05;
       this.curveLimit = this.curveSpeedLimit();
     }
-    this.autoBrake = this.speed > this.curveLimit ? Math.min(1, (this.speed - this.curveLimit) * 0.6 + 0.15) : 0;
+    // 冒険の距離が足りない時は、未走行の区間の手前で止まれるように減速する（冒険の草案 2.1）
+    const edge = this.adventureEdge();
+    const limit = edge < Infinity ? Math.min(this.curveLimit, Math.sqrt(2 * ADVENTURE_DECEL * Math.max(0, edge - EDGE_MARGIN))) : this.curveLimit;
+    this.autoBrake = this.speed > limit ? Math.min(1, (this.speed - limit) * 0.6 + 0.15) : 0;
     this.brake = Math.max(brake, this.autoBrake);
     this.watts = this.autoBrake > 0 ? 0 : watts;
     const r = integrateSpeed(this.speed, this.grade, this.brake, this.watts, dt, this.bike);
+    let dist = r.distance;
     this.speed = r.speed;
-    this.advance(r.distance);
+    if (edge < Infinity && dist >= edge - EDGE_MARGIN) {
+      dist = Math.max(0, edge - EDGE_MARGIN);
+      this.speed = 0;
+    }
+    this.blocked = edge < Infinity && edge - EDGE_MARGIN < 0.05;
+    this.advance(dist);
     this.time += dt;
-    if (r.distance > 0) this.ridden.mark(this.pos.road, this.pos.s);
+    // 冒険の距離は、未走行の 10m の区切りに入った時に 1 区切り分を使う
+    if (dist > 0 && this.ridden.mark(this.pos.road, this.pos.s) && this.adventure) this.adventure.spend(RIDDEN_BIN);
     // 左右位置はなめらかに目標へ
     const target = this.defaultOffset();
     this.offset += (target - this.offset) * Math.min(1, dt * 1.5);
@@ -251,6 +269,37 @@ export class Ride {
     }
     this.updateUpcoming();
     this.applyPlan();
+  }
+
+  /**
+   * 冒険の距離で進める所までの道のり (m)。今の道路の先を 10m の区切りごとに見て、未走行の区切りに入るたびに 1 区切り分（10m）を残りから引く。
+   * 残りが 1 区切りに足りない未走行の区切りの手前までを返す。
+   * 残りが十分ある・冒険でない・接続点を曲がっている間は Infinity（曲がり終えた先の道路でまた見る）
+   */
+  adventureEdge(): number {
+    const adv = this.adventure;
+    if (!adv || this.turn || adv.balance > EDGE_LOOK) return Infinity;
+    const road = this.road;
+    if (!road) return Infinity;
+    const dir = this.pos.dir;
+    let s = this.pos.s;
+    let left = adv.balance;
+    let dist = 0;
+    while (dist < EDGE_LOOK) {
+      // この区切りの終わり（進む向き）
+      let end = dir > 0 ? (Math.floor(s / RIDDEN_BIN) + 1) * RIDDEN_BIN : (Math.ceil(s / RIDDEN_BIN) - 1) * RIDDEN_BIN;
+      end = Math.max(0, Math.min(road.length, end));
+      const len = Math.abs(end - s);
+      if (len < 1e-9) return Infinity; // 道路の端（その先は接続点を越えた道路で見る）
+      const mid = (s + end) / 2;
+      if (!this.ridden.has(road.id, mid)) {
+        if (left < RIDDEN_BIN) return dist;
+        left -= RIDDEN_BIN;
+      }
+      dist += len;
+      s = end;
+    }
+    return Infinity;
   }
 
   /** ds だけ道路網を進む */

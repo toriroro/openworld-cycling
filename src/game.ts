@@ -39,6 +39,16 @@ import { VirtualDevice } from "./sim/trainer/virtual.ts";
 import { TrainerPanel, type TrainerSettings } from "./ui/trainer-panel.ts";
 import { RideRecorder } from "./sim/trainer/recorder.ts";
 import { fitFileName, recorderToFit } from "./ride-export.ts";
+import { type ActivitySummary, AdventureLedger, type Sport, VERDICT_LABELS } from "./sim/adventure.ts";
+import { readActivityFile } from "./shared/activity-file.ts";
+import { AdventurePanel, type PreviewRow } from "./ui/adventure-panel.ts";
+
+/** 冒険の地図で、走った道と現在地の周りに未走行の道を描く距離 (m)【初期値】 */
+const ADVENTURE_REVEAL = 300;
+/** 冒険のワープで、走った道・立ち寄った所からこの距離 (m) までを許す【初期値】 */
+const ADVENTURE_WARP = 200;
+/** 眺めている間の立ち寄りを見せる時間 (ms)【初期値】 */
+const WATCH_STOP_MS = 20000;
 
 /** カメラの近い面の既定 (m)。一人称だけ手前にする（camera-rig.ts） */
 const NEAR_DEFAULT = 0.8;
@@ -166,6 +176,13 @@ export class Game {
   private clearArmedAt = -Infinity;
   /** 最後に書き出したファイルの名前（確認用） */
   lastExport = "";
+  /** 冒険の乗り方の帳簿（冒険の草案）。自由で始めた世界は null */
+  adventure: AdventureLedger | null = null;
+  private adventurePanel = new AdventurePanel();
+  /** 取り込む前の記録（ファイルから読んだ物） */
+  pendingImports: ActivitySummary[] = [];
+  /** 世界地図に出す短い知らせ（冒険のワープを断った時など） */
+  private mapNote: { text: string; until: number } | null = null;
 
   constructor(
     private view: WorldView,
@@ -286,6 +303,32 @@ export class Game {
       void this.save();
     };
     this.trainer.onChange = () => this.refreshTrainer();
+    // 冒険（冒険の草案 5 章）
+    this.adventurePanel.onFiles = (files) => void this.readImportFiles(files);
+    this.adventurePanel.onSport = (i, sport) => this.setPendingSport(i, sport);
+    this.adventurePanel.onConfirm = () => this.confirmImports();
+    this.adventurePanel.onCancelPreview = () => {
+      this.pendingImports = [];
+      this.adventurePanel.showPreview([]);
+    };
+    this.adventurePanel.onJourney = () => {
+      this.adventurePanel.close();
+      this.settings.watchRoute = "unridden";
+      this.routeSel.value = "unridden";
+      this.paused = false;
+      this.depart();
+      this.setWatching(true);
+    };
+    this.adventurePanel.onFree = () => {
+      if (this.adventure) this.adventure.mode = "free";
+      void this.save();
+      this.adventurePanel.update(this.adventureView());
+    };
+    this.hud.addButton("冒険", () => {
+      this.hud.toggleMenu(false);
+      this.adventurePanel.open(this.adventureView());
+      this.adventurePanel.showPreview(this.previewRows());
+    });
     this.hud.addButton("トレーナー", () => {
       this.hud.toggleMenu(false);
       this.refreshTrainer();
@@ -439,6 +482,7 @@ export class Game {
     this.trafficSel.value = d.settings.traffic;
     this.traffic.level = d.settings.traffic;
     this.trainerPanel.sync(this.trainerSettings());
+    this.adventure = d.adventure ? AdventureLedger.fromJSON(d.adventure) : null;
     if (d.pos) this.anchor = { x: d.pos.x, z: d.pos.z };
     this.resume = { pos: d.pos, odometer: d.odometer, climb: d.climb, time: d.time, generator: d.generator };
     this.ride = null;
@@ -461,6 +505,7 @@ export class Game {
       settings: this.settings,
       outfit: this.outfit,
       watching: this.watching,
+      adventure: this.adventure?.toJSON() ?? null,
     };
   }
 
@@ -602,9 +647,12 @@ export class Game {
     // トレーナーで走る時も、選んであれば眺める乗り方の進路の選び方を使う（トレーナー連携の草案 11 章の 4）
     const route = this.watching ? this.settings.watchRoute : ride.power === this.trainer.power && this.settings.trainerRoute !== "manual" ? this.settings.trainerRoute : null;
     if (!route) return;
+    // 冒険: 冒険の距離がほとんど無ければ走った道を選ぶ。尽きて止まったら折り返す（冒険の草案 2.1）
+    const budget = ride.adventure ? ride.adventure.balance : null;
+    if (this.watching && ride.blocked && ride.speed < 0.5 && !this.paused && !this.stop) ride.uTurn();
     const u = ride.upcoming;
     if (u && u.selected === null && !ride.plan) {
-      const i = watchChoice(u, route, this.ridden, this.roads.net);
+      const i = watchChoice(u, route, this.ridden, this.roads.net, budget);
       if (i !== u.defaultIndex) ride.choose(i);
     }
   }
@@ -623,6 +671,11 @@ export class Game {
       stamped: () => this.stampSet,
       onTap: (x, z) => {
         if (this.mapOverlay.warping) {
+          // 冒険では、走った道か立ち寄った所の近くへだけ（冒険の草案 2.1）
+          if (this.adventure?.active && !this.canWarpTo(x, z)) {
+            this.mapNote = { text: "冒険では、走った道か立ち寄った所の近くへだけワープできる", until: performance.now() + 4000 };
+            return;
+          }
           this.mapOverlay.close();
           this.teleport(x, z);
           return;
@@ -631,6 +684,7 @@ export class Game {
         this.ride?.setGoal(x, z);
       },
       landmarks: () => this.landmarkMarks(),
+      reveal: () => (this.adventure?.active ? ADVENTURE_REVEAL : null),
     });
   }
 
@@ -644,13 +698,72 @@ export class Game {
     void this.save().then(() => this.title.show(this.snapshot()));
   }
 
-  private leaveTitle(c: "continue" | "new" | "watch") {
-    if (c === "new") this.startNew();
+  private leaveTitle(c: "continue" | "new" | "new-adventure" | "watch") {
+    if (c === "new") this.startNew("free");
+    if (c === "new-adventure") this.startNew("adventure");
     if (c === "watch") this.setWatching(true);
     else this.setWatching(false);
     this.hud.root.classList.remove("hidden");
     this.paused = false;
     this.smoothEye = null;
+  }
+
+  private adventureView() {
+    const a = this.adventure;
+    return { mode: a ? a.mode : null, balance: a?.balance ?? 0, spent: a?.spent ?? 0, imports: a?.imports ?? [] };
+  }
+
+  /** 選んだファイルを読んで、取り込む前の一覧に足す（位置は読んだ所で距離にして捨てる。冒険の草案 3.1） */
+  async readImportFiles(files: { name: string; arrayBuffer(): Promise<ArrayBuffer> }[]) {
+    const errors: string[] = [];
+    for (const f of files) {
+      try {
+        const acts = await readActivityFile(f.name, new Uint8Array(await f.arrayBuffer()));
+        if (!acts.length) errors.push(`${f.name}: 記録が無い`);
+        this.pendingImports.push(...acts.map((a) => ({ ...a, file: f.name })));
+      } catch (e) {
+        errors.push(`${f.name}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    this.pendingImports.sort((a, b) => a.start - b.start);
+    this.adventurePanel.showPreview(this.previewRows(), errors.join(" / "));
+  }
+
+  private previewRows(): PreviewRow[] {
+    const a = this.adventure;
+    if (!a) return [];
+    const now = Date.now() / 1000;
+    return this.pendingImports.map((p) => {
+      const v = a.evaluate(p, now, this.pendingImports);
+      return { file: p.file ?? "", sport: p.sport, start: p.start, distance: p.distance, seconds: p.seconds, credit: v.ok ? v.credit : null, reason: v.ok ? "" : VERDICT_LABELS[v.reason] };
+    });
+  }
+
+  private setPendingSport(i: number, sport: Sport) {
+    const p = this.pendingImports[i];
+    if (p) p.sport = sport;
+    this.adventurePanel.showPreview(this.previewRows());
+  }
+
+  /** 一覧の取り込める記録を取り込む */
+  confirmImports(): number {
+    const a = this.adventure;
+    if (!a) return 0;
+    const now = Date.now() / 1000;
+    let total = 0;
+    for (const p of this.pendingImports) total += a.add(p, now);
+    this.pendingImports = [];
+    void this.save();
+    this.adventurePanel.showPreview([]);
+    this.adventurePanel.update(this.adventureView());
+    return total;
+  }
+
+  /** 冒険のワープ: 走った道か、立ち寄った店・名所の近くか */
+  private canWarpTo(x: number, z: number): boolean {
+    const r2 = ADVENTURE_WARP * ADVENTURE_WARP;
+    if (this.stamps.some((s) => (s.x - x) ** 2 + (s.z - z) ** 2 <= r2)) return true;
+    return this.mapOverlay.map?.nearRidden(this.ridden, x, z, ADVENTURE_WARP) ?? false;
   }
 
   /** 推進力の入力元: 眺める乗り方は自動、トレーナーがつながっていればトレーナー、それ以外は手動 */
@@ -823,7 +936,10 @@ export class Game {
   }
 
   /** はじめから: 記録（位置・総距離・走った区間・スタンプ）を消して起点から。設定と装いは残す */
-  startNew() {
+  startNew(mode: "free" | "adventure" = "free") {
+    // 冒険は最初に 20km を持って始める（冒険の草案 2 章）
+    this.adventure = mode === "adventure" ? new AdventureLedger(Math.floor(Date.now() / 1000)) : null;
+    this.pendingImports = [];
     this.ridden = new RiddenLog();
     this.stamps = [];
     this.stampSet = new Set();
@@ -1102,6 +1218,8 @@ export class Game {
     this.updateWatching(t);
     this.checkCafe(t);
     this.checkLandmark(t);
+    // 眺めている間の立ち寄り（冒険の距離が尽きて止まった所など）は、20 秒見せてから出発する（冒険の草案 4.1）
+    if (this.watching && this.stop && !this.paused && t - this.stop.t0 > WATCH_STOP_MS) this.depart();
     this.sound.update({
       speed: this.ride?.speed ?? 0,
       surface: this.ride?.road?.surface ?? "paved",
@@ -1113,6 +1231,8 @@ export class Game {
     this.manual.brake = this.input.brake ? 1 : 0;
     this.trainer.power.brake = this.manual.brake;
     this.updateTrainer();
+    // 冒険の距離はトレーナー以外で走る時だけ使う（冒険の草案 0 章の 7）
+    if (ride) ride.adventure = this.adventure?.active && ride.power !== this.trainer.power ? this.adventure : null;
     if (ride && !this.paused && !this.stop) {
       this.acc += dt * this.timeScale;
       let n = 0;
@@ -1251,7 +1371,9 @@ export class Game {
       this.mapOverlay.setInfo(
         goalDistance !== null ? `${goalName ?? "行き先"}まで 直線 ${(goalDistance / 1000).toFixed(1)} km${ride.plan ? "" : "（経路を探索中）"}` : ride.goalReached ? "行き先に着いた" : "地図を押すと行き先を指定",
         !!goal,
+        this.mapNote && performance.now() < this.mapNote.until ? this.mapNote.text : "",
       );
+    if (this.adventurePanel.isOpen && t - this.trainerPanelT > 500) this.adventurePanel.updateSummary(this.adventureView());
     const onTrainer = ride.power === this.trainer.power;
     if (this.trainerPanel.isOpen && t - this.trainerPanelT > 500) {
       this.trainerPanelT = t;
@@ -1265,6 +1387,8 @@ export class Game {
       heartRate: this.trainer.heartRate,
       trainerNote: this.trainerNote(),
       onTrainer,
+      adventure: this.adventure?.active ? this.adventure.balance : null,
+      adventureNote: ride.blocked ? "冒険の距離が無い（運動の記録を取り込むと増える）" : null,
       grade: ride.grade,
       odometer: ride.odometer,
       climb: ride.climb,

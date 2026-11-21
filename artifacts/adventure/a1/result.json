@@ -1,0 +1,162 @@
+{
+  "generated": {
+    "errors": [],
+    "start": {
+      "mode": "adventure",
+      "balance": 19990,
+      "spent": 10,
+      "imports": 0,
+      "blocked": false,
+      "speed": 0.06795469066447213,
+      "watching": false,
+      "pending": 0
+    },
+    "exhausted": {
+      "atSec": 13,
+      "mode": "adventure",
+      "balance": 0,
+      "spent": 410,
+      "imports": 0,
+      "blocked": false,
+      "speed": 0.880480250997043,
+      "watching": true,
+      "pending": 0,
+      "odometer": 408.6390725267171
+    },
+    "afterExhausted": {
+      "spentChange": 0,
+      "moved": 793.1546757423627,
+      "blockedSeconds": 0
+    },
+    "pending": [
+      {
+        "sport": "run",
+        "distance": 5003.7786105083815,
+        "start": 1794403619.029
+      },
+      {
+        "sport": "run",
+        "distance": 3002.267166305503,
+        "start": 1795256819.029
+      },
+      {
+        "sport": "run",
+        "distance": 3002.267166305503,
+        "start": 1795256879.029
+      },
+      {
+        "sport": "other",
+        "distance": 2000,
+        "start": 1795260419.029
+      },
+      {
+        "sport": null,
+        "distance": 1000.7557221018342,
+        "start": 1795264019.029
+      }
+    ],
+    "stopDuringJourney": null,
+    "previewRows": [
+      "ラン  5.0 km2026-11-11 22:26  0:22  old.gpx取り込まない: 冒険を始めた日の 7 日より前",
+      "ラン  3.0 km2026-11-21 19:26  0:13  morning-run.gpx冒険 +30.0 km",
+      "ラン  3.0 km2026-11-21 19:27  0:13  morning-run-strava.gpx取り込まない: 同じ種目・開始時刻の記録を取り込み済みか、この一覧の上にある",
+      "そのほか  2.0 km2026-11-21 20:26  0:25  walk.tcx冒険 +6.0 km",
+      "種目なし  1.0 km2026-11-21 21:26  0:04  no-type.gpx取り込まない: 種目を選ぶ種目を選ぶランウォーキング・ハイキング自転車自転車（屋内）水泳そのほか"
+    ],
+    "imported": {
+      "added": 36022.67166305503,
+      "imports": 2
+    },
+    "warp": {
+      "stillOpen": true,
+      "note": "冒険では、走った道か立ち寄った所の近くへだけワープできる"
+    },
+    "title": [
+      "続きから",
+      "記録を消して自由ではじめる（全部の道を走れる）",
+      "記録を消して冒険ではじめる（運動の記録で広がる）",
+      "眺める",
+      "操作"
+    ]
+  },
+  "hokkaido": {
+    "errors": [],
+    "start": {
+      "mode": "adventure",
+      "balance": 19990,
+      "spent": 10,
+      "imports": 0,
+      "blocked": false,
+      "speed": 0.016175273222340695,
+      "watching": false,
+      "pending": 0
+    },
+    "exhausted": {
+      "atSec": 23,
+      "mode": "adventure",
+      "balance": 0,
+      "spent": 410,
+      "imports": 0,
+      "blocked": false,
+      "speed": 3.3083186290122217,
+      "watching": true,
+      "pending": 0,
+      "odometer": 475.15566164007083
+    },
+    "afterExhausted": {
+      "spentChange": 0,
+      "moved": 186.31773810777264,
+      "blockedSeconds": 20
+    },
+    "pending": [
+      {
+        "sport": "run",
+        "distance": 5003.7786105083815,
+        "start": 1794403619.029
+      },
+      {
+        "sport": "run",
+        "distance": 3002.267166305503,
+        "start": 1795256819.029
+      },
+      {
+        "sport": "run",
+        "distance": 3002.267166305503,
+        "start": 1795256879.029
+      },
+      {
+        "sport": "other",
+        "distance": 2000,
+        "start": 1795260419.029
+      },
+      {
+        "sport": null,
+        "distance": 1000.7557221018342,
+        "start": 1795264019.029
+      }
+    ],
+    "stopDuringJourney": null,
+    "previewRows": [
+      "ラン  5.0 km2026-11-11 22:26  0:22  old.gpx取り込まない: 冒険を始めた日の 7 日より前",
+      "ラン  3.0 km2026-11-21 19:26  0:13  morning-run.gpx冒険 +30.0 km",
+      "ラン  3.0 km2026-11-21 19:27  0:13  morning-run-strava.gpx取り込まない: 同じ種目・開始時刻の記録を取り込み済みか、この一覧の上にある",
+      "そのほか  2.0 km2026-11-21 20:26  0:25  walk.tcx冒険 +6.0 km",
+      "種目なし  1.0 km2026-11-21 21:26  0:04  no-type.gpx取り込まない: 種目を選ぶ種目を選ぶランウォーキング・ハイキング自転車自転車（屋内）水泳そのほか"
+    ],
+    "imported": {
+      "added": 36022.67166305503,
+      "imports": 2
+    },
+    "warp": {
+      "stillOpen": true,
+      "note": "冒険では、走った道か立ち寄った所の近くへだけワープできる"
+    },
+    "title": [
+      "続きから",
+      "記録を消して自由ではじめる（全部の道を走れる）",
+      "記録を消して冒険ではじめる（運動の記録で広がる）",
+      "眺める",
+      "操作"
+    ]
+  }
+}

@@ -3,6 +3,7 @@
 
 import { DEFAULT_OUTFIT, type Outfit, sanitizeOutfit } from "./outfit.ts";
 import { POWER_MAX, POWER_MIN } from "../sim/power.ts";
+import { AdventureLedger } from "../sim/adventure.ts";
 
 export const SAVE_VERSION = 1;
 export const SAVE_KEY = "save";
@@ -66,6 +67,8 @@ export interface SaveData {
   settings: SaveSettings;
   outfit: Outfit;
   watching: boolean;
+  /** 冒険の乗り方の帳簿（冒険の草案 6 章）。自由で始めた世界は null */
+  adventure: ReturnType<AdventureLedger["toJSON"]> | null;
 }
 
 export const DEFAULT_SETTINGS: SaveSettings = {
@@ -164,5 +167,6 @@ export function parseSave(text: string | null): SaveData | null {
     settings: sanitizeSettings(r.settings),
     outfit: r.outfit ? sanitizeOutfit(r.outfit) : DEFAULT_OUTFIT,
     watching: r.watching === true,
+    adventure: AdventureLedger.fromJSON(r.adventure)?.toJSON() ?? null,
   };
 }

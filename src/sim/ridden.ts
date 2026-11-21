@@ -7,15 +7,15 @@ export class RiddenLog {
   /** 記録が変わるたびに増える（地図の描き直しの判定用） */
   version = 0;
 
-  /** 道路 road の道のり s を走った */
-  mark(road: string, s: number) {
+  /** 道路 road の道のり s を走った。新しい区切りなら true */
+  mark(road: string, s: number): boolean {
     const b = Math.floor(s / RIDDEN_BIN);
     let set = this.bins.get(road);
     if (!set) this.bins.set(road, (set = new Set()));
-    if (!set.has(b)) {
-      set.add(b);
-      this.version++;
-    }
+    if (set.has(b)) return false;
+    set.add(b);
+    this.version++;
+    return true;
   }
 
   has(road: string, s: number): boolean {

@@ -36,6 +36,10 @@ export interface HudState {
   trainerNote?: string | null;
   /** トレーナーで走っている（漕ぐボタンを隠す） */
   onTrainer?: boolean;
+  /** 冒険の残り (m)。冒険でなければ null（冒険の草案 5 章） */
+  adventure?: number | null;
+  /** 冒険の距離が無くて止まっている時の知らせ */
+  adventureNote?: string | null;
 }
 
 export interface Settings {
@@ -108,6 +112,7 @@ export class Hud {
       ["time", "走行時間", ""],
       ["cadence", "ケイデンス", "rpm"],
       ["heart", "心拍", "bpm"],
+      ["adventure", "冒険の残り", "km"],
     ] as const) {
       const box = h("div", `stat stat-${key}`, "", info);
       h("span", "stat-label", label, box);
@@ -338,8 +343,10 @@ export class Hud {
     };
     opt("cadence", st.cadence);
     opt("heart", st.heartRate);
+    this.stats.adventure.parentElement!.classList.toggle("hidden", st.adventure == null);
+    if (st.adventure != null) this.stats.adventure.textContent = (st.adventure / 1000).toFixed(1);
     const sky = st.hour !== undefined ? `  ${fmtHour(st.hour)}${st.weather ? ` ${st.weather}` : ""}` : "";
-    this.roadEl.textContent = `${st.roadName}  標高 ${Math.round(st.elevation)} m${sky}${st.goalDistance != null ? `  ${st.goalName ?? "行き先"}まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}${st.trainerNote ? `  ${st.trainerNote}` : ""}`;
+    this.roadEl.textContent = `${st.roadName}  標高 ${Math.round(st.elevation)} m${sky}${st.goalDistance != null ? `  ${st.goalName ?? "行き先"}まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}${st.trainerNote ? `  ${st.trainerNote}` : ""}${st.adventureNote ? `  ${st.adventureNote}` : ""}`;
     this.pauseEl.classList.toggle("hidden", !st.paused);
     this.pedalBtn.classList.toggle("hidden", !!st.onTrainer);
     this.uturnBtn.classList.toggle("hidden", !st.canUTurn);

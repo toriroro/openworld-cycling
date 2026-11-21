@@ -688,3 +688,19 @@ html, body {
 .trainer-foot {
   margin-top: 8px;
 }
+
+/* 冒険（冒険の草案 5 章）: スタンプ帳と同じ形 */
+.adventure-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.adventure-preview {
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.adventure-preview select {
+  min-height: 40px;
+  max-width: 9em;
+}

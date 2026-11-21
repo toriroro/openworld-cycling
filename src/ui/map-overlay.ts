@@ -87,8 +87,9 @@ export class MapOverlay {
   }
 
   /** 行き先までの直線距離と、行き先があるか（ワープの間はワープの操作を出す） */
-  setInfo(text: string, hasGoal: boolean) {
-    if (this.warping) text = "地図を押すと、その近くの走る道へワープ";
+  setInfo(text: string, hasGoal: boolean, note = "") {
+    if (note) text = note;
+    else if (this.warping) text = "地図を押すと、その近くの走る道へワープ";
     if (this.info.textContent !== text) this.info.textContent = text;
     this.clearBtn.disabled = !hasGoal;
   }

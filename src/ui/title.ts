@@ -19,7 +19,7 @@ const btn = (label: string, parent: HTMLElement, cls = "") => {
   return b;
 };
 
-export type TitleChoice = "continue" | "new" | "watch";
+export type TitleChoice = "continue" | "new" | "new-adventure" | "watch";
 
 export class TitleScreen {
   readonly root: HTMLElement;
@@ -65,20 +65,21 @@ export class TitleScreen {
       row("総距離", `${(save.odometer / 1000).toFixed(1)} km`);
       row("獲得標高", `${Math.round(save.climb)} m`);
       row("スタンプ", `${save.stamps.length} 個`);
+      if (save.adventure?.mode === "adventure") row("冒険の残り", `${(save.adventure.balance / 1000).toFixed(1)} km`);
       if (save.savedAt) row("最後に走った日", new Date(save.savedAt).toLocaleDateString("sv-SE"));
       btn("続きから", this.buttons, "primary").addEventListener("click", () => this.choose("continue"));
     }
+    // はじめから: 押すと「自由」と「冒険」を選ぶ（冒険の草案 2 章）。記録がある時は、選ぶ方のボタンが記録を消す
     const fresh = btn("はじめから", this.buttons, hasProgress ? "" : "primary");
-    let armed = false;
     fresh.addEventListener("click", () => {
-      // 記録がある時は 2 回目で消す
-      if (hasProgress && !armed) {
-        armed = true;
-        fresh.textContent = "記録を消してはじめから";
-        fresh.classList.add("danger");
-        return;
-      }
-      this.choose("new");
+      const pre = hasProgress ? "記録を消して" : "";
+      const cls = hasProgress ? "danger" : "";
+      const free = btn(`${pre}自由ではじめる（全部の道を走れる）`, this.buttons, cls);
+      const adv = btn(`${pre}冒険ではじめる（運動の記録で広がる）`, this.buttons, cls);
+      free.addEventListener("click", () => this.choose("new"));
+      adv.addEventListener("click", () => this.choose("new-adventure"));
+      fresh.replaceWith(free);
+      free.after(adv);
     });
     btn("眺める", this.buttons).addEventListener("click", () => this.choose("watch"));
     btn("操作", this.buttons).addEventListener("click", () => this.onHelp());

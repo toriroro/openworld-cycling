@@ -55,6 +55,8 @@ export interface GameMapLayer {
   onTap: (x: number, z: number) => void;
   /** 名所の印（北海道の世界。名所の草案） */
   landmarks?: () => { x: number; z: number; name: string; visited: boolean; goal: boolean }[];
+  /** 冒険の地図: 走った道と現在地からこの距離 (m) だけ未走行の道を描く。null なら全部（冒険の草案 2 章） */
+  reveal?: () => number | null;
 }
 
 export interface MapStatus {
@@ -573,17 +575,22 @@ export class WorldMap {
       const game = this.opts.game;
       if (game) {
         // 未走行の道は細く、走った道は太く
-        ctx.strokeStyle = "rgba(20,20,20,0.6)";
-        for (const p of this.paths) {
-          ctx.lineWidth = (CLASS_PX[p.cls] * zoomK * 0.55 + 1.2) * this.mpp;
-          ctx.stroke(p.path);
-        }
-        ctx.strokeStyle = "rgba(250,250,245,0.95)";
-        for (const p of this.paths) {
-          ctx.lineWidth = CLASS_PX[p.cls] * zoomK * 0.55 * this.mpp;
-          ctx.stroke(p.path);
-        }
+        const unridden = (c: CanvasRenderingContext2D) => {
+          c.strokeStyle = "rgba(20,20,20,0.6)";
+          for (const p of this.paths) {
+            c.lineWidth = (CLASS_PX[p.cls] * zoomK * 0.55 + 1.2) * this.mpp;
+            c.stroke(p.path);
+          }
+          c.strokeStyle = "rgba(250,250,245,0.95)";
+          for (const p of this.paths) {
+            c.lineWidth = CLASS_PX[p.cls] * zoomK * 0.55 * this.mpp;
+            c.stroke(p.path);
+          }
+        };
         if (this.riddenVersion !== game.ridden.version || !this.riddenPath) this.rebuildRidden(game.ridden);
+        const reveal = game.reveal?.() ?? null;
+        if (reveal === null) unridden(ctx);
+        else this.drawRevealed(ctx, unridden, reveal, game.player());
         ctx.strokeStyle = "rgba(30,14,0,0.8)";
         ctx.lineWidth = (5.5 * zoomK + 2) * this.mpp;
         ctx.stroke(this.riddenPath!);
@@ -603,17 +610,18 @@ export class WorldMap {
           ctx.stroke(p.path);
         }
       }
-      // 橋は白い縁の二重線
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2 * this.mpp;
-      ctx.setLineDash([3 * this.mpp, 2 * this.mpp]);
-      ctx.stroke(this.bridgePath);
-      // トンネルは灰色の破線
-      ctx.strokeStyle = "#6a6a6a";
-      ctx.lineWidth = 3 * this.mpp;
-      ctx.setLineDash([4 * this.mpp, 3 * this.mpp]);
-      ctx.stroke(this.tunnelPath);
-      ctx.setLineDash([]);
+      // 橋は白い縁の二重線、トンネルは灰色の破線（冒険では、走っていない所に出さないので描かない）
+      if (game?.reveal?.() == null) {
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2 * this.mpp;
+        ctx.setLineDash([3 * this.mpp, 2 * this.mpp]);
+        ctx.stroke(this.bridgePath);
+        ctx.strokeStyle = "#6a6a6a";
+        ctx.lineWidth = 3 * this.mpp;
+        ctx.setLineDash([4 * this.mpp, 3 * this.mpp]);
+        ctx.stroke(this.tunnelPath);
+        ctx.setLineDash([]);
+      }
       ctx.restore();
     }
 
@@ -806,6 +814,76 @@ export class WorldMap {
     }
 
     this.opts.onStatus?.(this.status());
+  }
+
+  private fogCanvas: HTMLCanvasElement | null = null;
+  private maskCanvas: HTMLCanvasElement | null = null;
+
+  /**
+   * 冒険の地図（冒険の草案 2 章）: 未走行の道を、走った道と現在地から reveal m 以内だけ描く。
+   * 別の画面に描いてから、走った道を太く引いた形と現在地の円で切り抜いて重ねる
+   */
+  private drawRevealed(ctx: CanvasRenderingContext2D, draw: (c: CanvasRenderingContext2D) => void, reveal: number, me: { x: number; z: number } | null) {
+    const W = this.canvas.width;
+    const H = this.canvas.height;
+    const fit = (c: HTMLCanvasElement | null) => {
+      const cv = c ?? document.createElement("canvas");
+      if (cv.width !== W || cv.height !== H) {
+        cv.width = W;
+        cv.height = H;
+      }
+      return cv;
+    };
+    const fog = (this.fogCanvas = fit(this.fogCanvas));
+    const mask = (this.maskCanvas = fit(this.maskCanvas));
+    const t = ctx.getTransform();
+    const f = fog.getContext("2d")!;
+    const m = mask.getContext("2d")!;
+    for (const c of [f, m]) {
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.clearRect(0, 0, W, H);
+      c.setTransform(t);
+      c.lineCap = "round";
+      c.lineJoin = "round";
+    }
+    draw(f);
+    m.strokeStyle = "#000";
+    m.lineWidth = reveal * 2;
+    m.stroke(this.riddenPath!);
+    if (me) {
+      m.beginPath();
+      m.arc(me.x - this.anchorX, me.z - this.anchorZ, reveal, 0, Math.PI * 2);
+      m.fillStyle = "#000";
+      m.fill();
+    }
+    f.setTransform(1, 0, 0, 1, 0, 0);
+    f.globalCompositeOperation = "destination-in";
+    f.drawImage(mask, 0, 0);
+    f.globalCompositeOperation = "source-over";
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(fog, 0, 0);
+    ctx.restore();
+  }
+
+  /** 走った区間が (x, z) から r m 以内にあるか（この地図に読み込んである道路で調べる。冒険のワープ） */
+  nearRidden(ridden: RiddenLog, x: number, z: number, r: number): boolean {
+    const r2 = r * r;
+    for (const id of ridden.roads()) {
+      const rd = this.roads.get(id)?.road;
+      if (!rd) continue;
+      const P = rd.points;
+      const n = P.length / 3;
+      const ds = rd.length / (n - 1);
+      for (const [s0, s1] of ridden.runs(id)) {
+        for (let i = Math.max(0, Math.floor(s0 / ds)); i <= Math.min(n - 1, Math.ceil(s1 / ds)); i++) {
+          const dx = P[i * 3] + rd.origin[0] - x;
+          const dz = P[i * 3 + 2] + rd.origin[1] - z;
+          if (dx * dx + dz * dz <= r2) return true;
+        }
+      }
+    }
+    return false;
   }
 
   /** 走った区間の線（世界座標から anchor を引いた座標） */

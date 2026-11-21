@@ -222,6 +222,22 @@ if (q.get("mode") === "m2" && devTools) {
       game.recorder.dirty = true;
       await game.saveRecord();
     },
+    /** 冒険（冒険の草案）: 始める、状態、ファイルを読ませる（中身は base64）、取り込む */
+    startAdventure() {
+      game.startNew("adventure");
+    },
+    adventureInfo() {
+      const a = game.adventure;
+      const r = game.ride;
+      return a ? { mode: a.mode, balance: a.balance, spent: a.spent, imports: a.imports.length, blocked: r?.blocked ?? false, speed: r?.speed ?? 0, watching: game.watching, pending: game.pendingImports.length } : null;
+    },
+    async readImports(files: { name: string; base64: string }[]) {
+      await game.readImportFiles(files.map((f) => ({ name: f.name, arrayBuffer: async () => Uint8Array.from(atob(f.base64), (c) => c.charCodeAt(0)).buffer })));
+      return game.pendingImports.map((p) => ({ sport: p.sport, distance: p.distance, start: p.start }));
+    },
+    confirmImports() {
+      return game.confirmImports();
+    },
     setTimeScale(k: number) {
       game.timeScale = k;
     },
