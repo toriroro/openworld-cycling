@@ -1,0 +1,185 @@
+{
+  "generated": {
+    "errors": [],
+    "runs": [
+      {
+        "hours": 1,
+        "reloadToStartMs": 2496,
+        "catchupWallMs": 2093,
+        "catchupMsInGame": 1938.5999999977648,
+        "odometerGain": 13961.186673601987,
+        "newStamps": 0,
+        "last": {
+          "seconds": 3602.599999997819,
+          "distance": 13953.614130163762,
+          "explored": 13880,
+          "towns": [
+            "葛郷",
+            "赤畑",
+            "白沢"
+          ],
+          "cafes": [],
+          "landmarks": [],
+          "maxElevation": 664.9264406699073,
+          "points": 140,
+          "exhausted": false
+        },
+        "balance": 186100,
+        "movesAfter": 27.485432841829606,
+        "watching": true
+      },
+      {
+        "hours": 4,
+        "reloadToStartMs": 2442,
+        "catchupWallMs": 6256,
+        "catchupMsInGame": 5738.39999999851,
+        "odometerGain": 94832.16860872142,
+        "newStamps": 9,
+        "last": {
+          "seconds": 14402.400000034864,
+          "distance": 94824.17480700045,
+          "explored": 86360,
+          "towns": [
+            "鳥湊",
+            "杉浦",
+            "楢池",
+            "南津",
+            "鴨田",
+            "古岡",
+            "狐谷",
+            "桐湊",
+            "黒岬"
+          ],
+          "cafes": [
+            "カフェ ふるだいら",
+            "喫茶室 ちいけ",
+            "珈琲 きつねつ",
+            "喫茶室 あかみね",
+            "珈琲 くりうら",
+            "カフェ やなぎふ",
+            "珈琲 かえでだい",
+            "カフェ きつねふ",
+            "珈琲 さささわ"
+          ],
+          "landmarks": [],
+          "maxElevation": 1073.9256213016608,
+          "points": 344,
+          "exhausted": false
+        },
+        "balance": 99710,
+        "movesAfter": 26.66150569471938,
+        "watching": true
+      }
+    ],
+    "started": {
+      "journey": {
+        "startedAt": 1795268381.804,
+        "lastSimulated": 1795268386.801
+      },
+      "catchingUp": false,
+      "catchupDistance": null,
+      "lastCatchupMs": 0,
+      "balance": 199990,
+      "stamps": 0,
+      "last": null
+    }
+  },
+  "hokkaido": {
+    "errors": [],
+    "runs": [
+      {
+        "hours": 1,
+        "reloadToStartMs": 1222,
+        "catchupWallMs": 1970,
+        "catchupMsInGame": 1327.699999999255,
+        "odometerGain": 26564.54472122189,
+        "newStamps": 1,
+        "last": {
+          "seconds": 3601.29999999782,
+          "distance": 26551.741226649032,
+          "explored": 25140,
+          "towns": [
+            "狸小路",
+            "札幌市",
+            "菊水",
+            "菊水上町",
+            "雁来町",
+            "菊水元町",
+            "北郷",
+            "米里",
+            "川北"
+          ],
+          "cafes": [
+            "喫茶店（菊水元町7条2丁目）"
+          ],
+          "landmarks": [
+            "大通公園",
+            "テレビ塔",
+            "札幌市時計台",
+            "北海道庁旧本庁舎"
+          ],
+          "maxElevation": 21.375910439541922,
+          "points": 265,
+          "exhausted": false
+        },
+        "balance": 174830,
+        "movesAfter": 27.86946098829867,
+        "watching": true
+      },
+      {
+        "hours": 4,
+        "reloadToStartMs": 1028,
+        "catchupWallMs": 5819,
+        "catchupMsInGame": 5302.10000000149,
+        "odometerGain": 112514.32738382372,
+        "newStamps": 1,
+        "last": {
+          "seconds": 14401.00000003486,
+          "distance": 112509.73057356538,
+          "explored": 104150,
+          "towns": [
+            "米里",
+            "東米里",
+            "川下",
+            "厚別西",
+            "川北",
+            "北郷",
+            "北郷",
+            "白石区",
+            "白石中央",
+            "東札幌",
+            "菊水上町",
+            "本町",
+            "苗穂町",
+            "伏古",
+            "東苗穂町",
+            "篠路町上篠路",
+            "丘珠町"
+          ],
+          "cafes": [
+            "喫茶店（北37条東8丁目）"
+          ],
+          "landmarks": [],
+          "maxElevation": 42.035142809893046,
+          "points": 521,
+          "exhausted": false
+        },
+        "balance": 70660,
+        "movesAfter": 20.30830176846939,
+        "watching": true
+      }
+    ],
+    "started": {
+      "journey": {
+        "startedAt": 1795268426.04,
+        "lastSimulated": 1795268431.036
+      },
+      "catchingUp": false,
+      "catchupDistance": null,
+      "lastCatchupMs": 0,
+      "balance": 199990,
+      "stamps": 0,
+      "last": null
+    }
+  }
+}

@@ -18,7 +18,7 @@ describe("保存データ（モック仕様 7.3）", () => {
     settings: { ...DEFAULT_SETTINGS, power: 220, muted: true },
     outfit: DEFAULT_OUTFIT,
     watching: true,
-    adventure: { mode: "adventure", since: 1795000000, balance: 12345.6, spent: 7654.4, imports: [{ id: "fit:run:1795000100", sport: "run", start: 1795000100, distance: 5000, seconds: 1800, credit: 50000, source: "fit" }] },
+    adventure: { mode: "adventure", since: 1795000000, balance: 12345.6, spent: 7654.4, imports: [{ id: "fit:run:1795000100", sport: "run", start: 1795000100, distance: 5000, seconds: 1800, credit: 50000, source: "fit" }], journey: { startedAt: 1795001000, lastSimulated: 1795002000 }, lastJourney: null },
   };
 
   it("書いて読むと同じ", () => {

@@ -17,6 +17,8 @@ export interface AdventureView {
   balance: number;
   spent: number;
   imports: ImportedActivity[];
+  /** 前にまとめて進めた旅の記録があるか */
+  hasLastJourney?: boolean;
 }
 
 /** 取り込む前の一覧の 1 行 */
@@ -53,6 +55,7 @@ export class AdventurePanel {
   onConfirm: () => void = () => {};
   onCancelPreview: () => void = () => {};
   onJourney: () => void = () => {};
+  onLastJourney: () => void = () => {};
   onFree: () => void = () => {};
 
   constructor() {
@@ -124,7 +127,8 @@ export class AdventurePanel {
       h("div", "stamp-meta", "冒険は、起動画面の「はじめから」で選ぶ。", this.actions);
     } else {
       btn("記録を取り込む", () => this.input.click(), "primary");
-      btn("旅に出る（眺める・未走行の道を優先）", () => this.onJourney());
+      btn("旅に出る（眺める・未走行の道を優先。閉じている間も進む）", () => this.onJourney());
+      if (v.hasLastJourney) btn("前の旅の記録", () => this.onLastJourney());
       const free = btn(this.freeArmed ? "もう一度押すと自由にする（冒険には戻せない）" : "自由にする", () => {
         if (!this.freeArmed) {
           this.freeArmed = true;

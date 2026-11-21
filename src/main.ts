@@ -238,6 +238,29 @@ if (q.get("mode") === "m2" && devTools) {
     confirmImports() {
       return game.confirmImports();
     },
+    /** 旅（冒険の草案 4.2）: 状態、閉じていたことにする（進めた時刻を戻して保存する）、冒険の残りを決める */
+    journeyInfo() {
+      const a = game.adventure;
+      const l = a?.lastJourney;
+      return {
+        journey: a?.journey ?? null,
+        catchingUp: !!game.catchup,
+        catchupDistance: game.catchup?.log.distance ?? null,
+        lastCatchupMs: game.lastCatchupMs,
+        balance: a?.balance ?? null,
+        stamps: game.stamps.length,
+        last: l ? { seconds: l.seconds, distance: l.distance, explored: l.explored, towns: l.towns, cafes: l.cafes.map((c) => c.name), landmarks: l.landmarks, maxElevation: l.maxElevation, points: l.path.length, exhausted: l.exhausted } : null,
+      };
+    },
+    async rewindJourney(hours: number) {
+      const j = game.adventure?.journey;
+      if (j) j.lastSimulated -= hours * 3600;
+      await game.save();
+      return j;
+    },
+    setAdventureBalance(m: number) {
+      if (game.adventure) game.adventure.balance = m;
+    },
     setTimeScale(k: number) {
       game.timeScale = k;
     },

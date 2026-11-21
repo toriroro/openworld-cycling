@@ -1,6 +1,8 @@
 // 冒険の乗り方（冒険の草案）: 冒険の距離の帳簿と、取り込んだ運動の記録の換算。描画にも端末の機能にも依存しない。
 // 冒険の距離はまだ走っていない道を進む時だけ使う（草案 2.2）。走行の側の止まり方は ride.ts。
 
+import type { JourneyLog } from "./journey.ts";
+
 export type Sport = "run" | "walk" | "ride" | "ride-indoor" | "swim" | "other";
 
 export const SPORT_LABELS: Record<Sport, string> = {
@@ -75,6 +77,10 @@ export class AdventureLedger {
   /** 使った合計 (m) */
   spent = 0;
   imports: ImportedActivity[] = [];
+  /** 旅（冒険の草案 4.2）: 旅に出た時刻と、そこまで進めた時刻（Unix 秒）。旅に出ていなければ null */
+  journey: { startedAt: number; lastSimulated: number } | null = null;
+  /** 最後にまとめて進めた旅の記録 */
+  lastJourney: JourneyLog | null = null;
 
   constructor(since: number) {
     this.since = since;
@@ -124,7 +130,15 @@ export class AdventureLedger {
   }
 
   toJSON() {
-    return { mode: this.mode, since: this.since, balance: Math.round(this.balance * 10) / 10, spent: Math.round(this.spent * 10) / 10, imports: this.imports };
+    return {
+      mode: this.mode,
+      since: this.since,
+      balance: Math.round(this.balance * 10) / 10,
+      spent: Math.round(this.spent * 10) / 10,
+      imports: this.imports,
+      journey: this.journey,
+      lastJourney: this.lastJourney,
+    };
   }
 
   /** 保存から戻す。壊れていれば null */
@@ -150,6 +164,23 @@ export class AdventureLedger {
         credit: num(i.credit, 0),
         source: (["fit", "gpx", "tcx", "healthkit"].includes(i.source as string) ? i.source : "fit") as ImportedActivity["source"],
       }));
+    const j = o.journey as Record<string, unknown> | null | undefined;
+    if (j && typeof j.startedAt === "number" && typeof j.lastSimulated === "number") l.journey = { startedAt: j.startedAt, lastSimulated: j.lastSimulated };
+    l.lastJourney = sanitizeJourneyLog(o.lastJourney);
     return l;
   }
+}
+
+function sanitizeJourneyLog(v: unknown): JourneyLog | null {
+  if (typeof v !== "object" || v === null) return null;
+  const o = v as Record<string, unknown>;
+  const n = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : 0);
+  const strs = (x: unknown) => (Array.isArray(x) ? x.filter((s): s is string => typeof s === "string").slice(0, 200) : []);
+  const path = Array.isArray(o.path) ? (o.path as unknown[]).filter((p): p is [number, number] => Array.isArray(p) && p.length === 2 && p.every((q) => typeof q === "number")).slice(0, 2000) : [];
+  const cafes = Array.isArray(o.cafes)
+    ? (o.cafes as Record<string, unknown>[])
+        .filter((c) => c && typeof c.id === "string" && typeof c.name === "string")
+        .map((c) => ({ id: c.id as string, name: c.name as string, road: String(c.road ?? ""), s: n(c.s), x: n(c.x), z: n(c.z), y: n(c.y) }))
+    : [];
+  return { from: n(o.from), seconds: n(o.seconds), distance: n(o.distance), explored: n(o.explored), cafes, towns: strs(o.towns), landmarks: strs(o.landmarks), maxElevation: n(o.maxElevation), path, exhausted: o.exhausted === true };
 }

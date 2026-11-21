@@ -42,6 +42,13 @@ import { fitFileName, recorderToFit } from "./ride-export.ts";
 import { type ActivitySummary, AdventureLedger, type Sport, VERDICT_LABELS } from "./sim/adventure.ts";
 import { readActivityFile } from "./shared/activity-file.ts";
 import { AdventurePanel, type PreviewRow } from "./ui/adventure-panel.ts";
+import { JOURNEY_MAX_S, JourneySim } from "./sim/journey.ts";
+import { JourneyPanel } from "./ui/journey-panel.ts";
+
+/** これより長く閉じていたら、開いた時に旅をまとめて進める (s)【初期値】 */
+const JOURNEY_GAP_S = 60;
+/** まとめて進める計算に 1 フレームで使う時間 (ms) */
+const JOURNEY_FRAME_MS = 12;
 
 /** 冒険の地図で、走った道と現在地の周りに未走行の道を描く距離 (m)【初期値】 */
 const ADVENTURE_REVEAL = 300;
@@ -181,6 +188,9 @@ export class Game {
   private adventurePanel = new AdventurePanel();
   /** 取り込む前の記録（ファイルから読んだ物） */
   pendingImports: ActivitySummary[] = [];
+  private journeyPanel = new JourneyPanel();
+  /** 閉じていた間の旅をまとめて進めている計算 */
+  catchup: JourneySim | null = null;
   /** 世界地図に出す短い知らせ（冒険のワープを断った時など） */
   private mapNote: { text: string; until: number } | null = null;
 
@@ -318,6 +328,16 @@ export class Game {
       this.paused = false;
       this.depart();
       this.setWatching(true);
+      // 旅に出る: 閉じている間も進む（冒険の草案 4.2）
+      const now = Date.now() / 1000;
+      if (this.adventure) this.adventure.journey = { startedAt: now, lastSimulated: now };
+      void this.save();
+    };
+    this.adventurePanel.onLastJourney = () => {
+      const l = this.adventure?.lastJourney;
+      if (!l) return;
+      this.adventurePanel.close();
+      this.journeyPanel.open(l, this.adventure!.balance);
     };
     this.adventurePanel.onFree = () => {
       if (this.adventure) this.adventure.mode = "free";
@@ -631,6 +651,8 @@ export class Game {
   /** 眺める乗り方の開始・終了: 自動の入力元、画面の常時点灯（視点は選んだままにする。2026-11-17 ユーザー） */
   setWatching(on: boolean) {
     this.watching = on;
+    // 眺めるのをやめたら旅も終わる（冒険の草案 4）
+    if (!on && this.adventure) this.adventure.journey = null;
     if (this.ride) this.ride.power = this.powerSource();
     platform.keepAwake(on || this.trainer.hasTrainer);
     // 終わったら、選んでいた視点に戻す
@@ -701,7 +723,8 @@ export class Game {
   private leaveTitle(c: "continue" | "new" | "new-adventure" | "watch") {
     if (c === "new") this.startNew("free");
     if (c === "new-adventure") this.startNew("adventure");
-    if (c === "watch") this.setWatching(true);
+    // 続きから: 旅の途中なら眺めたまま（閉じていた間の旅をまとめて進める）
+    if (c === "watch" || (c === "continue" && this.adventure?.journey)) this.setWatching(true);
     else this.setWatching(false);
     this.hud.root.classList.remove("hidden");
     this.paused = false;
@@ -710,7 +733,7 @@ export class Game {
 
   private adventureView() {
     const a = this.adventure;
-    return { mode: a ? a.mode : null, balance: a?.balance ?? 0, spent: a?.spent ?? 0, imports: a?.imports ?? [] };
+    return { mode: a ? a.mode : null, balance: a?.balance ?? 0, spent: a?.spent ?? 0, imports: a?.imports ?? [], hasLastJourney: !!a?.lastJourney };
   }
 
   /** 選んだファイルを読んで、取り込む前の一覧に足す（位置は読んだ所で距離にして捨てる。冒険の草案 3.1） */
@@ -764,6 +787,93 @@ export class Game {
     const r2 = ADVENTURE_WARP * ADVENTURE_WARP;
     if (this.stamps.some((s) => (s.x - x) ** 2 + (s.z - z) ** 2 <= r2)) return true;
     return this.mapOverlay.map?.nearRidden(this.ridden, x, z, ADVENTURE_WARP) ?? false;
+  }
+
+  /**
+   * 旅（冒険の草案 4.2）: 眺めて走っている間は進めた時刻を今にする。閉じていた・タブを隠していた間が 60 秒を超えたら、
+   * その時間（12 時間まで）を描かずにまとめて進め、終わったら旅の記録を出す。まとめて進めている間は true
+   */
+  private updateJourney(): boolean {
+    const adv = this.adventure;
+    const j = adv?.journey;
+    const ride = this.ride;
+    const now = Date.now() / 1000;
+    if (!adv?.active || !j || !ride?.road || !this.watching) {
+      if (this.catchup) this.endCatchup();
+      return false;
+    }
+    if (this.catchup) {
+      const sim = this.catchup;
+      const t0 = performance.now();
+      let st = sim.run(200);
+      while (st === "running" && performance.now() - t0 < JOURNEY_FRAME_MS) st = sim.run(200);
+      const p = ride.pose();
+      this.anchor = { x: p.x, z: p.z };
+      this.journeyPanel.setProgress(`閉じていた間の旅を計算している（${(sim.log.distance / 1000).toFixed(1)} km・${Math.round((sim.elapsed / sim.seconds) * 100)}%）${st === "waiting" ? " 道路を読み込み中" : ""}`);
+      if (st === "done") this.finishCatchup(sim, now);
+      return true;
+    }
+    if (this.paused || this.stop) return false;
+    const gap = now - j.lastSimulated;
+    if (gap <= JOURNEY_GAP_S) {
+      j.lastSimulated = now;
+      return false;
+    }
+    // まとめて進め始める
+    const roads = this.roads;
+    const landmarks = (this.view.landmarks?.list ?? []).map((l) => ({ id: l.id, name: l.name, x: l.x, z: l.z }));
+    this.catchup = new JourneySim(
+      ride,
+      {
+        net: roads.net,
+        ridden: this.ridden,
+        ledger: adv,
+        route: "unridden",
+        ensure: (x, z) => {
+          roads.update(x, z);
+          return roads.ready({ x0: x - 1500, z0: z - 1500, x1: x + 1500, z1: z + 1500 });
+        },
+        pois: () => roads.pois.values(),
+        landmarks,
+      },
+      Math.min(gap, JOURNEY_MAX_S),
+      j.lastSimulated,
+    );
+    this.catchupStarted = performance.now();
+    return true;
+  }
+
+  /** 最後にまとめて進めた計算にかかった時間 (ms、確認用) */
+  lastCatchupMs = 0;
+  private catchupStarted = 0;
+
+  private finishCatchup(sim: JourneySim, now: number) {
+    const adv = this.adventure!;
+    const log = sim.log;
+    this.lastCatchupMs = performance.now() - this.catchupStarted;
+    // 前を通った喫茶店にスタンプを付ける
+    const date = new Date().toLocaleDateString("sv-SE");
+    for (const c of log.cafes) {
+      const st = this.stamps.find((x) => x.poi === c.id);
+      if (st) st.visits++;
+      else {
+        this.stamps.push({ poi: c.id, name: c.name, date, visits: 1, x: c.x, z: c.z, elevation: c.y, road: c.road, s: c.s });
+        this.stampSet.add(c.id);
+      }
+    }
+    adv.lastJourney = log;
+    if (adv.journey) adv.journey.lastSimulated = now;
+    this.endCatchup();
+    this.traffic.reset();
+    this.skySnap = true;
+    void this.save();
+    this.journeyPanel.open(log, adv.balance);
+  }
+
+  private endCatchup() {
+    this.catchup = null;
+    this.smoothEye = null;
+    this.journeyPanel.setProgress(null);
   }
 
   /** 推進力の入力元: 眺める乗り方は自動、トレーナーがつながっていればトレーナー、それ以外は手動 */
@@ -1215,6 +1325,8 @@ export class Game {
     const dt = Math.min(0.1, Math.max(0, dtRaw));
     this.handleActions();
     if (!this.ride) this.place();
+    // 閉じていた間の旅をまとめて進めている間は、描かずに計算だけする（冒険の草案 4.2）
+    if (this.updateJourney()) return;
     this.updateWatching(t);
     this.checkCafe(t);
     this.checkLandmark(t);
