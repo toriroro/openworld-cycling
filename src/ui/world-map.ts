@@ -7,6 +7,7 @@ import { ROAD_CLASSES } from "../shared/world/constants.ts";
 import type { Junction, Poi, RailLine, Road, WorldNode } from "../shared/world/types.ts";
 import type { CrossingInfo, Rect } from "../shared/world/world.ts";
 import type { RiddenLog } from "../sim/ridden.ts";
+import type { AddressBook, AddressPoint } from "../shared/world/address.ts";
 import { TILE_PX } from "../workers/map-tile.ts";
 import type { RegionPayload, WorldRequest, WorldResponse } from "../workers/world-protocol.ts";
 
@@ -57,6 +58,20 @@ export interface GameMapLayer {
   landmarks?: () => { x: number; z: number; name: string; visited: boolean; goal: boolean }[];
   /** 冒険の地図: 走った道と現在地からこの距離 (m) だけ未走行の道を描く。null なら全部（冒険の草案 2 章） */
   reveal?: () => number | null;
+  /** 住所（丁目の名前を拡大した時に描く。配達の草案 13 章） */
+  addresses?: AddressBook;
+  /** 配達の行き先の印（配達の草案 3.3 の案内） */
+  marks?: () => { x: number; z: number; name: string }[];
+}
+
+/** 丁目の名前を描く縮尺の上限 (m/px): 短い形（北3西4）と、正式の形（北3条西4丁目） */
+const ADDRESS_SHORT_MPP = 2.6;
+const ADDRESS_FULL_MPP = 1.3;
+
+/** 丁目の短い名前（北3西4、大通西6）。碁盤の住所でなければそのまま */
+export function shortAddress(p: AddressPoint): string {
+  if (p.jo === undefined) return p.name;
+  return `${p.ns === "大通" ? "大通" : `${p.ns}${p.jo}`}${p.ew}${p.chome}`;
 }
 
 export interface MapStatus {
@@ -752,6 +767,34 @@ export class WorldMap {
       ctx.stroke();
       if ((n.kind === "town" && this.mpp <= 60) || (n.kind === "village" && this.mpp <= 20))
         label(ctx, n.name, sx + r + 3, sy - r - 1, n.kind === "town" ? 14 : 12, "#111");
+    }
+
+    // 丁目の名前（拡大時。配達の草案 13 章）
+    const book = this.opts.game?.addresses;
+    if (book && this.mpp <= ADDRESS_SHORT_MPP) {
+      const full = this.mpp <= ADDRESS_FULL_MPP;
+      // 行き先の印を付けた丁目は印の横に名前を出すので、ここでは描かない
+      const marked = new Set((this.opts.game?.marks?.() ?? []).map((m) => m.name));
+      ctx.textAlign = "center";
+      for (const p of book.points) {
+        if (p.x < v.x0 || p.x > v.x1 || p.z < v.z0 || p.z > v.z1 || marked.has(p.name)) continue;
+        const [sx, sy] = toScreen(p.x, p.z);
+        label(ctx, full ? p.name : shortAddress(p), sx, sy + 4, full ? 12 : 11, "#3a3a52");
+      }
+      ctx.textAlign = "start";
+    }
+    // 配達の行き先の印
+    for (const m of this.opts.game?.marks?.() ?? []) {
+      if (m.x < v.x0 || m.x > v.x1 || m.z < v.z0 || m.z > v.z1) continue;
+      const [sx, sy] = toScreen(m.x, m.z);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 11, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,138,31,0.35)";
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#ff8a1f";
+      ctx.stroke();
+      label(ctx, m.name, sx + 14, sy + 4, 13, "#7a3600");
     }
 
     // 印（起点候補の 15km 円）

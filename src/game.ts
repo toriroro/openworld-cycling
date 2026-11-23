@@ -44,6 +44,11 @@ import { readActivityFile } from "./shared/activity-file.ts";
 import { AdventurePanel, type PreviewRow } from "./ui/adventure-panel.ts";
 import { JOURNEY_MAX_S, JourneySim } from "./sim/journey.ts";
 import { JourneyPanel } from "./ui/journey-panel.ts";
+import { AddressBook, type AddressPoint, D0_STREET_BOX } from "./shared/world/address.ts";
+import { Delivery, type DeliveryOrder, makeOrder, orderSeed } from "./shared/delivery.ts";
+import { DeliveryPanel, DeliveryStrip } from "./ui/delivery-panel.ts";
+import { project } from "./shared/geo/projection.ts";
+import { HOKKAIDO_BASE } from "./shared/world/hokkaido.ts";
 
 /** これより長く閉じていたら、開いた時に旅をまとめて進める (s)【初期値】 */
 const JOURNEY_GAP_S = 60;
@@ -56,6 +61,9 @@ const ADVENTURE_REVEAL = 300;
 const ADVENTURE_WARP = 200;
 /** 眺めている間の立ち寄りを見せる時間 (ms)【初期値】 */
 const WATCH_STOP_MS = 20000;
+
+/** 配達の注文を出す丁目を、住宅街の道を走れる範囲の縁からこれだけ内側に限る (m)（配達の草案 13 章） */
+const DELIVERY_MARGIN = 150;
 
 /** カメラの近い面の既定 (m)。一人称だけ手前にする（camera-rig.ts） */
 const NEAR_DEFAULT = 0.8;
@@ -193,6 +201,23 @@ export class Game {
   catchup: JourneySim | null = null;
   /** 世界地図に出す短い知らせ（冒険のワープを断った時など） */
   private mapNote: { text: string; until: number } | null = null;
+  /** 住所（北海道の世界。配達の草案 13 章） */
+  addresses: AddressBook | null = null;
+  /** 配達の注文を出す丁目と、配達を受けられる範囲（世界座標） */
+  private deliveryArea: { x0: number; z0: number; x1: number; z1: number; points: AddressPoint[] } | null = null;
+  /** 出している注文（受ける前）と、受けている配達 */
+  private offer: DeliveryOrder | null = null;
+  delivery: Delivery | null = null;
+  private orderNo = 0;
+  /** 配達で得たお金と届けた数（D0 では保存しない） */
+  money = 0;
+  delivered = 0;
+  /** 配達の案内（草案 3.3）: none = 住所と地図だけ、map = 地図に行き先の印 */
+  deliveryGuide: "none" | "map" = "none";
+  private deliveryPanel = new DeliveryPanel();
+  private deliveryStrip: DeliveryStrip;
+  /** 受け取った・届けた直後の短い知らせ */
+  private deliveryNote: { text: string; until: number } | null = null;
 
   constructor(
     private view: WorldView,
@@ -282,6 +307,9 @@ export class Game {
         this.openLandmarkBook();
       });
     }
+    // 配達（北海道の世界。配達の草案 13 章、D0）
+    this.deliveryStrip = new DeliveryStrip(this.hud.root);
+    if (view.world.id === "hokkaido") this.setupDelivery();
     // トレーナー（トレーナー連携の草案 5章）
     this.trainerPanel = new TrainerPanel(this.trainerSettings(), !!opts.dev);
     this.trainerPanel.onConnect = (role) => void this.connectDevice(role);
@@ -706,6 +734,8 @@ export class Game {
         this.ride?.setGoal(x, z);
       },
       landmarks: () => this.landmarkMarks(),
+      addresses: this.addresses ?? undefined,
+      marks: () => this.deliveryMarks(),
       reveal: () => (this.adventure?.active ? ADVENTURE_REVEAL : null),
     });
   }
@@ -1106,6 +1136,126 @@ export class Game {
     void this.save();
   }
 
+  // ---- 配達（配達の草案 13 章、D0） ----
+
+  private setupDelivery() {
+    const a = project(D0_STREET_BOX.north, D0_STREET_BOX.west);
+    const b = project(D0_STREET_BOX.south, D0_STREET_BOX.east);
+    void fetch(`${HOKKAIDO_BASE}addresses.json`)
+      .then((r) => (r.ok ? (r.json() as Promise<AddressPoint[]>) : null))
+      .then((list) => {
+        if (!list) return;
+        this.addresses = new AddressBook(list);
+        const m = DELIVERY_MARGIN;
+        this.deliveryArea = {
+          x0: a.x,
+          z0: a.z,
+          x1: b.x,
+          z1: b.z,
+          points: list.filter((p) => p.jo !== undefined && p.x > a.x + m && p.x < b.x - m && p.z > a.z + m && p.z < b.z - m),
+        };
+      })
+      .catch(() => {
+        /* 住所が無ければ配達は出さない */
+      });
+    this.deliveryPanel.onClose = () => this.deliveryPanel.hide();
+    this.deliveryPanel.onOther = () => this.newOrder();
+    this.deliveryPanel.onAccept = () => this.acceptOrder();
+    this.deliveryPanel.onCancel = () => {
+      this.delivery = null;
+      this.deliveryPanel.hide();
+    };
+    this.deliveryPanel.onMove = () => {
+      this.deliveryPanel.hide();
+      const p = this.addresses?.byName.get("大通西4丁目");
+      if (p) this.teleport(p.x, p.z);
+    };
+    this.hud.addButton("配達", () => {
+      this.hud.toggleMenu(false);
+      this.openDelivery();
+    });
+    this.hud.addSelect(
+      "配達の案内",
+      [
+        ["none", "住所と地図だけ"],
+        ["map", "地図に行き先の印"],
+      ],
+      this.deliveryGuide,
+      (v) => {
+        this.deliveryGuide = v;
+      },
+    );
+  }
+
+  /** 配達の画面を開く: 受けている配達があればその様子、無ければ新しい注文 */
+  openDelivery() {
+    const ride = this.ride;
+    if (this.delivery && ride) {
+      this.deliveryPanel.showActive(this.delivery.order, this.delivery.phase === "dropoff", this.delivery.remaining(ride.time));
+      return;
+    }
+    this.newOrder();
+  }
+
+  private inDeliveryArea(x: number, z: number): boolean {
+    const a = this.deliveryArea;
+    return !!a && x >= a.x0 && x <= a.x1 && z >= a.z0 && z <= a.z1;
+  }
+
+  private newOrder() {
+    const area = this.deliveryArea;
+    const p = this.ride?.road ? this.ride.pose() : this.anchor;
+    if (!area || !this.inDeliveryArea(p.x, p.z)) {
+      this.deliveryPanel.showOutside("大通の周り 約 4km 四方（北14条〜南16条、西20丁目〜東13丁目あたり）");
+      return;
+    }
+    this.offer = makeOrder(area.points, p.x, p.z, ++this.orderNo, orderSeed(Date.now() / 1000));
+    if (this.offer) this.deliveryPanel.showOrder(this.offer, this.money);
+    else this.deliveryPanel.showOutside("大通の周り 約 4km 四方（北14条〜南16条、西20丁目〜東13丁目あたり）");
+  }
+
+  private acceptOrder() {
+    const ride = this.ride;
+    if (!this.offer || !ride) return;
+    this.delivery = new Delivery(this.offer, ride.time, ride.odometer);
+    this.offer = null;
+    this.deliveryPanel.hide();
+    // 地図で選んだ行き先・名所の行き先は消す（自分で道を選ぶ。案内は草案 3.3）
+    this.goalLandmark = null;
+    ride.setGoal(null);
+  }
+
+  /** 止まった所で受け取り・受け渡しをする */
+  private checkDelivery() {
+    const ride = this.ride;
+    const d = this.delivery;
+    if (!ride?.road || !d || !this.addresses || this.paused) return;
+    const r = d.update(this.addresses, ride.pose(), ride.speed, ride.time, ride.odometer);
+    if (!r) return;
+    if (r === "picked") {
+      this.deliveryNote = { text: "受け取った", until: performance.now() + 4000 };
+      return;
+    }
+    this.money += r.reward;
+    this.delivered++;
+    this.delivery = null;
+    this.deliveryNote = null;
+    this.deliveryPanel.showResult(r, this.money, this.delivered);
+  }
+
+  private updateDeliveryStrip(time: number) {
+    const d = this.delivery;
+    const note = this.deliveryNote && performance.now() < this.deliveryNote.until ? this.deliveryNote.text : "";
+    this.deliveryStrip.update(d ? { phase: d.phase, name: d.target.name, remaining: d.remaining(time), note } : null);
+  }
+
+  /** 地図の印（案内が「地図に行き先の印」の時だけ、いまの行き先の丁目） */
+  private deliveryMarks(): { x: number; z: number; name: string }[] {
+    const d = this.delivery;
+    if (!d || this.deliveryGuide !== "map") return [];
+    return [{ x: d.target.x, z: d.target.z, name: d.target.name }];
+  }
+
   /** 名所帳を開く: 今いる所からの距離と方角、行ったかどうか */
   openLandmarkBook() {
     const list = this.view.landmarks?.list ?? [];
@@ -1328,8 +1478,12 @@ export class Game {
     // 閉じていた間の旅をまとめて進めている間は、描かずに計算だけする（冒険の草案 4.2）
     if (this.updateJourney()) return;
     this.updateWatching(t);
-    this.checkCafe(t);
-    this.checkLandmark(t);
+    // 配達中は、止まった所を喫茶店・名所の立ち寄りにしない（受け取り・受け渡しで止まるため）
+    if (this.delivery) this.checkDelivery();
+    else {
+      this.checkCafe(t);
+      this.checkLandmark(t);
+    }
     // 眺めている間の立ち寄り（冒険の距離が尽きて止まった所など）は、20 秒見せてから出発する（冒険の草案 4.1）
     if (this.watching && this.stop && !this.paused && t - this.stop.t0 > WATCH_STOP_MS) this.depart();
     this.sound.update({
@@ -1491,6 +1645,7 @@ export class Game {
       this.trainerPanelT = t;
       this.refreshTrainer();
     }
+    this.updateDeliveryStrip(ride.time);
     this.hud.update({
       speed: ride.speed,
       // トレーナーでは機器から受けた出力の 3 秒の平均（カーブの手前の自動減速で物理に渡す出力が 0 の間も）
@@ -1505,7 +1660,7 @@ export class Game {
       odometer: ride.odometer,
       climb: ride.climb,
       time: ride.time,
-      roadName: road?.name ?? "",
+      roadName: [road?.name ?? "", pose && this.addresses?.at(pose.x, pose.z)?.name].filter(Boolean).join("  "),
       elevation: road ? sampleRoad(road, ride.pos.s).y : 0,
       autoBrake: ride.autoBrake > 0,
       upcoming: ride.upcoming,

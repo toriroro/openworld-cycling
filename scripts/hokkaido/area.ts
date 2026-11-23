@@ -26,3 +26,6 @@ export function bboxString(b: LatLonBox): string {
  * 標高は DEM10B（z14）。H0 の範囲は 5m 格子をそのまま使う。
  */
 export const H2_BOX: LatLonBox = { south: 42.79, west: 140.98, north: 43.33, east: 141.72 };
+
+/** 配達の試作 D0 で住宅街の道も走れる道にする範囲（配達の草案 13 章。実行時も使うので src に置く） */
+export { D0_STREET_BOX } from "../../src/shared/world/address.ts";

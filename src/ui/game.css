@@ -732,3 +732,47 @@ html, body {
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
+
+/* 配達（配達の草案 13 章、D0） */
+.delivery-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.delivery-buttons .btn {
+  flex: 1 1 auto;
+  min-height: 44px;
+}
+.delivery-primary {
+  background: var(--accent);
+  color: #111;
+}
+.delivery-strip {
+  position: absolute;
+  /* 出典の行（左上）の下 */
+  top: calc(var(--safe-t) + 84px);
+  left: calc(var(--safe-l) + 10px);
+  max-width: min(46vw, 300px);
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.delivery-target {
+  font-size: 17px;
+  font-weight: 700;
+}
+.delivery-time {
+  font-size: 15px;
+}
+.delivery-time.late {
+  color: #ff8a7a;
+}
+.delivery-note {
+  font-size: 13px;
+  opacity: 0.8;
+}
+.delivery-note:empty {
+  display: none;
+}

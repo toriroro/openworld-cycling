@@ -13,11 +13,12 @@ import { buildSidewalks, buildingCoverage, coverageAt, junctionShapesOf, PadInde
 import { buildPoles } from "./poles.ts";
 import { buildSigns, type WayInfo } from "./signs.ts";
 import { buildStreets } from "./streets.ts";
-import { H0_BOX, H2_BOX, type LatLonBox, SOURCE_DIR } from "./area.ts";
+import { D0_STREET_BOX, H0_BOX, H2_BOX, type LatLonBox, SOURCE_DIR } from "./area.ts";
 import { buildGrid, type Grid, gridAt } from "./dem.ts";
 import { areasOf, lineOf, type Tags } from "./osm.ts";
 import { writeBuildingPages, writeSidewalkPages, writeStreetPages, writeTerrainPages } from "./pages.ts";
 import { loadPbfArea } from "./pbf-area.ts";
+import { buildAddresses } from "./addresses.ts";
 import { project } from "./projection.ts";
 import { fillRings, type Raster, strokeLine } from "./raster.ts";
 import { type BuiltJunction, type BuiltRoad, buildRoads, DEFAULT_ROAD_OPTIONS } from "./roads.ts";
@@ -167,7 +168,10 @@ const inTown = (x: number, z: number) => {
   const j = Math.round((z - Z0) / 10);
   return i >= 0 && j >= 0 && i < nx && j < nz && landuse.data[j * nx + i] === HOKKAIDO_LANDUSE.urban;
 };
-const minorOpt = { ...DEFAULT_ROAD_OPTIONS, includeMinor: true, minorAt: (x: number, z: number) => !inTown(x, z), minorMinLength: 150 };
+// 配達の試作 D0: 大通の周りでは住宅街の道も走る道にする（配達の草案 13 章）
+const D0R = worldRect(D0_STREET_BOX);
+const streetsAt = (x: number, z: number) => x >= D0R.x0 && x <= D0R.x1 && z >= D0R.z0 && z <= D0R.z1;
+const minorOpt = { ...DEFAULT_ROAD_OPTIONS, includeMinor: true, minorAt: (x: number, z: number) => !inTown(x, z), minorMinLength: 150, streetsAt };
 // 1 回目: 市街地の外の等級 2・3 を全部入れて作り、一番大きなつながり（走る道の網）に入る道の way を集める。
 // 2 回目: その way の等級 2・3 だけ入れる（どこにもつながらない林道の切れ端を除く）
 const keepMinor = (() => {
@@ -389,7 +393,7 @@ const commercial = buildingCoverage(buildingOut?.data ?? new Float32Array(0), { 
 // 走らない道（見た目だけ。北海道の草案 17 章）。等級 2・3 の道は市街地の中の部分を走らない道として描くので、道の番号では除かず、走る道の路面の上を切り取るだけにする
 // 接続点の舗装面（走らない道をここでも切る。北海道の草案 31 章）
 const pads = new PadIndex(junctionShapesOf(built.roads, built.junctions));
-const streetOut = buildStreets(rd, dem5, rideSegs, new Set(built.roads.filter((r) => !r.minor).flatMap((r) => r.ways)), 250, (x, z) => coverageAt(coverage, x, z), pads);
+const streetOut = buildStreets(rd, dem5, rideSegs, new Set(built.roads.filter((r) => !r.minor && !r.street).flatMap((r) => r.ways)), 250, (x, z) => coverageAt(coverage, x, z), pads);
 lap(`走らない道 ${streetOut.stats.km.join("km・")}km`);
 // 幹線の歩道と街路樹
 const sidewalkOut = buildSidewalks(built.roads, built.junctions, buildingOut?.data ?? new Float32Array(0), coverage, 250, streetOut);
@@ -487,6 +491,10 @@ const meta: HokkaidoMeta = {
   pois,
 };
 writeFileSync(`${OUT}/world.json`, JSON.stringify(meta));
+// 住所の元になる丁目の点（配達の草案 13 章）
+const addressOut = buildAddresses(pd, inside);
+writeFileSync(`${OUT}/addresses.json`, JSON.stringify(addressOut.points));
+lap(`丁目の点 ${addressOut.stats.points}（碁盤 ${addressOut.stats.grid}）`);
 // 地形・建物の Worker が読む小さい方（格子と頁だけ）
 writeFileSync(`${OUT}/terrain.json`, JSON.stringify({ version: 2, area: meta.area, grid: meta.grid, pages: meta.pages, overview: meta.overview }));
 lap("書き出し");

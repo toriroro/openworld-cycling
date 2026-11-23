@@ -1,0 +1,139 @@
+// 配達の画面（配達の草案 13 章、D0）。注文の表示、走っている間の行き先と残り時間、届けた結果。
+// 文言は操作・状態・事実情報だけ。
+
+import type { DeliveryOrder, DeliveryResult } from "../shared/delivery.ts";
+
+const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = "", parent?: HTMLElement) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text) e.textContent = text;
+  parent?.appendChild(e);
+  return e;
+};
+
+export function fmtDuration(s: number): string {
+  const neg = s < 0;
+  const t = Math.round(Math.abs(s));
+  return `${neg ? "−" : ""}${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+}
+
+const km = (m: number) => `${(m / 1000).toFixed(1)} km`;
+
+/** 注文と結果の表示（左下。立ち寄りの表示と同じ形） */
+export class DeliveryPanel {
+  readonly root: HTMLElement;
+  private title: HTMLElement;
+  private rows: HTMLElement;
+  private buttons: HTMLElement;
+  onAccept: () => void = () => {};
+  onOther: () => void = () => {};
+  onClose: () => void = () => {};
+  onMove: () => void = () => {};
+  onCancel: () => void = () => {};
+
+  constructor() {
+    this.root = h("div", "stop-panel delivery-panel hidden");
+    document.body.appendChild(this.root);
+    this.title = h("div", "stop-name", "", this.root);
+    this.rows = h("dl", "stop-rows", "", this.root);
+    this.buttons = h("div", "delivery-buttons", "", this.root);
+  }
+
+  get isOpen() {
+    return !this.root.classList.contains("hidden");
+  }
+
+  private button(label: string, onClick: () => void, primary = false) {
+    const b = h("button", `btn${primary ? " delivery-primary" : ""}`, label, this.buttons);
+    b.type = "button";
+    b.addEventListener("click", onClick);
+  }
+
+  private fill(title: string, rows: [string, string][]) {
+    this.title.textContent = title;
+    this.rows.replaceChildren();
+    for (const [k, v] of rows) {
+      h("dt", "", k, this.rows);
+      h("dd", "", v, this.rows);
+    }
+    this.buttons.replaceChildren();
+    this.root.classList.remove("hidden");
+  }
+
+  showOrder(o: DeliveryOrder, money: number) {
+    this.fill("注文", [
+      ["受け取り", o.pickup.name],
+      ["届け先", o.dropoff.name],
+      ["受け取りまで", `直線 ${km(o.approach)}`],
+      ["受け取りから届け先", `直線 ${km(o.distance)}`],
+      ["期限", fmtDuration(o.limit)],
+      ["報酬", `${o.reward} 円`],
+      ["所持金", `${money} 円`],
+    ]);
+    this.button("受ける", () => this.onAccept(), true);
+    this.button("ほかの注文", () => this.onOther());
+    this.button("閉じる", () => this.onClose());
+  }
+
+  /** 受けている注文（メニューから開いた時） */
+  showActive(o: DeliveryOrder, picked: boolean, remaining: number) {
+    this.fill("配達中", [
+      ["受け取り", `${o.pickup.name}${picked ? "（済み）" : ""}`],
+      ["届け先", o.dropoff.name],
+      ["残り", fmtDuration(remaining)],
+      ["報酬", `${o.reward} 円`],
+    ]);
+    this.button("閉じる", () => this.onClose(), true);
+    this.button("注文をやめる", () => this.onCancel());
+  }
+
+  /** 配達を受けられる範囲の外にいる */
+  showOutside(area: string) {
+    this.fill("注文", [["受けられる範囲", area]]);
+    this.button("範囲へ移る", () => this.onMove(), true);
+    this.button("閉じる", () => this.onClose());
+  }
+
+  showResult(r: DeliveryResult, money: number, count: number) {
+    this.fill("届けた", [
+      ["届け先", r.order.dropoff.name],
+      ["かかった時間", fmtDuration(r.elapsed)],
+      ["期限", `${fmtDuration(r.order.limit)}${r.late ? "（遅れ）" : ""}`],
+      ["走った距離", km(r.ridden)],
+      ["報酬", `${r.reward} 円`],
+      ["所持金", `${money} 円`],
+      ["届けた数", `${count} 件`],
+    ]);
+    this.button("次の注文", () => this.onOther(), true);
+    this.button("閉じる", () => this.onClose());
+  }
+
+  hide() {
+    this.root.classList.add("hidden");
+  }
+}
+
+/** 走っている間の表示（左上、メニューの下）: いまの行き先の住所と残り時間、現在地の住所 */
+export class DeliveryStrip {
+  readonly root: HTMLElement;
+  private target: HTMLElement;
+  private time: HTMLElement;
+  private note: HTMLElement;
+
+  constructor(parent: HTMLElement) {
+    this.root = h("div", "delivery-strip hidden", "", parent);
+    this.target = h("div", "delivery-target", "", this.root);
+    this.time = h("div", "delivery-time", "", this.root);
+    this.note = h("div", "delivery-note", "", this.root);
+  }
+
+  update(st: { phase: "pickup" | "dropoff"; name: string; remaining: number; note: string } | null) {
+    this.root.classList.toggle("hidden", !st);
+    if (!st) return;
+    const t = `${st.phase === "pickup" ? "受け取り" : "届け先"} ${st.name}`;
+    if (this.target.textContent !== t) this.target.textContent = t;
+    this.time.textContent = `残り ${fmtDuration(st.remaining)}`;
+    this.time.classList.toggle("late", st.remaining < 0);
+    if (this.note.textContent !== st.note) this.note.textContent = st.note;
+  }
+}
