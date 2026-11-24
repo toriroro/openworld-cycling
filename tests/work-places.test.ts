@@ -4,7 +4,7 @@ import { Delivery, errandOrder, HANDOVER_S, KIND_DROP_RANGE, makeOrder, orderRew
 import { AddressBook, type AddressPoint } from "../src/shared/world/address.ts";
 import { BUILDING_REC, BUILDING_STYLES, type HokkaidoBuildings } from "../src/shared/world/hokkaido.ts";
 import type { Road } from "../src/shared/world/types.ts";
-import { ERRAND_WINDOW, errandsNear, FLAG_WINDOW, houseFlag, housesNear, MEAL_SIGNS, roadSpot, SHOP_SIGNS, shopsNear, signOf } from "../src/shared/work-places.ts";
+import { chomeSpot, ERRAND_WINDOW, errandsNear, FLAG_WINDOW, houseFlag, housesNear, MEAL_SIGNS, roadSpot, SHOP_SIGNS, shopsNear, signOf } from "../src/shared/work-places.ts";
 import { walkersNear } from "../src/sim/pedestrians.ts";
 
 /** 東西の道を 120m おきに南北へ並べた格子（各 2,000m、2m ごとの点、幅 8m） */
@@ -78,6 +78,20 @@ describe("町の仕事の出どころ（配達の草案 16 章）", () => {
     expect(s.d).toBeCloseTo(Math.hypot(1, 45));
     expect(roadSpot(roads, 33, 60.5, 70)!.road).toBe("r1");
     expect(roadSpot(roads, 5000, 0, 40)).toBeNull();
+  });
+
+  it("丁目に届ける時は、道の脇がその丁目になる所で止まる（点に近い道の脇が隣の丁目なら、別の道）", () => {
+    // A は大きな敷地の中（z = 0 の道から 50m）、B は z = 0 の道のすぐそば。z = 0 の道の脇は B になる
+    const pts = [
+      { name: "A", x: 0, z: 50 },
+      { name: "B", x: 0, z: 10 },
+    ];
+    const book = new AddressBook(pts);
+    const s = chomeSpot(roads, (x, z) => book.at(x, z, 400), pts[0])!;
+    expect(s.z).toBe(120);
+    expect(Math.abs(s.x)).toBeLessThanOrEqual(2);
+    expect(roadSpot(roads, 0, 50, 200)!.z).toBe(0);
+    expect(chomeSpot(roads, (x, z) => book.at(x, z, 400), pts[1])!.z).toBe(0);
   });
 
   it("頼み事の人は道と時刻で決まり、窓が変わると入れ替わる", () => {

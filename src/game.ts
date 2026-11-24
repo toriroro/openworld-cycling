@@ -46,7 +46,10 @@ import { JOURNEY_MAX_S, JourneySim } from "./sim/journey.ts";
 import { JourneyPanel } from "./ui/journey-panel.ts";
 import { AddressBook, type AddressPoint, D0_STREET_BOX } from "./shared/world/address.ts";
 import { Delivery, type DeliveryOrder, makeOrder, orderSeed, type Place, REGULAR_AFTER } from "./shared/delivery.ts";
-import { MEAL_SIGNS } from "./shared/work-places.ts";
+import { chomeSpot, MEAL_SIGNS } from "./shared/work-places.ts";
+import { Arena, type EconomyState } from "./shared/economy.ts";
+import { Market } from "./sim/market.ts";
+import { RankingPanel } from "./ui/ranking-panel.ts";
 import { type StreetAsk, StreetWork } from "./sim/street-work.ts";
 import { type Walker, walkersNear } from "./sim/pedestrians.ts";
 import { DeliveryPanel, DeliveryStrip, OfferCard } from "./ui/delivery-panel.ts";
@@ -252,6 +255,13 @@ export class Game {
   private goalWasReached = false;
   private workSelects: { guide?: HTMLSelectElement; route?: HTMLSelectElement; app?: HTMLSelectElement } = {};
   private deliveryPanel = new DeliveryPanel();
+  /** 経済の場（業者・縄張り・順位。配達の草案 18 章）。住所を読めた北海道の世界だけ */
+  market: Market | null = null;
+  private economySaved: EconomyState | null = null;
+  private rankingPanel = new RankingPanel();
+  private marketT = 0;
+  /** 縄張りを塗った画像（地図に重ねる） */
+  private territoryImg: { canvas: HTMLCanvasElement; version: number } | null = null;
   private deliveryStrip: DeliveryStrip;
   /** 受け取った・届けた直後の短い知らせ */
   private deliveryNote: { text: string; until: number } | null = null;
@@ -595,7 +605,7 @@ export class Game {
       outfit: this.outfit,
       watching: this.watching,
       adventure: this.adventure?.toJSON() ?? null,
-      work: { money: this.money, delivered: this.delivered, onTime: this.onTime, stamina: this.stamina.toJSON(), guide: this.deliveryGuide, routeStyle: this.routeStyle, app: this.appOn, regulars: this.regulars },
+      work: { money: this.money, delivered: this.delivered, onTime: this.onTime, stamina: this.stamina.toJSON(), guide: this.deliveryGuide, routeStyle: this.routeStyle, app: this.appOn, regulars: this.regulars, economy: this.market?.state ?? this.economySaved },
     };
   }
 
@@ -784,6 +794,13 @@ export class Game {
       landmarks: () => this.landmarkMarks(),
       addresses: this.addresses ?? undefined,
       marks: () => [...this.deliveryMarks(), ...this.workMarks(true)],
+      territory: () => this.territoryLayer(),
+      depots: () => this.market?.depots() ?? [],
+      legend: () =>
+        [...(this.market?.now.entities ?? [])]
+          .filter((e) => e.area > 0)
+          .sort((p, q) => q.area - p.area)
+          .map((e) => ({ name: e.name, color: e.color })),
       reveal: () => (this.adventure?.active ? ADVENTURE_REVEAL : null),
     });
   }
@@ -1204,6 +1221,7 @@ export class Game {
           points: list.filter((p) => p.jo !== undefined && p.x > a.x + m && p.x < b.x - m && p.z > a.z + m && p.z < b.z - m),
         };
         const area = this.deliveryArea;
+        this.buildMarket(list, a, b);
         this.streetWork = new StreetWork(this.roads.net, this.view.world.local?.buildings ?? null, this.addresses, (x, z) => x > area.x0 + m && x < area.x1 - m && z > area.z0 + m && z < area.z1 - m);
       })
       .catch(() => {
@@ -1226,6 +1244,18 @@ export class Game {
       this.hud.toggleMenu(false);
       this.openDelivery();
     });
+    this.hud.addButton("順位", () => {
+      this.hud.toggleMenu(false);
+      this.openRanking();
+    });
+    this.rankingPanel.onJoin = (id) => {
+      if (!this.market) return;
+      this.market.state.player.company = id;
+      this.market.update(this.worldToday());
+      this.market.version++;
+      this.openRanking();
+      void this.save();
+    };
     this.workSelects.guide = this.hud.addSelect(
       "配達の案内",
       [
@@ -1278,6 +1308,8 @@ export class Game {
     this.routeStyle = w?.routeStyle ?? "short";
     this.appOn = w?.app ?? true;
     this.regulars = { ...(w?.regulars ?? {}) };
+    this.economySaved = w?.economy ?? null;
+    if (this.market) this.market = new Market(this.market.arena, this.roads.seed, this.worldToday(), this.economySaved);
     if (this.ride) this.ride.routeStyle = this.routeStyle;
     const sel = this.workSelects;
     if (sel.guide) sel.guide.value = this.deliveryGuide;
@@ -1478,6 +1510,80 @@ export class Game {
     pv.update(people, marks, flags, this.view.originX, this.view.originZ, performance.now() / 1000);
   }
 
+  /** 世界の日の通し番号（配達の草案 17 章） */
+  private worldToday(): number {
+    return worldDay(Date.now() + this.clockOffset).day;
+  }
+
+  /** 経済の場を作る: 配達の範囲の丁目（D0 の範囲。配達の草案 18 章） */
+  private buildMarket(list: AddressPoint[], a: { x: number; z: number }, b: { x: number; z: number }) {
+    const book = this.addresses;
+    if (!book) return;
+    const center = book.byName.get("大通西4丁目") ?? { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 };
+    const arena = new Arena(list, { x0: a.x, z0: a.z, x1: b.x, z1: b.z }, center, (x, z) => book.at(x, z), this.roads.seed);
+    this.market = new Market(arena, this.roads.seed, this.worldToday(), this.economySaved);
+    // 配達用のバン・軽トラの半分ほどを、その丁目の持ち主の業者の色にする
+    this.traffic.paint = (x, z, type, u) => {
+      if ((type !== "van" && type !== "keiTruck") || u > 0.6) return null;
+      const at = book.at(x, z);
+      const o = at ? this.market?.ownerOf(at.name) : null;
+      return o && o.kind !== "player" ? o.color : null;
+    };
+  }
+
+  /** いる所の住所と、その丁目の持ち主 */
+  private addressWithOwner(x: number, z: number): string | null {
+    const at = this.addresses?.at(x, z);
+    if (!at) return null;
+    const o = this.market?.ownerOf(at.name);
+    return o ? `${at.name}（${o.name}）` : at.name;
+  }
+
+  /** 縄張りの画像（持ち主が変わった時だけ塗り直す） */
+  private territoryLayer() {
+    const m = this.market;
+    if (!m) return null;
+    const r = m.arena.raster;
+    let img = this.territoryImg;
+    if (!img || img.version !== m.version) {
+      const canvas = img?.canvas ?? document.createElement("canvas");
+      canvas.width = r.nx;
+      canvas.height = r.nz;
+      const ctx = canvas.getContext("2d")!;
+      const data = ctx.createImageData(r.nx, r.nz);
+      const rgb = m.now.entities.map((e) => [parseInt(e.color.slice(1, 3), 16), parseInt(e.color.slice(3, 5), 16), parseInt(e.color.slice(5, 7), 16)]);
+      for (let i = 0; i < r.idx.length; i++) {
+        const c = r.idx[i];
+        const o = c >= 0 ? m.now.owner[c] : -1;
+        if (o < 0) continue;
+        const [cr, cg, cb] = rgb[o];
+        data.data.set([cr, cg, cb, 255], i * 4);
+      }
+      ctx.putImageData(data, 0, 0);
+      img = this.territoryImg = { canvas, version: m.version };
+    }
+    return { image: img.canvas, x0: r.x0, z0: r.z0, x1: r.x0 + r.nx * r.cell, z1: r.z0 + r.nz * r.cell };
+  }
+
+  /** 順位の画面を開く */
+  openRanking() {
+    const m = this.market;
+    if (!m) {
+      this.deliveryPanel.showOutside("大通の周り 約 4km 四方（北14条〜南16条、西20丁目〜東13丁目あたり）");
+      return;
+    }
+    m.update(this.worldToday());
+    const info = new Map(m.state.companies.filter((c) => c.closed === null).map((c) => [c.id, { policy: c.policy, depots: c.depots.length }]));
+    this.rankingPanel.open({
+      entities: m.now.entities,
+      yesterday: m.yesterday.entities,
+      info,
+      company: m.state.player.company,
+      weekday: `${worldDay(Date.now() + this.clockOffset).weekday}曜`,
+      changed: m.changedSinceYesterday(),
+    });
+  }
+
   /** 配達の画面を開く: 受けている配達があればその様子、無ければ新しい注文 */
   openDelivery() {
     const ride = this.ride;
@@ -1524,7 +1630,10 @@ export class Game {
       ride.setGoal(null);
       return;
     }
-    ride.setGoal(p.x, p.z);
+    // 丁目は、道の脇がその丁目になる所へ引く（店・家・人は止まる所そのもの）
+    const book = this.addresses;
+    const spot = (!p.kind || p.kind === "chome") && book ? chomeSpot(this.roads.net.roads.values(), (x, z) => book.at(x, z), p) : null;
+    ride.setGoal(spot?.x ?? p.x, spot?.z ?? p.z);
     if (this.manual.pace === 0) this.setPace(2);
   }
 
@@ -1551,6 +1660,9 @@ export class Game {
       this.regulars[shop.id] = n;
       extra.push(["受け取った店", `${shop.name} ${n} 件目${n >= REGULAR_AFTER ? "（常連）" : `（${REGULAR_AFTER} 件で常連）`}`]);
     }
+    // 届け先の丁目の件数に入れる（所属の業者、無ければ個人。縄張り）
+    const dropAt = this.addresses.at(r.order.dropoff.x, r.order.dropoff.z);
+    if (dropAt && this.market) this.market.record(this.worldToday(), dropAt.name, r.reward);
     this.delivery = null;
     this.waitingPerson = null;
     this.deliveryNote = null;
@@ -1983,6 +2095,10 @@ export class Game {
       this.refreshTrainer();
     }
     this.updateDeliveryStrip(ride.time);
+    if (this.market && t - this.marketT > 1000) {
+      this.marketT = t;
+      this.market.update(this.worldToday());
+    }
     this.updateApp(ride.time);
     this.hud.update({
       speed: ride.speed,
@@ -1998,7 +2114,7 @@ export class Game {
       odometer: ride.odometer,
       climb: ride.climb,
       time: ride.time,
-      roadName: [road?.name ?? "", pose && this.addresses?.at(pose.x, pose.z)?.name].filter(Boolean).join("  "),
+      roadName: [road?.name ?? "", pose && this.addressWithOwner(pose.x, pose.z)].filter(Boolean).join("  "),
       elevation: road ? sampleRoad(road, ride.pos.s).y : 0,
       autoBrake: ride.autoBrake > 0,
       upcoming: ride.upcoming,

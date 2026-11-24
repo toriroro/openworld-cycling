@@ -136,6 +136,42 @@ export function roadSpot(roads: Iterable<Road>, x: number, z: number, reach: num
   return best;
 }
 
+/**
+ * 丁目に届ける時に止まる所: 走る道の上で、左右（9m）のどちらかがその丁目になる点のうち、丁目の点にいちばん近い所。
+ * 丁目の点が大きな敷地の中にあると、点にいちばん近い道の脇が隣の丁目になることがあるため（配達の草案 18.4）
+ */
+export function chomeSpot(roads: Iterable<Road>, at: (x: number, z: number) => { name: string } | null, chome: { name: string; x: number; z: number }, reach = 300): RoadSpot | null {
+  let best: RoadSpot | null = null;
+  let bd = reach * reach;
+  for (const r of roads) {
+    if (r.island) continue;
+    const b = bboxOf(r);
+    if (chome.x < b.x0 - reach || chome.x > b.x1 + reach || chome.z < b.z0 - reach || chome.z > b.z1 + reach) continue;
+    const P = r.points;
+    const n = P.length / 3;
+    const ds = r.length / (n - 1);
+    for (let i = 1; i < n - 1; i += 2) {
+      const px = P[i * 3] + r.origin[0];
+      const pz = P[i * 3 + 2] + r.origin[1];
+      const d = (px - chome.x) * (px - chome.x) + (pz - chome.z) * (pz - chome.z);
+      if (d >= bd) continue;
+      let dx = P[(i + 1) * 3] - P[(i - 1) * 3];
+      let dz = P[(i + 1) * 3 + 2] - P[(i - 1) * 3 + 2];
+      const l = Math.sqrt(dx * dx + dz * dz) || 1;
+      dx /= l;
+      dz /= l;
+      const off = 9;
+      const left = at(px + dz * off, pz - dx * off);
+      const right = at(px - dz * off, pz + dx * off);
+      if (left?.name !== chome.name && right?.name !== chome.name) continue;
+      bd = d;
+      best = { road: r.id, s: i * ds, x: px, y: P[i * 3 + 1], z: pz, d: 0 };
+    }
+  }
+  if (best) best.d = Math.sqrt(bd);
+  return best;
+}
+
 // ---- 旗の立つ家（家からの発送） ----
 
 /** 旗の立つ割合（1 棟・1 回の窓あたり）と窓の長さ (s)【初期値】 */

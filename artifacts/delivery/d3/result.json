@@ -1,0 +1,372 @@
+{
+  "errors": [],
+  "loadSeconds": 9,
+  "arena": {
+    "chomes": 845,
+    "areaKm2": 17.22,
+    "companies": [
+      {
+        "name": "はまなす便",
+        "staff": 31,
+        "depots": 4,
+        "policy": "wide"
+      },
+      {
+        "name": "ハスカップ便",
+        "staff": 37,
+        "depots": 6,
+        "policy": "fast"
+      },
+      {
+        "name": "ななかまど急便",
+        "staff": 15,
+        "depots": 4,
+        "policy": "wide"
+      },
+      {
+        "name": "えぞまつ運輸",
+        "staff": 10,
+        "depots": 2,
+        "policy": "fast"
+      },
+      {
+        "name": "シマエナガ便",
+        "staff": 15,
+        "depots": 4,
+        "policy": "wide"
+      },
+      {
+        "name": "しらかば便",
+        "staff": 5,
+        "depots": 1,
+        "policy": "fast"
+      },
+      {
+        "name": "えぞりす運輸",
+        "staff": 4,
+        "depots": 1,
+        "policy": "fast"
+      },
+      {
+        "name": "きたきつね急送",
+        "staff": 4,
+        "depots": 1,
+        "policy": "fast"
+      }
+    ],
+    "stepAndTerritoryMs": 39,
+    "entities": [
+      {
+        "name": "はまなす便",
+        "chomes": 244,
+        "ha": 531,
+        "salesWeek": 1736967
+      },
+      {
+        "name": "ハスカップ便",
+        "chomes": 499,
+        "ha": 1000,
+        "salesWeek": 2463315
+      },
+      {
+        "name": "ななかまど急便",
+        "chomes": 10,
+        "ha": 23,
+        "salesWeek": 789360
+      },
+      {
+        "name": "えぞまつ運輸",
+        "chomes": 24,
+        "ha": 45,
+        "salesWeek": 611579
+      },
+      {
+        "name": "シマエナガ便",
+        "chomes": 51,
+        "ha": 88,
+        "salesWeek": 789360
+      },
+      {
+        "name": "しらかば便",
+        "chomes": 9,
+        "ha": 16,
+        "salesWeek": 194235
+      },
+      {
+        "name": "えぞりす運輸",
+        "chomes": 2,
+        "ha": 5,
+        "salesWeek": 241220
+      },
+      {
+        "name": "きたきつね急送",
+        "chomes": 6,
+        "ha": 12,
+        "salesWeek": 268291
+      },
+      {
+        "name": "あなた（個人）",
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 0
+      }
+    ]
+  },
+  "road": "南1条西3丁目（ハスカップ便）  標高 21 m  11:00 晴れ",
+  "join": {
+    "id": "c0",
+    "name": "はまなす便",
+    "company": "c0",
+    "note": "所属 はまなす便  昨日から持ち主が変わった丁目 0"
+  },
+  "trace": [
+    {
+      "t": 41,
+      "v": 7.1,
+      "phase": "pickup",
+      "dist": 383,
+      "plan": 661,
+      "pace": 2,
+      "stop": false,
+      "paused": false,
+      "panel": false,
+      "map": false
+    },
+    {
+      "t": 71,
+      "v": 7.9,
+      "phase": "pickup",
+      "dist": 248,
+      "plan": 243,
+      "pace": 2,
+      "stop": false,
+      "paused": false,
+      "panel": false,
+      "map": false
+    },
+    {
+      "t": 101,
+      "v": 2.8,
+      "phase": "dropoff",
+      "dist": 1165,
+      "plan": 1873,
+      "pace": 2,
+      "stop": false,
+      "paused": false,
+      "panel": false,
+      "map": false
+    },
+    {
+      "t": 131,
+      "v": 6.3,
+      "phase": "dropoff",
+      "dist": 1253,
+      "plan": 1727,
+      "pace": 2,
+      "stop": false,
+      "paused": false,
+      "panel": false,
+      "map": false
+    },
+    {
+      "t": 161,
+      "v": 9.2,
+      "phase": "dropoff",
+      "dist": 1066,
+      "plan": 1503,
+      "pace": 2,
+      "stop": false,
+      "paused": false,
+      "panel": false,
+      "map": false
+    },
+    {
+      "t": 191,
+      "v": 7.5,
+      "phase": "dropoff",
+      "dist": 870,
+      "plan": 1234,
+      "pace": 2,
+      "stop": false,
+      "paused": false,
+      "panel": false,
+      "map": false
+    },
+    {
+      "t": 221,
+      "v": 8.9,
+      "phase": "dropoff",
+      "dist": 695,
+      "plan": 1003,
+      "pace": 2,
+      "stop": false,
+      "paused": false,
+      "panel": false,
+      "map": false
+    },
+    {
+      "t": 251,
+      "v": 6.6,
+      "phase": "dropoff",
+      "dist": 537,
+      "plan": 764,
+      "pace": 2,
+      "stop": false,
+      "paused": false,
+      "panel": false,
+      "map": false
+    },
+    {
+      "t": 281,
+      "v": 6.6,
+      "phase": "dropoff",
+      "dist": 392,
+      "plan": 552,
+      "pace": 2,
+      "stop": false,
+      "paused": false,
+      "panel": false,
+      "map": false
+    },
+    {
+      "t": 312,
+      "v": 5.4,
+      "phase": "dropoff",
+      "dist": 230,
+      "plan": 320,
+      "pace": 2,
+      "stop": false,
+      "paused": false,
+      "panel": false,
+      "map": false
+    },
+    {
+      "t": 342,
+      "v": 7.3,
+      "phase": "dropoff",
+      "dist": 116,
+      "plan": 135,
+      "pace": 2,
+      "stop": false,
+      "paused": false,
+      "panel": false,
+      "map": false
+    },
+    {
+      "t": 372,
+      "v": 0,
+      "phase": "done",
+      "dist": null,
+      "plan": null,
+      "pace": 0,
+      "stop": false,
+      "paused": false,
+      "panel": true,
+      "map": false
+    }
+  ],
+  "delivery": {
+    "dropoff": "北4条西5丁目",
+    "counts": {
+      "c0|北4条西5丁目": 1
+    },
+    "owner": "ハスカップ便",
+    "before": 0
+  },
+  "vans": {
+    "cars": 75,
+    "vans": 11,
+    "companyColored": 5
+  },
+  "nextDays": {
+    "stepped": 3,
+    "ms": 5,
+    "changed": 9,
+    "before": [
+      [
+        "はまなす便",
+        244
+      ],
+      [
+        "ハスカップ便",
+        499
+      ],
+      [
+        "ななかまど急便",
+        10
+      ],
+      [
+        "えぞまつ運輸",
+        24
+      ],
+      [
+        "シマエナガ便",
+        51
+      ],
+      [
+        "しらかば便",
+        9
+      ],
+      [
+        "えぞりす運輸",
+        2
+      ],
+      [
+        "きたきつね急送",
+        6
+      ],
+      [
+        "あなた（個人）",
+        0
+      ]
+    ],
+    "after": [
+      [
+        "はまなす便",
+        257
+      ],
+      [
+        "ハスカップ便",
+        475
+      ],
+      [
+        "ななかまど急便",
+        18
+      ],
+      [
+        "えぞまつ運輸",
+        29
+      ],
+      [
+        "シマエナガ便",
+        49
+      ],
+      [
+        "しらかば便",
+        9
+      ],
+      [
+        "えぞりす運輸",
+        2
+      ],
+      [
+        "きたきつね急送",
+        6
+      ],
+      [
+        "あなた（個人）",
+        0
+      ]
+    ]
+  },
+  "frames": {
+    "p50": 16.69999999999709,
+    "p95": 16.80000000000291
+  },
+  "save": {
+    "same": true,
+    "savedDay": 145473,
+    "loadedDay": 145473,
+    "company": "c0"
+  }
+}

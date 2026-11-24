@@ -141,6 +141,8 @@ export class Traffic {
   readonly vehicles: Vehicle[] = [];
   options: TrafficOptions = TRAFFIC_STANDARD;
   level: TrafficLevel = "normal";
+  /** 車の色を場所で決める（配達用のバン・軽トラをその丁目の業者の色にする。配達の草案 18 章）。null なら色の表から */
+  paint: ((x: number, z: number, type: VehicleType, u: number) => string | null) | null = null;
   /** 世界の時刻（時） */
   hour = 12;
   /** 確かめる用の数 */
@@ -324,6 +326,12 @@ export class Traffic {
     return null;
   }
 
+  private paintAt(road: Road, s: number, type: VehicleType, fallback: string): string {
+    if (!this.paint) return fallback;
+    const p = sampleRoad(road, s);
+    return this.paint(p.x, p.z, type, this.rand()) ?? fallback;
+  }
+
   private makeVehicle(road: Road, s: number, dir: 1 | -1): Vehicle {
     const type = pickWeighted(TYPE_MIX[road.cls] ?? TYPE_MIX[1], this.rand());
     const spec = VEHICLE_SPECS[type];
@@ -333,7 +341,7 @@ export class Traffic {
       type,
       length: spec.length,
       width: spec.width,
-      color: pickWeighted(palette, this.rand()),
+      color: this.paintAt(road, s, type, pickWeighted(palette, this.rand())),
       pos: { road: road.id, s, dir },
       offset: this.laneOffset(road, spec.width),
       speed: 0,

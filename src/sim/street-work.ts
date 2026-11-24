@@ -12,8 +12,8 @@ import { type Errand, errandsNear, GOODS_SIGNS, houseFlag, housesNear, MEAL_SIGN
 const ERRAND_RANGE = 450;
 const FLAG_RANGE = 320;
 const REFRESH_S = 1;
-/** 止まった所からこの距離 (m) 以内の頼み事・旗の家で頼まれる【初期値】（経路の終わりで止まると 15m ほど前後するので、受け渡しの 20m と揃える） */
-export const ASK_REACH = 20;
+/** 止まった所からこの距離 (m) 以内の頼み事・旗の家で頼まれる【初期値】（経路の終わりで止まると 15m ほど前後するので、受け渡しの 30m と揃える） */
+export const ASK_REACH = 30;
 /** 店・家の前の止まる所を探す距離 (m) */
 const SPOT_SEARCH = 40;
 

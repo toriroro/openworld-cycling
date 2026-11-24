@@ -20,9 +20,9 @@ export const HANDOVER_S = 20;
 const LATE_FACTOR = 0.7;
 /** 止まったとみなす速さ (m/s) と、止まった所から住所を調べる左右の距離 (m) */
 const STOP_SPEED = 0.5;
-const SIDE_REACH = [3, 9];
+const SIDE_REACH = [3, 9, 18];
 /** 店・家・人の前の点で止まったとみなす距離 (m)【初期値】 */
-export const SPOT_REACH = 20;
+export const SPOT_REACH = 30;
 /** 常連の店から直接頼まれた時の報酬の倍率（アプリの取り分が無い）【初期値】 */
 export const REGULAR_BONUS = 1.3;
 

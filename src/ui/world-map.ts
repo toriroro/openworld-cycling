@@ -62,7 +62,16 @@ export interface GameMapLayer {
   addresses?: AddressBook;
   /** 配達の行き先の印（配達の草案 3.3 の案内） */
   marks?: () => { x: number; z: number; name: string }[];
+  /** 縄張り: 丁目ごとに持ち主の業者の色を塗った画像と、それが覆う世界の範囲（配達の草案 18 章） */
+  territory?: () => { image: CanvasImageSource; x0: number; z0: number; x1: number; z1: number } | null;
+  /** 業者の営業所 */
+  depots?: () => { x: number; z: number; color: string; company: string }[];
+  /** 縄張りの凡例（商圏の広い順） */
+  legend?: () => { name: string; color: string }[];
 }
+
+/** 縄張りを塗る縮尺の上限 (m/px) */
+const TERRITORY_MPP = 40;
 
 /** 丁目の名前を描く縮尺の上限 (m/px): 短い形（北3西4）と、正式の形（北3条西4丁目） */
 const ADDRESS_SHORT_MPP = 2.6;
@@ -560,6 +569,17 @@ export class WorldMap {
       }
     this.evictTiles();
 
+    // 縄張り（業者の色で丁目を塗る。配達の草案 18 章）
+    const terr = this.mpp <= TERRITORY_MPP ? this.opts.game?.territory?.() : null;
+    if (terr) {
+      const [ax, ay] = [(terr.x0 - v.x0) / this.mpp, (terr.z0 - v.z0) / this.mpp];
+      ctx.save();
+      ctx.globalAlpha = 0.42;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(terr.image, ax, ay, (terr.x1 - terr.x0) / this.mpp, (terr.z1 - terr.z0) / this.mpp);
+      ctx.restore();
+    }
+
     // 道路
     this.wantBlocks();
     if (this.showRoads && this.mpp <= ROADS_VISIBLE_MPP) {
@@ -779,6 +799,35 @@ export class WorldMap {
         label(ctx, full ? p.name : shortAddress(p), sx, sy + 4, full ? 12 : 11, "#3a3a52");
       }
       ctx.textAlign = "start";
+    }
+    // 業者の営業所（色の四角。拡大時は業者の名前）
+    if (terr)
+      for (const d of this.opts.game?.depots?.() ?? []) {
+        if (d.x < v.x0 || d.x > v.x1 || d.z < v.z0 || d.z > v.z1) continue;
+        const [sx, sy] = toScreen(d.x, d.z);
+        ctx.fillStyle = d.color;
+        ctx.fillRect(sx - 6, sy - 6, 12, 12);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#ffffff";
+        ctx.strokeRect(sx - 6, sy - 6, 12, 12);
+        if (this.mpp <= 2.6) label(ctx, `${d.company} 営業所`, sx + 9, sy + 4, 12, "#202020");
+      }
+    // 縄張りの凡例（左下。下の帯の上）
+    const leg = terr ? (this.opts.game?.legend?.() ?? []) : [];
+    if (leg.length) {
+      const rows = leg.slice(0, 8);
+      const x = 10;
+      let y = H - 62 - rows.length * 18;
+      ctx.fillStyle = "rgba(20,24,30,0.72)";
+      ctx.fillRect(x - 4, y - 14, 170, rows.length * 18 + 8);
+      for (const r of rows) {
+        ctx.fillStyle = r.color;
+        ctx.fillRect(x + 2, y - 9, 11, 11);
+        ctx.fillStyle = "#f2f2f2";
+        ctx.font = "12px sans-serif";
+        ctx.fillText(r.name, x + 19, y + 1);
+        y += 18;
+      }
     }
     // 配達の行き先の印
     for (const m of this.opts.game?.marks?.() ?? []) {

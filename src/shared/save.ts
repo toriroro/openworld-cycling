@@ -4,6 +4,7 @@
 import { DEFAULT_OUTFIT, type Outfit, sanitizeOutfit } from "./outfit.ts";
 import { POWER_MAX, POWER_MIN } from "../sim/power.ts";
 import { AdventureLedger } from "../sim/adventure.ts";
+import { type EconomyState, sanitizeEconomy } from "./economy.ts";
 
 export const SAVE_VERSION = 1;
 export const SAVE_KEY = "save";
@@ -67,6 +68,8 @@ export interface WorkSave {
   app: boolean;
   /** 店ごとの届けた件数（店の識別子 → 件数。常連の判定。配達の草案 16 章） */
   regulars: Record<string, number>;
+  /** 経済の場（業者・縄張り・プレイヤーの所属と配達の記録。配達の草案 18 章）。まだ作っていなければ null */
+  economy: EconomyState | null;
 }
 
 /** 仕事を始めた時の所持金 (円)【初期値】（最初から喫茶店で食べられるように） */
@@ -92,6 +95,7 @@ export function sanitizeWork(value: unknown): WorkSave {
     routeStyle: w.routeStyle === "flat" || w.routeStyle === "main" ? w.routeStyle : "short",
     app: w.app !== false,
     regulars: sanitizeCounts(w.regulars),
+    economy: w.economy ? sanitizeEconomy(w.economy) : null,
   };
 }
 
