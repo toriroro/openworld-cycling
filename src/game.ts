@@ -45,7 +45,10 @@ import { AdventurePanel, type PreviewRow } from "./ui/adventure-panel.ts";
 import { JOURNEY_MAX_S, JourneySim } from "./sim/journey.ts";
 import { JourneyPanel } from "./ui/journey-panel.ts";
 import { AddressBook, type AddressPoint, D0_STREET_BOX } from "./shared/world/address.ts";
-import { Delivery, type DeliveryOrder, makeOrder, orderSeed } from "./shared/delivery.ts";
+import { Delivery, type DeliveryOrder, makeOrder, orderSeed, type Place, REGULAR_AFTER } from "./shared/delivery.ts";
+import { MEAL_SIGNS } from "./shared/work-places.ts";
+import { type StreetAsk, StreetWork } from "./sim/street-work.ts";
+import { type Walker, walkersNear } from "./sim/pedestrians.ts";
 import { DeliveryPanel, DeliveryStrip, OfferCard } from "./ui/delivery-panel.ts";
 import { FOODS, type Pace, REST_S, Stamina } from "./shared/stamina.ts";
 import { ROUTE_STYLE_LABELS, type RouteStyle } from "./sim/route-plan.ts";
@@ -227,7 +230,21 @@ export class Game {
   stamina = new Stamina();
   /** 配達アプリ（草案 14.3）: 知らせを受けるか、出している知らせ、次の知らせの時刻（走行の時間 s） */
   appOn = true;
-  private appOffer: { order: DeliveryOrder; until: number } | null = null;
+  /**
+   * 出している注文の知らせ。配達アプリ・常連の店は until（走行の時間 s）で消える。
+   * 道端の頼み事・家からの発送は ask を持ち、その場から離れると消える（配達の草案 16 章）
+   */
+  private cardOffer: { order: DeliveryOrder; until: number | null; ask: StreetAsk | null } | null = null;
+  /** 町で見つかる仕事（頼み事の人・旗の家・店）。北海道の世界で住所を読めた時だけ */
+  streetWork: StreetWork | null = null;
+  /** 店ごとの届けた件数（常連の判定） */
+  regulars: Record<string, number> = {};
+  /** 買い物を頼んだ人（届けるまで待っている。描く時だけ使う） */
+  private waitingPerson: Walker | null = null;
+  /** 地図で頼み事・旗の家の前を行き先にした（着いたら止まる） */
+  private stopAtGoal = false;
+  /** 検証用: 世界の時刻（UNIX 秒）に足す秒 */
+  workClockOffset = 0;
   private nextOfferAt = 15;
   private offerCard: OfferCard;
   /** 配達中に経路の終わりに着いたので、止まるまでブレーキをかけている */
@@ -330,8 +347,8 @@ export class Game {
     // 配達（北海道の世界。配達の草案 13 章、D0）
     this.deliveryStrip = new DeliveryStrip(this.hud.root);
     this.offerCard = new OfferCard(this.hud.root);
-    this.offerCard.onAccept = () => this.acceptAppOffer();
-    this.offerCard.onSkip = () => this.closeAppOffer();
+    this.offerCard.onAccept = () => this.acceptCardOffer();
+    this.offerCard.onSkip = () => this.skipCardOffer();
     if (view.world.id === "hokkaido") this.setupDelivery();
     // トレーナー（トレーナー連携の草案 5章）
     this.trainerPanel = new TrainerPanel(this.trainerSettings(), !!opts.dev);
@@ -578,7 +595,7 @@ export class Game {
       outfit: this.outfit,
       watching: this.watching,
       adventure: this.adventure?.toJSON() ?? null,
-      work: { money: this.money, delivered: this.delivered, onTime: this.onTime, stamina: this.stamina.toJSON(), guide: this.deliveryGuide, routeStyle: this.routeStyle, app: this.appOn },
+      work: { money: this.money, delivered: this.delivered, onTime: this.onTime, stamina: this.stamina.toJSON(), guide: this.deliveryGuide, routeStyle: this.routeStyle, app: this.appOn, regulars: this.regulars },
     };
   }
 
@@ -757,13 +774,16 @@ export class Game {
           return;
         }
         this.goalLandmark = null;
-        this.ride?.setGoal(x, z);
+        // 頼み事の人・旗の家の近くを押したら、その前を行き先にして着いたら止まる（配達の草案 16 章）
+        const snap = this.delivery ? null : this.streetWork?.snap(x, z);
+        this.stopAtGoal = !!snap;
+        this.ride?.setGoal(snap?.x ?? x, snap?.z ?? z);
         // 半オート: 止まっていれば「ふつう」で漕ぎ出す（配達の草案 14.1）
         if (this.manual.pace === 0) this.setPace(2);
       },
       landmarks: () => this.landmarkMarks(),
       addresses: this.addresses ?? undefined,
-      marks: () => this.deliveryMarks(),
+      marks: () => [...this.deliveryMarks(), ...this.workMarks(true)],
       reveal: () => (this.adventure?.active ? ADVENTURE_REVEAL : null),
     });
   }
@@ -1183,6 +1203,8 @@ export class Game {
           z1: b.z,
           points: list.filter((p) => p.jo !== undefined && p.x > a.x + m && p.x < b.x - m && p.z > a.z + m && p.z < b.z - m),
         };
+        const area = this.deliveryArea;
+        this.streetWork = new StreetWork(this.roads.net, this.view.world.local?.buildings ?? null, this.addresses, (x, z) => x > area.x0 + m && x < area.x1 - m && z > area.z0 + m && z < area.z1 - m);
       })
       .catch(() => {
         /* 住所が無ければ配達は出さない */
@@ -1192,6 +1214,7 @@ export class Game {
     this.deliveryPanel.onAccept = () => this.acceptOrder();
     this.deliveryPanel.onCancel = () => {
       this.delivery = null;
+      this.waitingPerson = null;
       this.deliveryPanel.hide();
     };
     this.deliveryPanel.onMove = () => {
@@ -1239,7 +1262,7 @@ export class Game {
       this.appOn ? "on" : "off",
       (v) => {
         this.appOn = v === "on";
-        if (!this.appOn) this.closeAppOffer();
+        if (!this.appOn && this.cardOffer && !this.cardOffer.ask) this.closeCardOffer();
         void this.save();
       },
     );
@@ -1254,6 +1277,7 @@ export class Game {
     this.deliveryGuide = w?.guide ?? "none";
     this.routeStyle = w?.routeStyle ?? "short";
     this.appOn = w?.app ?? true;
+    this.regulars = { ...(w?.regulars ?? {}) };
     if (this.ride) this.ride.routeStyle = this.routeStyle;
     const sel = this.workSelects;
     if (sel.guide) sel.guide.value = this.deliveryGuide;
@@ -1294,58 +1318,164 @@ export class Game {
   /** 配達中に経路の終わりに着いたら止まり、止まったら受け取り・受け渡しを試す（配達の草案 14.1） */
   private updateArrival(ride: Ride) {
     const reached = ride.goalReached;
-    if (this.delivery && reached && !this.goalWasReached && !this.watching) this.arriving = true;
+    if ((this.delivery || this.stopAtGoal) && reached && !this.goalWasReached && !this.watching) this.arriving = true;
     this.goalWasReached = reached;
     if (!this.arriving || ride.speed > 0.3) return;
     this.arriving = false;
+    this.stopAtGoal = false;
     this.checkDelivery();
     // 次の行き先が無ければ止まったままにする
     if (!ride.goal) this.setPace(0);
   }
 
-  /** 配達アプリの知らせ（配達の草案 14.3）。受けている配達・開いている画面があれば出さない */
+  /** 世界の時刻（UNIX 秒）。注文・頼み事・旗はこの時刻から決まる */
+  private worldUnix(): number {
+    return Date.now() / 1000 + this.workClockOffset;
+  }
+
+  /**
+   * 配達アプリ・常連の店の知らせ（配達の草案 14.3・16 章）。受けている配達・開いている画面があれば出さない。
+   * 常連の店があれば、知らせの 3 回に 1 回はその店から（アプリを切っていても来る）
+   */
   private updateApp(time: number) {
     const ride = this.ride;
     const area = this.deliveryArea;
+    const c = this.cardOffer;
+    if (c?.ask) return;
     const busy = !!this.delivery || this.deliveryPanel.isOpen || !!this.stop || this.watching || this.paused;
-    if (!this.appOn || !ride?.road || !area || busy) {
-      if (this.appOffer && !this.paused) this.closeAppOffer();
+    const hasRegular = Object.values(this.regulars).some((n) => n >= REGULAR_AFTER);
+    if ((!this.appOn && !hasRegular) || !ride?.road || !area || busy) {
+      if (c && !this.paused) this.closeCardOffer();
       return;
     }
-    const o = this.appOffer;
-    if (o) {
-      if (time >= o.until) this.closeAppOffer();
-      else this.offerCard.setTimer(o.until - time);
+    if (c) {
+      if (c.until !== null && time >= c.until) this.closeCardOffer();
+      else if (c.until !== null) this.offerCard.setTimer(c.until - time);
       return;
     }
     if (time < this.nextOfferAt) return;
     const p = ride.pose();
-    const order = this.inDeliveryArea(p.x, p.z) ? makeOrder(area.points, p.x, p.z, ++this.orderNo, orderSeed(Date.now() / 1000)) : null;
+    const no = ++this.orderNo;
+    const seed = orderSeed(this.worldUnix());
+    let order: DeliveryOrder | null = null;
+    if (this.inDeliveryArea(p.x, p.z)) {
+      const regular = hasRegular && this.streetWork && (!this.appOn || hash(seed, no, 0x7e9) % 3 === 0) ? this.streetWork.regularPlaces(p.x, p.z, 800, this.regulars) : [];
+      if (regular.length) order = makeOrder(area.points, p.x, p.z, no, seed, { pickups: regular, source: "regular" });
+      else if (this.appOn) order = this.appOrder(p.x, p.z, no, seed);
+    }
     if (!order) {
       this.scheduleOffer(time);
       return;
     }
-    this.appOffer = { order, until: time + OFFER_WINDOW };
+    this.cardOffer = { order, until: time + OFFER_WINDOW, ask: null };
     this.offerCard.show(order, order.approach);
     this.offerCard.setTimer(OFFER_WINDOW);
+  }
+
+  /** 配達アプリの出前の注文: 受け取りは近くの食べ物の店（店のデータが無ければ丁目） */
+  private appOrder(x: number, z: number, no: number, seed: number): DeliveryOrder | null {
+    const area = this.deliveryArea;
+    if (!area) return null;
+    const shops = this.streetWork?.shopPlaces(x, z, 800, MEAL_SIGNS) ?? [];
+    return makeOrder(area.points, x, z, no, seed, shops.length ? { pickups: shops } : {});
+  }
+
+  /** 止まった所の近くに頼み事の人・旗の家があれば、知らせを出す。離れたら消す（配達の草案 16 章） */
+  private updateStreetWork(ride: Ride) {
+    const sw = this.streetWork;
+    if (!sw || !ride.road || this.watching) return;
+    const p = ride.pose();
+    if (!this.inDeliveryArea(p.x, p.z)) {
+      sw.errands = [];
+      sw.flags = [];
+      return;
+    }
+    sw.refresh(p.x, p.z, ride.time, this.worldUnix());
+    const c = this.cardOffer;
+    if (c?.ask) {
+      const at = c.ask.kind === "errand" ? { x: c.ask.errand.roadX, z: c.ask.errand.roadZ } : c.ask.flag.spot;
+      if (Math.hypot(at.x - p.x, at.z - p.z) > 30 || this.delivery) this.closeCardOffer();
+      return;
+    }
+    if (this.delivery || this.stop || this.deliveryPanel.isOpen || this.paused || ride.speed > 0.5 || !this.deliveryArea) return;
+    const ask = sw.askAt(p.x, p.z);
+    if (!ask) return;
+    const order = sw.orderFor(ask, this.deliveryArea.points, ++this.orderNo, orderSeed(this.worldUnix()));
+    if (!order) {
+      // 届け先が作れない所（範囲の端など）。同じ人・家にはもう頼まれない
+      sw.used.add(ask.kind === "errand" ? ask.errand.id : ask.flag.id);
+      return;
+    }
+    if (c) this.closeCardOffer();
+    this.cardOffer = { order, until: null, ask };
+    this.offerCard.show(order, order.approach);
   }
 
   private scheduleOffer(time: number) {
     this.nextOfferAt = time + OFFER_GAP[0] + (hash(0x0ffe, this.orderNo) % (OFFER_GAP[1] * 10)) / 10;
   }
 
-  private closeAppOffer() {
-    this.appOffer = null;
+  private closeCardOffer() {
+    const c = this.cardOffer;
+    this.cardOffer = null;
     this.offerCard.hide();
-    this.scheduleOffer(this.ride?.time ?? 0);
+    if (!c?.ask) this.scheduleOffer(this.ride?.time ?? 0);
   }
 
-  private acceptAppOffer() {
-    const o = this.appOffer;
-    if (!o) return;
-    this.offer = o.order;
-    this.closeAppOffer();
+  private skipCardOffer() {
+    const c = this.cardOffer;
+    // 断った頼み事・旗の家は、同じ窓の間はもう出さない
+    if (c?.ask && this.streetWork) this.streetWork.used.add(c.ask.kind === "errand" ? c.ask.errand.id : c.ask.flag.id);
+    this.closeCardOffer();
+  }
+
+  private acceptCardOffer() {
+    const c = this.cardOffer;
+    if (!c) return;
+    const ask = c.ask;
+    if (ask && this.streetWork) this.streetWork.used.add(ask.kind === "errand" ? ask.errand.id : ask.flag.id);
+    // 買い物を頼んだ人は、届けるまでその場で待つ
+    this.waitingPerson =
+      ask?.kind === "errand" && c.order.kind === "shopping" ? { x: ask.errand.x, y: ask.errand.y, z: ask.errand.z, dx: -ask.errand.dz, dz: ask.errand.dx, gait: 0, still: true, seed: hash(0x9e9, c.order.no) } : null;
+    this.offer = c.order;
+    this.closeCardOffer();
     this.acceptOrder();
+  }
+
+  /** 仕事の印（頼み事の人・旗の家）。labels なら世界地図の印の名前を付ける */
+  private workMarks(labels = false): { x: number; z: number; name: string }[] {
+    const sw = this.streetWork;
+    if (!sw || this.delivery) return [];
+    return [...sw.errands.map((e) => ({ x: e.roadX, z: e.roadZ, name: labels ? "頼み事" : "" })), ...sw.flags.map((f) => ({ x: f.spot.x, z: f.spot.z, name: labels ? "家からの発送" : "" }))];
+  }
+
+  /** 歩く人・頼み事の人・旗を描く（配達の範囲の中だけ） */
+  private drawPeople(pose: { x: number; z: number } | null) {
+    const pv = this.view.pedestrians;
+    const sw = this.streetWork;
+    if (!pose || !sw || !this.inDeliveryArea(pose.x, pose.z)) {
+      pv.update([], [], [], this.view.originX, this.view.originZ, 0);
+      return;
+    }
+    const t = this.worldUnix();
+    const hour = this.view.env.hour;
+    const density = hour >= 7 && hour < 20 ? 0.65 : hour >= 5 && hour < 23 ? 0.35 : 0.1;
+    const light = this.view.quality === "light";
+    // 頼み事の人・待っている人を先に入れる（描く数の上限で落とさない）
+    const people: Walker[] = [];
+    const marks: { x: number; y: number; z: number }[] = [];
+    for (const e of sw.errands) {
+      people.push({ x: e.x, y: e.y, z: e.z, dx: -e.dz, dz: e.dx, gait: 0, still: true, seed: hash(0x9e8, e.s, e.road.length) });
+      marks.push(e);
+    }
+    const wp = this.delivery?.order.kind === "shopping" ? this.waitingPerson : null;
+    if (wp) {
+      people.push(wp);
+      marks.push(wp);
+    }
+    for (const w of walkersNear(this.roads.net.roads.values(), pose.x, pose.z, light ? 120 : 180, t, density, light ? 60 : 200, (x, z) => this.inDeliveryArea(x, z))) people.push(w);
+    const flags = sw.flags.map((f) => ({ x: f.x, y: f.y, z: f.z, yaw: Math.atan2(f.house.x - f.spot.x, f.house.z - f.spot.z) + Math.PI / 2 }));
+    pv.update(people, marks, flags, this.view.originX, this.view.originZ, performance.now() / 1000);
   }
 
   /** 配達の画面を開く: 受けている配達があればその様子、無ければ新しい注文 */
@@ -1370,7 +1500,7 @@ export class Game {
       this.deliveryPanel.showOutside("大通の周り 約 4km 四方（北14条〜南16条、西20丁目〜東13丁目あたり）");
       return;
     }
-    this.offer = makeOrder(area.points, p.x, p.z, ++this.orderNo, orderSeed(Date.now() / 1000));
+    this.offer = this.appOrder(p.x, p.z, ++this.orderNo, orderSeed(this.worldUnix()));
     if (this.offer) this.deliveryPanel.showOrder(this.offer, this.money);
     else this.deliveryPanel.showOutside("大通の周り 約 4km 四方（北14条〜南16条、西20丁目〜東13丁目あたり）");
   }
@@ -1387,7 +1517,7 @@ export class Game {
   }
 
   /** 案内が「経路を自動で引く」なら、その丁目へ経路を引く。そうでなければ行き先を消す */
-  private guideTo(p: AddressPoint) {
+  private guideTo(p: Place) {
     const ride = this.ride;
     if (!ride) return;
     if (this.deliveryGuide !== "route") {
@@ -1413,11 +1543,20 @@ export class Game {
     this.money += r.reward;
     this.delivered++;
     if (!r.late) this.onTime++;
+    // 店から受け取った配達は、店ごとに数える（常連。配達の草案 16 章）
+    const extra: [string, string][] = [];
+    const shop = r.order.pickup;
+    if (shop.kind === "shop" && shop.id) {
+      const n = (this.regulars[shop.id] ?? 0) + 1;
+      this.regulars[shop.id] = n;
+      extra.push(["受け取った店", `${shop.name} ${n} 件目${n >= REGULAR_AFTER ? "（常連）" : `（${REGULAR_AFTER} 件で常連）`}`]);
+    }
     this.delivery = null;
+    this.waitingPerson = null;
     this.deliveryNote = null;
     ride.setGoal(null);
     this.setPace(0);
-    this.deliveryPanel.showResult(r, this.money, this.delivered, this.onTime);
+    this.deliveryPanel.showResult(r, this.money, this.delivered, this.onTime, extra);
     void this.save();
   }
 
@@ -1671,8 +1810,9 @@ export class Game {
     if (this.updateJourney()) return;
     this.updateWatching(t);
     // 配達中は、止まった所を喫茶店・名所の立ち寄りにしない（受け取り・受け渡しで止まるため）
+    if (this.ride) this.updateStreetWork(this.ride);
     if (this.delivery) this.checkDelivery();
-    else {
+    else if (!this.cardOffer?.ask) {
       this.checkCafe(t);
       this.checkLandmark(t);
     }
@@ -1780,6 +1920,7 @@ export class Game {
       const env = this.view.env;
       const lights = 2.2 * Math.max(1 - env.daylight, env.mist * 0.7);
       this.view.trafficView.update(this.traffic, this.view.originX, this.view.originZ, lights, eye.x, eye.z);
+      this.drawPeople(pose);
       this.view.realPoles?.setLights(lights);
       this.player.group.visible = !!pose;
       if (pose && ride) {
@@ -1827,7 +1968,7 @@ export class Game {
     // 小地図（10 回／秒）と世界地図の表示
     if (pose && t - this.minimapT > 100) {
       this.minimapT = t;
-      this.minimap.draw({ roads: this.roads.roadEntries(), pois: this.roads.pois.values(), ridden: this.ridden, stamped: this.stampSet, x: pose.x, z: pose.z, dx: pose.dx, dz: pose.dz, goal, landmarks: this.landmarkMarks() });
+      this.minimap.draw({ roads: this.roads.roadEntries(), pois: this.roads.pois.values(), ridden: this.ridden, stamped: this.stampSet, x: pose.x, z: pose.z, dx: pose.dx, dz: pose.dz, goal, landmarks: this.landmarkMarks(), work: this.workMarks() });
     }
     if (this.mapOverlay.isOpen)
       this.mapOverlay.setInfo(

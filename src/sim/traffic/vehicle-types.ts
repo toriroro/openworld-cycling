@@ -31,8 +31,8 @@ export const TYPE_MIX: Record<number, [VehicleType, number][]> = {
   3: [["keiTruck", 1]],
 };
 
-/** 道路の等級ごとの 1km あたりの台数（両方向の合計、昼の値）【初期値】。落ち着いて走れるよう少なめ */
-export const DENSITY_PER_KM = [4, 2, 0.5, 0.06, 0];
+/** 道路の等級ごとの 1km あたりの台数（両方向の合計、昼の値）【初期値】。配達の町を賑やかにするため多め（配達の草案 16.4。以前は 4・2・0.5） */
+export const DENSITY_PER_KM = [12, 6, 1.5, 0.06, 0];
 
 /** 等級ごとの規制速度 (m/s)【初期値】: 幹線 60km/h、一般道 50、山道 40、林道 25 */
 export const SPEED_LIMIT = [16.7, 13.9, 11.1, 6.9, 0];

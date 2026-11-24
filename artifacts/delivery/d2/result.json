@@ -1,0 +1,147 @@
+{
+  "errors": [],
+  "near": {
+    "errands": [
+      {
+        "kind": "papers",
+        "d": 403
+      },
+      {
+        "kind": "forgot",
+        "d": 10
+      },
+      {
+        "kind": "forgot",
+        "d": 152
+      },
+      {
+        "kind": "forgot",
+        "d": 391
+      },
+      {
+        "kind": "papers",
+        "d": 361
+      },
+      {
+        "kind": "shopping",
+        "d": 188
+      }
+    ],
+    "flags": 2,
+    "mealShops": 36,
+    "goodsShops": 41,
+    "drawn": {
+      "walkers": 121,
+      "marks": 6,
+      "flags": 2
+    }
+  },
+  "errand": {
+    "found": {
+      "tries": 0,
+      "x": 65.75468444824219,
+      "z": 400.952317237854,
+      "d": 403
+    },
+    "card": "頼み事\n内容\n忘れ物を届ける\n受け取り\nその場で\n届け先\n南4条西4丁目 直線 0.5 km\n期限\n4:20\n報酬\n300 円\n受ける\n見送る",
+    "run": {
+      "order": {
+        "kind": "forgot",
+        "source": "street",
+        "pickup": "頼んだ人（南1西3）",
+        "pickupKind": "person",
+        "dropoff": "南4条西4丁目",
+        "dropoffKind": "chome",
+        "distance": 484,
+        "limit": 260,
+        "reward": 300
+      },
+      "panel": "届けた\n内容\n忘れ物を届ける（頼み事）\n届け先\n南4条西4丁目\nかかった時間\n2:17\n期限\n4:20\n走った距離\n0.7 km\n報酬\n300 円\n所持金\n1300 円\n届けた数\n1 件（期限内 1 件）\n次の注文\n閉じる",
+      "seconds": 16,
+      "maxMarks": 8
+    }
+  },
+  "house": {
+    "found": {
+      "tries": 0,
+      "x": 182.55684661865234,
+      "z": 584.213415145874,
+      "d": 93
+    },
+    "card": "家からの発送\n内容\n小包\n受け取り\nその場で\n届け先\n南5条西12丁目 直線 1.0 km\n期限\n9:50\n報酬\n460 円\n受ける\n見送る",
+    "run": {
+      "order": {
+        "kind": "parcel",
+        "source": "house",
+        "pickup": "家（南5西4）",
+        "pickupKind": "house",
+        "dropoff": "南5条西12丁目",
+        "dropoffKind": "chome",
+        "distance": 1046,
+        "limit": 590,
+        "reward": 460
+      },
+      "panel": "届けた\n内容\n小包（家からの発送）\n届け先\n南5条西12丁目\nかかった時間\n2:51\n期限\n9:50\n走った距離\n1.1 km\n報酬\n460 円\n所持金\n1760 円\n届けた数\n2 件（期限内 2 件）\n次の注文\n閉じる",
+      "seconds": 22,
+      "maxMarks": 5
+    }
+  },
+  "shopping": {
+    "found": {
+      "tries": 0,
+      "x": -459.2384796142578,
+      "z": 760.2344727516174,
+      "d": 377
+    },
+    "card": "頼み事\n内容\n買い物\n受け取り\n酒店（南4西6） 直線 0.5 km\n届け先\n頼んだ人（南5西9） 直線 0.5 km\n期限\n7:30\n報酬\n510 円\n受ける\n見送る",
+    "run": {
+      "order": {
+        "kind": "shopping",
+        "source": "street",
+        "pickup": "酒店（南4西6）",
+        "pickupKind": "shop",
+        "dropoff": "頼んだ人（南5西9）",
+        "dropoffKind": "person",
+        "distance": 527,
+        "limit": 450,
+        "reward": 510
+      },
+      "panel": "届けた\n内容\n買い物（頼み事）\n届け先\n頼んだ人（南5西9）\nかかった時間\n4:03\n期限\n7:30\n走った距離\n1.4 km\n報酬\n510 円\n所持金\n2270 円\n届けた数\n3 件（期限内 3 件）\n受け取った店\n酒店（南4西6） 1 件目（3 件で常連）\n次の注文\n閉じる",
+      "seconds": 35,
+      "maxMarks": 6
+    }
+  },
+  "app": {
+    "pickup": "寿司（南8西12）",
+    "kind": "shop",
+    "id": "10060619",
+    "reward": 530
+  },
+  "regular": {
+    "card": "店から（常連）\n24 秒\n内容\n出前\n受け取り\n寿司（南8西12） 直線 0.6 km\n届け先\n南12条西18丁目 直線 1.0 km\n期限\n9:40\n報酬\n590 円\n受ける\n見送る"
+  },
+  "frames": {
+    "p50": 16.69999999999709,
+    "p95": 16.80000000000291
+  },
+  "save": {
+    "saved": {
+      "money": 2270,
+      "delivered": 3,
+      "regulars": {
+        "7831606": 1,
+        "10060619": 3
+      }
+    },
+    "loaded": {
+      "money": 2270,
+      "delivered": 3,
+      "regulars": {
+        "7831606": 1,
+        "10060619": 3
+      }
+    },
+    "same": true
+  },
+  "walkersDay": 126
+}

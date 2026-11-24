@@ -134,8 +134,8 @@ export interface TrafficOptions {
   max: number;
 }
 
-export const TRAFFIC_STANDARD: TrafficOptions = { radius: 500, max: 40 };
-export const TRAFFIC_LIGHT: TrafficOptions = { radius: 320, max: 16 };
+export const TRAFFIC_STANDARD: TrafficOptions = { radius: 500, max: 150 };
+export const TRAFFIC_LIGHT: TrafficOptions = { radius: 320, max: 50 };
 
 export class Traffic {
   readonly vehicles: Vehicle[] = [];
@@ -280,12 +280,16 @@ export class Traffic {
     const want = this.target();
     const R = this.options.radius;
     let tries = 0;
-    // 最初は範囲の中を一度に埋める。以降は 1 回に 2 台まで、範囲の外れか後ろに出す
-    let budget = this.filled ? 2 : want;
-    while (this.vehicles.length < want && budget > 0 && tries < 40) {
+    // 最初は範囲の中を一度に埋める。以降は 1 回に 4 台まで、範囲の外れか後ろに出す
+    let budget = this.filled ? 4 : want;
+    while (this.vehicles.length < want && budget > 0 && tries < 160) {
       tries++;
+      // 道路の端に当たった時は選び直す（短い道路の多い町中で、ここで打ち切ると車が増えない）
       const site = this.pickSite();
-      if (!site) break;
+      if (!site) {
+        if (!this.nearby.length) break;
+        continue;
+      }
       const { road, s, dir } = site;
       const p = sampleRoad(road, s);
       const d = Math.hypot(p.x - cx, p.z - cz);
@@ -563,7 +567,8 @@ export class Traffic {
       const rel = (t.x - v.x) * v.dx + (t.z - v.z) * v.dz;
       const tl = v.passing.target === -1 ? BIKE_LENGTH : (t as Vehicle).length;
       if (rel < -(v.length + tl) / 2 - 7) v.passing = null;
-      else if (rel > 0 && this.oncomingNear(v, 60 + v.speed * 3)) v.passing = null;
+      // 対向車が来たらやめる。ただし相手の横に並びかけていたら抜き切る（並んだまま車線へ戻ると相手に重なる）
+      else if (rel > (v.length + tl) / 2 + 3 && this.oncomingNear(v, 60 + v.speed * 3)) v.passing = null;
       return;
     }
     if (lead.gap === Infinity || lead.gap > 45) return;

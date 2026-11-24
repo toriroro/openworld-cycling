@@ -781,10 +781,59 @@ html, body {
 .pace-bar {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--safe-b) + 40px);
+  bottom: calc(var(--safe-b) + 38px);
   transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.pace-row {
+  display: flex;
   gap: 4px;
+}
+.pace-gauges {
+  display: flex;
+  gap: 10px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(14, 18, 24, 0.72);
+}
+.gauge {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink);
+}
+.gauge-label {
+  min-width: 2em;
+}
+.gauge-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+.gauge-fill {
+  display: block;
+  height: 100%;
+  background: #7fd17a;
+}
+.gauge-energy .gauge-fill {
+  background: #ffcf4a;
+}
+.gauge.low .gauge-fill {
+  background: #ff6a5a;
+}
+.gauge.low .gauge-value {
+  color: #ff8a7a;
+}
+.gauge-value {
+  min-width: 3.2em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .pace-btn {
   min-width: 56px;
@@ -795,9 +844,6 @@ html, body {
 .pace-btn.selected {
   background: var(--accent);
   color: #111;
-}
-.stat.low .stat-value {
-  color: #ff8a7a;
 }
 /* 縦画面: 上は走行情報と分岐、右下は小地図なので、ペースは小地図の上、配達の表示はその上 */
 @media (orientation: portrait) {
@@ -810,11 +856,11 @@ html, body {
   .hud-root .delivery-strip,
   .hud-root .offer-card {
     top: auto;
-    bottom: calc(var(--safe-b) + 222px);
+    bottom: calc(var(--safe-b) + 248px);
   }
   .hud-root.has-touch .delivery-strip,
   .hud-root.has-touch .offer-card {
-    bottom: calc(var(--safe-b) + 304px);
+    bottom: calc(var(--safe-b) + 330px);
   }
 }
 @media (orientation: landscape) {

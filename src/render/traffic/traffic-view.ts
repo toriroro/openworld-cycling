@@ -7,7 +7,7 @@ import type { Traffic } from "../../sim/traffic/traffic.ts";
 import { VEHICLE_TYPES, type VehicleType } from "../../sim/traffic/vehicle-types.ts";
 import { vehicleGeometry } from "./vehicle-shapes.ts";
 
-const CAPACITY: Record<VehicleType, number> = { sedan: 40, kei: 40, minivan: 40, van: 40, keiTruck: 40, bus: 16 };
+const CAPACITY: Record<VehicleType, number> = { sedan: 150, kei: 150, minivan: 150, van: 150, keiTruck: 150, bus: 40 };
 
 /** 頂点の glow の量だけ、頂点色で光らせる材質 */
 function glowMaterial(params: THREE.MeshStandardMaterialParameters, lights: { value: number }): THREE.MeshStandardMaterial {

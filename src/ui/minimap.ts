@@ -21,6 +21,8 @@ export interface MinimapInput {
   goal: { x: number; z: number } | null;
   /** 名所の印（円の中だけ描く） */
   landmarks?: { x: number; z: number; visited: boolean; goal: boolean }[];
+  /** 仕事の印（道端の頼み事の人・旗の家。配達の草案 16 章）。円の中だけ描く */
+  work?: { x: number; z: number }[];
 }
 
 export class Minimap {
@@ -136,6 +138,23 @@ export class Minimap {
       const [sx, sy] = toScreen(lm.x, lm.z);
       if ((sx - R) ** 2 + (sy - R) ** 2 > (R - 6 * dpr) ** 2) continue;
       drawLandmark(ctx, sx, sy, lm.visited, lm.goal, dpr * 0.8);
+    }
+    // 仕事の印（橙の菱形）
+    for (const w of m.work ?? []) {
+      const [sx, sy] = toScreen(w.x, w.z);
+      if ((sx - R) ** 2 + (sy - R) ** 2 > (R - 6 * dpr) ** 2) continue;
+      const h = 4.5 * dpr;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - h * 1.3);
+      ctx.lineTo(sx + h, sy);
+      ctx.lineTo(sx, sy + h * 1.3);
+      ctx.lineTo(sx - h, sy);
+      ctx.closePath();
+      ctx.fillStyle = "#ff8a1f";
+      ctx.fill();
+      ctx.strokeStyle = "#3a1a00";
+      ctx.lineWidth = 1.2 * dpr;
+      ctx.stroke();
     }
     ctx.restore();
     // 行き先: 円の中なら印、外なら縁に向きの印

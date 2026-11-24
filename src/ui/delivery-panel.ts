@@ -1,7 +1,7 @@
-// 配達の画面（配達の草案 13 章、D0）。注文の表示、走っている間の行き先と残り時間、届けた結果。
+// 配達の画面（配達の草案 13・15・16 章）。注文の表示、走っている間の行き先と残り時間、届けた結果、注文の知らせ。
 // 文言は操作・状態・事実情報だけ。
 
-import type { DeliveryOrder, DeliveryResult } from "../shared/delivery.ts";
+import { type DeliveryOrder, type DeliveryResult, ORDER_KIND_LABELS, ORDER_SOURCE_LABELS } from "../shared/delivery.ts";
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = "", parent?: HTMLElement) => {
   const e = document.createElement(tag);
@@ -62,6 +62,7 @@ export class DeliveryPanel {
 
   showOrder(o: DeliveryOrder, money: number) {
     this.fill("注文", [
+      ["内容", ORDER_KIND_LABELS[o.kind]],
       ["受け取り", o.pickup.name],
       ["届け先", o.dropoff.name],
       ["受け取りまで", `直線 ${km(o.approach)}`],
@@ -94,8 +95,9 @@ export class DeliveryPanel {
     this.button("閉じる", () => this.onClose());
   }
 
-  showResult(r: DeliveryResult, money: number, count: number, onTime: number) {
+  showResult(r: DeliveryResult, money: number, count: number, onTime: number, extra: [string, string][] = []) {
     this.fill("届けた", [
+      ["内容", `${ORDER_KIND_LABELS[r.order.kind]}（${ORDER_SOURCE_LABELS[r.order.source]}）`],
       ["届け先", r.order.dropoff.name],
       ["かかった時間", fmtDuration(r.elapsed)],
       ["期限", `${fmtDuration(r.order.limit)}${r.late ? "（遅れ）" : ""}`],
@@ -103,6 +105,7 @@ export class DeliveryPanel {
       ["報酬", `${r.reward} 円`],
       ["所持金", `${money} 円`],
       ["届けた数", `${count} 件（期限内 ${onTime} 件）`],
+      ...extra,
     ]);
     this.button("次の注文", () => this.onOther(), true);
     this.button("閉じる", () => this.onClose());
@@ -138,10 +141,14 @@ export class DeliveryStrip {
   }
 }
 
-/** 配達アプリの知らせ（右上、U ターンの下）: 注文の要点と、受けるまでの残り秒（配達の草案 14.3） */
+/**
+ * 注文の知らせ（右上、U ターンの下）: 注文の要点と、受けるまでの残り秒（配達の草案 14.3）。
+ * 配達アプリ・常連の店の知らせは時間で消え、道端の頼み事・家からの発送は離れるまで出しておく（秒は出さない）
+ */
 export class OfferCard {
   readonly root: HTMLElement;
   private body: HTMLElement;
+  private title: HTMLElement;
   private timer: HTMLElement;
   onAccept: () => void = () => {};
   onSkip: () => void = () => {};
@@ -149,7 +156,7 @@ export class OfferCard {
   constructor(parent: HTMLElement) {
     this.root = h("div", "offer-card hidden", "", parent);
     const head = h("div", "offer-head", "", this.root);
-    h("span", "offer-title", "配達アプリ", head);
+    this.title = h("span", "offer-title", "配達アプリ", head);
     this.timer = h("span", "offer-timer", "", head);
     this.body = h("dl", "stop-rows offer-rows", "", this.root);
     const btns = h("div", "delivery-buttons", "", this.root);
@@ -167,9 +174,12 @@ export class OfferCard {
 
   show(o: DeliveryOrder, fromHere: number) {
     this.body.replaceChildren();
+    this.title.textContent = ORDER_SOURCE_LABELS[o.source];
+    this.timer.textContent = "";
     for (const [k, v] of [
-      ["受け取り", `${o.pickup.name}（直線 ${km(fromHere)}）`],
-      ["届け先", `${o.dropoff.name}（直線 ${km(o.distance)}）`],
+      ["内容", ORDER_KIND_LABELS[o.kind]],
+      ["受け取り", o.pickedAtStart ? "その場で" : `${o.pickup.name}  直線 ${km(fromHere)}`],
+      ["届け先", `${o.dropoff.name}  直線 ${km(o.distance)}`],
       ["期限", fmtDuration(o.limit)],
       ["報酬", `${o.reward} 円`],
     ]) {

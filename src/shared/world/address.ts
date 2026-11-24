@@ -37,6 +37,12 @@ export function gridIndex(p: AddressPoint): { n: number; e: number } | null {
   return { n: p.ns === "南" ? -p.jo : p.jo, e: p.ew === "西" ? -p.chome : p.chome };
 }
 
+/** 短い住所（「北3西4」「大通西6」）。碁盤の住所でなければ名前のまま */
+export function shortAddress(p: AddressPoint): string {
+  if (p.jo === undefined) return p.name;
+  return `${p.ns === "大通" ? "大通" : `${p.ns}${p.jo}`}${p.ew}${p.chome}`;
+}
+
 /** 点を引く格子の一辺 (m) */
 const CELL = 250;
 

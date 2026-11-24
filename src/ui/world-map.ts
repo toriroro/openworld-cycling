@@ -7,7 +7,7 @@ import { ROAD_CLASSES } from "../shared/world/constants.ts";
 import type { Junction, Poi, RailLine, Road, WorldNode } from "../shared/world/types.ts";
 import type { CrossingInfo, Rect } from "../shared/world/world.ts";
 import type { RiddenLog } from "../sim/ridden.ts";
-import type { AddressBook, AddressPoint } from "../shared/world/address.ts";
+import { type AddressBook, shortAddress } from "../shared/world/address.ts";
 import { TILE_PX } from "../workers/map-tile.ts";
 import type { RegionPayload, WorldRequest, WorldResponse } from "../workers/world-protocol.ts";
 
@@ -69,10 +69,7 @@ const ADDRESS_SHORT_MPP = 2.6;
 const ADDRESS_FULL_MPP = 1.3;
 
 /** 丁目の短い名前（北3西4、大通西6）。碁盤の住所でなければそのまま */
-export function shortAddress(p: AddressPoint): string {
-  if (p.jo === undefined) return p.name;
-  return `${p.ns === "大通" ? "大通" : `${p.ns}${p.jo}`}${p.ew}${p.chome}`;
-}
+export { shortAddress };
 
 export interface MapStatus {
   x: number;

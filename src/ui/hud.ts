@@ -90,6 +90,8 @@ export class Hud {
   private uturnBtn: HTMLButtonElement;
   private roadEl: HTMLElement;
   private paceBar: HTMLElement;
+  private paceRow: HTMLElement;
+  private gauges: Record<"legs" | "energy", { root: HTMLElement; fill: HTMLElement; value: HTMLElement }> = {} as never;
   private settingsEls: {
     power: HTMLInputElement;
     powerOut: HTMLElement;
@@ -120,8 +122,6 @@ export class Hud {
       ["cadence", "ケイデンス", "rpm"],
       ["heart", "心拍", "bpm"],
       ["adventure", "冒険の残り", "km"],
-      ["legs", "脚", "%"],
-      ["energy", "体力", "%"],
     ] as const) {
       const box = h("div", `stat stat-${key}`, "", info);
       h("span", "stat-label", label, box);
@@ -131,13 +131,26 @@ export class Hud {
     }
     this.roadEl = h("div", "road-name", "", this.root);
 
-    // 下中央: ペース（配達の草案 14.1）
+    // 下中央: ペース（配達の草案 14.1）と、その下に脚・体力の棒（14.2）
     this.paceBar = h("div", "pace-bar hidden", "", this.root);
+    this.paceRow = h("div", "pace-row", "", this.paceBar);
     PACE_LABELS.forEach((label, i) => {
-      const b = h("button", "btn pace-btn", label, this.paceBar);
+      const b = h("button", "btn pace-btn", label, this.paceRow);
       b.type = "button";
       this.input.bindTap(b, `pace-${i}` as Action);
     });
+    const gauges = h("div", "pace-gauges", "", this.paceBar);
+    for (const [key, label] of [
+      ["legs", "脚"],
+      ["energy", "体力"],
+    ] as const) {
+      const g = h("div", `gauge gauge-${key}`, "", gauges);
+      h("span", "gauge-label", label, g);
+      const track = h("span", "gauge-track", "", g);
+      const fill = h("span", "gauge-fill", "", track);
+      const value = h("span", "gauge-value", "", g);
+      this.gauges[key] = { root: g, fill, value };
+    }
 
     // 上中央: 分岐の候補
     this.branch = h("div", "branch", "", this.root);
@@ -362,15 +375,17 @@ export class Hud {
     opt("heart", st.heartRate);
     for (const key of ["legs", "energy"] as const) {
       const v = st[key];
-      const box = this.stats[key].parentElement!;
-      box.classList.toggle("hidden", v == null);
+      const g = this.gauges[key];
+      g.root.classList.toggle("hidden", v == null);
       if (v != null) {
-        this.stats[key].textContent = String(Math.round(v * 100));
-        box.classList.toggle("low", v < 0.2);
+        const pct = Math.max(0, Math.min(100, Math.round(v * 100)));
+        g.fill.style.width = `${pct}%`;
+        g.value.textContent = `${pct}%`;
+        g.root.classList.toggle("low", v < 0.2);
       }
     }
     this.paceBar.classList.toggle("hidden", st.pace == null);
-    if (st.pace != null) [...this.paceBar.children].forEach((el, i) => el.classList.toggle("selected", i === st.pace));
+    if (st.pace != null) [...this.paceRow.children].forEach((el, i) => el.classList.toggle("selected", i === st.pace));
     this.stats.adventure.parentElement!.classList.toggle("hidden", st.adventure == null);
     if (st.adventure != null) this.stats.adventure.textContent = (st.adventure / 1000).toFixed(1);
     const sky = st.hour !== undefined ? `  ${fmtHour(st.hour)}${st.weather ? ` ${st.weather}` : ""}` : "";

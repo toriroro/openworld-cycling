@@ -19,7 +19,7 @@ describe("保存データ（モック仕様 7.3）", () => {
     outfit: DEFAULT_OUTFIT,
     watching: true,
     adventure: { mode: "adventure", since: 1795000000, balance: 12345.6, spent: 7654.4, imports: [{ id: "fit:run:1795000100", sport: "run", start: 1795000100, distance: 5000, seconds: 1800, credit: 50000, source: "fit" }], journey: { startedAt: 1795001000, lastSimulated: 1795002000 }, lastJourney: null },
-    work: { money: 2340, delivered: 5, onTime: 4, stamina: { legs: 9000, energy: 800000 }, guide: "route", routeStyle: "flat", app: false },
+    work: { money: 2340, delivered: 5, onTime: 4, stamina: { legs: 9000, energy: 800000 }, guide: "route", routeStyle: "flat", app: false, regulars: { "3011": 4, "77": 1 } },
   };
 
   it("書いて読むと同じ", () => {
@@ -46,6 +46,10 @@ describe("保存データ（モック仕様 7.3）", () => {
     expect(w.routeStyle).toBe("short");
     expect(w.stamina).toBeNull();
     expect(w.app).toBe(true);
+    expect(w.regulars).toEqual({});
+    // 店ごとの件数は数の正しい物だけ残す
+    const r = parseSave(JSON.stringify({ version: 1, work: { regulars: { a: 2.4, b: -1, c: "3", d: 0 } } }))!.work!;
+    expect(r.regulars).toEqual({ a: 2 });
   });
 });
 

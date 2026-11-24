@@ -14,6 +14,7 @@ import { BuildingMeshes } from "./buildings.ts";
 import { DistrictMeshes } from "./district/meshes.ts";
 import { Towns } from "./towns.ts";
 import { TrafficView } from "./traffic/traffic-view.ts";
+import { PedestrianView } from "./pedestrians.ts";
 import { RealBuildings } from "./real-buildings.ts";
 import { RealStreets } from "./real-streets.ts";
 import { RealPoles } from "./real-poles.ts";
@@ -56,6 +57,8 @@ export class WorldView {
   landmarks: LandmarkView | null = null;
   /** 車とバス停（sim/traffic を読んで描く） */
   readonly trafficView = new TrafficView();
+  /** 歩く人・頼み事の印・家の旗（配達の草案 16 章） */
+  readonly pedestrians = new PedestrianView();
   private pruneT = 0;
   quality: Quality = "standard";
   /** 描画の原点（世界座標、REBASE_UNIT の倍数） */
@@ -182,7 +185,7 @@ export class WorldView {
           this.realBuildings.refresh();
         }
       });
-    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group, this.districts.group, this.trafficView.group);
+    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group, this.districts.group, this.trafficView.group, this.pedestrians.group);
     this.setQuality(matchMedia("(pointer: coarse)").matches ? "light" : "standard");
   }
 
@@ -200,6 +203,7 @@ export class WorldView {
     this.buildings?.setQuality(light);
     this.districts?.setQuality(light);
     this.trafficView?.setQuality(light);
+    this.pedestrians?.setQuality(light);
     this.realBuildings?.setQuality(light);
     this.realStreets?.setQuality(light);
     this.realPoles?.setQuality(light);

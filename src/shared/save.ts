@@ -65,10 +65,20 @@ export interface WorkSave {
   routeStyle: "short" | "flat" | "main";
   /** 配達アプリの知らせを受ける */
   app: boolean;
+  /** 店ごとの届けた件数（店の識別子 → 件数。常連の判定。配達の草案 16 章） */
+  regulars: Record<string, number>;
 }
 
 /** 仕事を始めた時の所持金 (円)【初期値】（最初から喫茶店で食べられるように） */
 export const START_MONEY = 1000;
+
+/** 店ごとの件数の記録。数の正しい物だけ、多い順に 2,000 店まで */
+function sanitizeCounts(value: unknown): Record<string, number> {
+  const out: [string, number][] = [];
+  for (const [k, v] of Object.entries(rec(value))) if (k.length <= 24 && typeof v === "number" && Number.isFinite(v) && v >= 1) out.push([k, Math.min(1e6, Math.round(v))]);
+  out.sort((a, b) => b[1] - a[1]);
+  return Object.fromEntries(out.slice(0, 2000));
+}
 
 export function sanitizeWork(value: unknown): WorkSave {
   const w = rec(value);
@@ -81,6 +91,7 @@ export function sanitizeWork(value: unknown): WorkSave {
     guide: w.guide === "map" || w.guide === "route" ? w.guide : "none",
     routeStyle: w.routeStyle === "flat" || w.routeStyle === "main" ? w.routeStyle : "short",
     app: w.app !== false,
+    regulars: sanitizeCounts(w.regulars),
   };
 }
 
