@@ -16,7 +16,8 @@ if (hokkaido) {
   credit.classList.remove("hidden");
   credit.innerHTML =
     `地図データ <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>（ODbL）・` +
-    `標高 <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a> の標高タイルを加工`;
+    `標高 <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a> の標高タイルを加工・` +
+    `建物 <a href="https://www.geospatial.jp/ckan/dataset/plateau-01100-sapporo-shi-2020" target="_blank" rel="noopener">3D都市モデル（Project PLATEAU）札幌市</a>／国土交通省（CC BY 4.0）を加工`;
 }
 
 const canvas = document.getElementById("map") as HTMLCanvasElement;

@@ -20,3 +20,4 @@ assets-source/hokkaido/**/osm/*.json
 public/data/hokkaido/
 assets-source/hokkaido/pbf/*.osm.pbf
 assets-source/hokkaido/**/buildings.json
+assets-source/hokkaido/plateau/

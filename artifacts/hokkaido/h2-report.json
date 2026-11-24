@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-11-23T16:43:07.247Z",
+  "builtAt": "2026-11-24T06:00:22.299Z",
   "area": {
     "x0": -30000,
     "x1": 30000,
@@ -257,22 +257,46 @@
     "passes": 2
   },
   "buildings": {
-    "input": 741629,
-    "kept": 702347,
-    "tooSmall": 36432,
-    "onRoad": 2755,
-    "skipped": 95,
+    "input": 747916,
+    "kept": 703610,
+    "tooSmall": 38190,
+    "onRoad": 2609,
+    "skipped": 58,
     "byStyle": {
-      "apartment": 63378,
-      "strip": 70993,
-      "tenant": 3312,
-      "mansion": 12811,
-      "house": 434359,
-      "shop": 6561,
-      "oldhouse": 108979,
-      "oldshop": 1954
+      "apartment": 65353,
+      "strip": 70538,
+      "mansion": 15186,
+      "tenant": 4477,
+      "house": 431580,
+      "shop": 5591,
+      "oldhouse": 109077,
+      "oldshop": 1808
     },
-    "withLevels": 11122
+    "withLevels": 28069,
+    "plateau": 20460,
+    "plateauSheds": 3449
+  },
+  "plateau": {
+    "files": 30,
+    "parsed": 48879,
+    "kept": 27634,
+    "noFootprint": 0,
+    "byUsage": {
+      "401": 1583,
+      "402": 1082,
+      "411": 6521,
+      "412": 6568,
+      "413": 1063,
+      "415": 80,
+      "422": 610,
+      "431": 345,
+      "441": 118,
+      "451": 2,
+      "452": 47,
+      "454": 30,
+      "461": 9585
+    },
+    "osmReplaced": 21347
   },
   "streets": {
     "ways": 161717,
@@ -280,55 +304,55 @@
       14257.5,
       7217.3
     ],
-    "pieces": 235710,
-    "clippedPoints": 1126966
+    "pieces": 235672,
+    "clippedPoints": 1127357
   },
   "sidewalks": {
-    "km": 3171.3,
-    "trees": 90522,
-    "runs": 73777,
-    "cornerKm": 214.9,
-    "corners": 15621,
-    "crosswalks": 10257,
-    "junctionsWithCrosswalks": 3311,
-    "ramps": 10257
+    "km": 3174.4,
+    "trees": 90673,
+    "runs": 73733,
+    "cornerKm": 215.4,
+    "corners": 15614,
+    "crosswalks": 10311,
+    "junctionsWithCrosswalks": 3316,
+    "ramps": 10311
   },
   "poles": {
-    "poles": 315881,
-    "lamps": 145946,
-    "transformers": 79045,
-    "streetlights": 48802,
-    "wireKm": 7726.4,
+    "poles": 315275,
+    "lamps": 145724,
+    "transformers": 78914,
+    "streetlights": 48895,
+    "wireKm": 7719,
     "MB": 8.7
   },
   "signs": {
-    "stop": 3774,
-    "streetStop": 24373,
-    "crosswalk": 20494,
-    "oneway": 387,
+    "stop": 3749,
+    "streetStop": 24374,
+    "crosswalk": 20605,
+    "oneway": 389,
     "noEntry": 379,
     "speed": 10822,
     "speedFromOsm": 831,
-    "guide": 311,
+    "guide": 312,
     "guideSkippedNear": 13,
-    "yabane": 97515,
+    "yabane": 97485,
     "fencePanels": 21040,
     "fenceKm": 84,
-    "stopLine": 23829,
-    "rideStopLine": 2332,
-    "roadText": 25110,
+    "stopLine": 23830,
+    "rideStopLine": 2299,
+    "roadText": 25078,
     "MB": 7
   },
   "coverage": {
-    "over06": 0.113,
+    "over06": 0.114,
     "over25": 0.037,
-    "commercialOver15": 0.027
+    "commercialOver15": 0.028
   },
   "files": {
     "terrainPagesMB": 218.2,
     "overviewMB": 8.6,
     "terrainPages": 900,
-    "buildingsMB": 45.2,
+    "buildingsMB": 45.3,
     "buildingPages": 565,
     "streetsMB": 9.3,
     "sidewalksMB": 41.8,

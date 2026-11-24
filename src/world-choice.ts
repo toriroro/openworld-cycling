@@ -54,6 +54,7 @@ export async function hokkaidoWorld(seed: number, base = HOKKAIDO_BASE): Promise
     attribution: [
       { text: "地図データ © OpenStreetMap contributors（ODbL）", url: "https://www.openstreetmap.org/copyright" },
       { text: "標高 国土地理院 標高タイルを加工して作成", url: "https://maps.gsi.go.jp/development/ichiran.html" },
+      { text: "建物 3D都市モデル（Project PLATEAU）札幌市／国土交通省（CC BY 4.0）を加工して作成", url: "https://www.geospatial.jp/ckan/dataset/plateau-01100-sapporo-shi-2020" },
     ],
   };
 }

@@ -19,6 +19,7 @@ import { areasOf, lineOf, type Tags } from "./osm.ts";
 import { writeBuildingPages, writeSidewalkPages, writeStreetPages, writeTerrainPages } from "./pages.ts";
 import { loadPbfArea } from "./pbf-area.ts";
 import { buildAddresses } from "./addresses.ts";
+import { loadPlateau, type PlateauStats } from "./plateau.ts";
 import { project } from "./projection.ts";
 import { fillRings, type Raster, strokeLine } from "./raster.ts";
 import { type BuiltJunction, type BuiltRoad, buildRoads, DEFAULT_ROAD_OPTIONS } from "./roads.ts";
@@ -359,6 +360,7 @@ lap("地名・地点");
 
 // ---- 建物（北海道の草案 15 章。PBF から取り出したもの） ----
 let buildingOut: ReturnType<typeof convertBuildings> | null = null;
+let plateauStats: (PlateauStats & { osmReplaced: number }) | null = null;
 // 走る道（2m の点を 5 つおきに線分にする）
 const rideSegs: Seg[] = [];
 for (const r of built.roads) {
@@ -383,8 +385,38 @@ for (const r of built.roads) {
       if (a && b) segs.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, hw: width / 2, ride: false });
     }
   }
-  buildingOut = convertBuildings(osm.buildings, dem5, segs, 250);
-  lap(`建物 ${buildingOut.stats.kept}`);
+  // 配達の範囲（D0）は PLATEAU の建物にし、同じ所（重心が範囲の中）の OSM の建物は使わない（配達の草案 20 章）
+  const pr = (() => {
+    const a = project(D0_STREET_BOX.north, D0_STREET_BOX.west);
+    const b = project(D0_STREET_BOX.south, D0_STREET_BOX.east);
+    return { x0: a.x, z0: a.z, x1: b.x, z1: b.z };
+  })();
+  const pl = loadPlateau(pr);
+  let raw = osm.buildings;
+  if (pl) {
+    const centroid = (ring: number[]) => {
+      let a2 = 0;
+      let sx = 0;
+      let sz = 0;
+      const n = ring.length / 2;
+      for (let k = 0, j = n - 1; k < n; j = k++) {
+        const c = ring[j * 2] * ring[k * 2 + 1] - ring[k * 2] * ring[j * 2 + 1];
+        a2 += c;
+        sx += (ring[j * 2] + ring[k * 2]) * c;
+        sz += (ring[j * 2 + 1] + ring[k * 2 + 1]) * c;
+      }
+      return Math.abs(a2) < 1e-6 ? { x: ring[0], z: ring[1] } : { x: sx / (3 * a2), z: sz / (3 * a2) };
+    };
+    raw = osm.buildings.filter((b) => {
+      const c = centroid(b.ring);
+      return c.x < pr.x0 || c.x > pr.x1 || c.z < pr.z0 || c.z > pr.z1;
+    });
+    plateauStats = { ...pl.stats, osmReplaced: osm.buildings.length - raw.length };
+    raw = raw.concat(pl.buildings);
+    lap(`PLATEAU ${pl.stats.kept} 棟（OSM の ${plateauStats.osmReplaced} 棟と入れ替え）`);
+  }
+  buildingOut = convertBuildings(raw, dem5, segs, 250);
+  lap(`建物 ${buildingOut.stats.kept}（PLATEAU ${buildingOut.stats.plateau}、物置として省いた ${buildingOut.stats.plateauSheds}）`);
 }
 // 建物の込み具合（市街地・郊外。北海道の草案 19 章）
 const coverage = buildingCoverage(buildingOut?.data ?? new Float32Array(0), { x0: X0, z0: Z0, step: 10, nx, nz });
@@ -479,6 +511,7 @@ const meta: HokkaidoMeta = {
   attribution: [
     "© OpenStreetMap contributors（ODbL 1.0）",
     "出典：国土地理院ウェブサイト 標高タイル（https://maps.gsi.go.jp/development/ichiran.html）を加工して作成",
+    ...(plateauStats ? ["3D都市モデル（Project PLATEAU）札幌市／国土交通省（CC BY 4.0）を加工して作成（配達の範囲の建物）"] : []),
   ],
   builtAt: new Date().toISOString(),
   grid: { x0: X0, z0: Z0, step: 10, nx, nz },
@@ -589,6 +622,7 @@ const report = {
   landuseShare: Object.fromEntries(["urban", "farm", "forest", "open"].map((k, i) => [k, +(luCells[i] / (nx * nz)).toFixed(3)])),
   places: { nodes: nodes.length, cafes: cafeCount, cafesKept: pois.filter((p) => p.kind === "cafe").length, cafesThinned, cafesFarFromRoad: cafesFar, cafeCell: CAFE_CELL, viewpoints: pois.filter((p) => p.kind === "viewpoint").length, passes: pois.filter((p) => p.kind === "pass").length },
   buildings: buildingOut?.stats ?? null,
+  plateau: plateauStats,
   streets: streetOut.stats,
   sidewalks: sidewalkOut.stats,
   poles: poleOut.stats,

@@ -150,6 +150,69 @@ export interface BuildingStats {
   skipped: number;
   byStyle: Record<string, number>;
   withLevels: number;
+  /** PLATEAU から作った棟と、用途不明の小さな物置として省いた棟 */
+  plateau: number;
+  plateauSheds: number;
+}
+
+/** PLATEAU の用途（bldg:usage）で物置として省く: 用途不明・その他で外形 40m² 未満（配達の草案 20 章） */
+const PLATEAU_SHED = 40;
+
+/**
+ * PLATEAU の用途・階数・計測高さ → 型・階数・店の印（配達の草案 19.3・20 章）。
+ * storeys・height は不明なら 0。tall は計測高さを壁の高さにする型（平らな屋根）。
+ */
+function plateauPick(usage: string, fa: number, storeys: number, height: number, year: number, r: (i: number) => number) {
+  const guess = (per: number, fallback: number) => (storeys > 0 ? storeys : height > 0 ? Math.max(1, Math.round(height / per)) : fallback);
+  const old = year > 0 ? year < 1975 || r(1) < 0.06 : r(1) < 0.2;
+  let style: BuildingStyle;
+  let floors: number;
+  let shopUse = false;
+  switch (usage) {
+    case "411": // 住宅
+    case "415": // 作業所併用住宅
+      floors = storeys > 0 ? storeys : height > 0 ? (height < 5.2 ? 1 : 2) : r(2) < 0.85 ? 2 : 1;
+      if (floors >= 3) style = "apartment";
+      else style = old ? "oldhouse" : "house";
+      break;
+    case "412": // 共同住宅
+      floors = guess(2.95, fa < 250 ? 2 : 3);
+      style = floors >= 4 ? "mansion" : "apartment";
+      break;
+    case "413": // 店舗等併用住宅
+    case "414": // 店舗等併用共同住宅
+      shopUse = true;
+      floors = guess(3.1, 2);
+      style = floors <= 3 && fa < 400 ? (old ? "oldshop" : "shop") : "tenant";
+      break;
+    case "402": // 商業施設
+    case "404": // 商業系複合施設
+      shopUse = true;
+      floors = guess(3.4, 2);
+      style = floors <= 2 && fa > 1200 ? "strip" : floors <= 2 && fa < 300 ? (old ? "oldshop" : "shop") : "tenant";
+      break;
+    case "401": // 業務施設
+    case "403": // 宿泊施設
+      floors = guess(3.3, 3);
+      style = floors <= 1 && fa > 300 ? "strip" : "tenant";
+      break;
+    case "421": // 官公庁施設
+    case "422": // 文教厚生施設
+      floors = guess(3.6, 3);
+      style = floors <= 1 ? "strip" : "mansion";
+      break;
+    case "431": // 運輸倉庫施設
+    case "441": // 工場
+    case "451": // 農林漁業用施設
+    case "452": // 供給処理施設
+    case "453": // 防衛施設
+      floors = Math.min(2, guess(5, 1));
+      style = "strip";
+      break;
+    default: // その他・不明
+      return null;
+  }
+  return { style, floors, shopUse };
 }
 
 /**
@@ -157,7 +220,7 @@ export interface BuildingStats {
  */
 export function convertBuildings(raw: RawBuilding[], dem: Grid, segs: Seg[], cell: number) {
   const idx = new SegIndex(segs);
-  const st: BuildingStats = { input: raw.length, kept: 0, tooSmall: 0, onRoad: 0, skipped: 0, byStyle: {}, withLevels: 0 };
+  const st: BuildingStats = { input: raw.length, kept: 0, tooSmall: 0, onRoad: 0, skipped: 0, byStyle: {}, withLevels: 0, plateau: 0, plateauSheds: 0 };
   const recs: { key: string; v: number[] }[] = [];
   for (const b of raw) {
     const tag = b.tags.building ?? "yes";
@@ -168,6 +231,11 @@ export function convertBuildings(raw: RawBuilding[], dem: Grid, segs: Seg[], cel
     const area = polyArea(b.ring);
     if (area < 12) {
       st.tooSmall++;
+      continue;
+    }
+    const usage = b.tags["plateau:usage"];
+    if (usage && (usage === "461" || usage === "454") && area < PLATEAU_SHED) {
+      st.plateauSheds++;
       continue;
     }
     const o = obb(b.ring);
@@ -249,7 +317,16 @@ export function convertBuildings(raw: RawBuilding[], dem: Grid, segs: Seg[], cel
     const levels = Number(b.tags["building:levels"]);
     const height = Number.parseFloat(b.tags.height ?? "");
     const fa = w * d;
-    if (TINY.has(tag) || fa < 30) {
+    // PLATEAU: 用途・階数・計測高さから（不明な用途は下の building=yes と同じ決め方で、階数だけ PLATEAU から）
+    const pStoreys = Number(b.tags["plateau:storeys"] ?? 0);
+    const pHeight = Number(b.tags["plateau:height"] ?? 0);
+    const pick = usage ? plateauPick(usage, fa, pStoreys, pHeight, Number(b.tags["plateau:year"] ?? 0), r) : null;
+    let shopUse = false;
+    if (pick) {
+      style = pick.style;
+      floors = pick.floors;
+      shopUse = pick.shopUse;
+    } else if (TINY.has(tag) || fa < 30) {
       style = "strip";
       floors = 1;
     } else if (HOME.has(tag)) {
@@ -298,14 +375,24 @@ export function convertBuildings(raw: RawBuilding[], dem: Grid, segs: Seg[], cel
         floors = style === "tenant" ? 5 + Math.floor(r(3) * 10) : 2;
       }
     }
-    if (levels > 0) {
+    if (usage) {
+      // 用途の不明な物も、階数・計測高さがあればそれで決める
+      if (!pick && pStoreys > 0) floors = pStoreys;
+      else if (!pick && pHeight > 0) floors = Math.max(1, Math.round(pHeight / 3.2));
+      if (!pick && floors >= 4 && (style === "apartment" || style === "house" || style === "oldhouse")) style = "mansion";
+      if (!pick && floors <= 2 && style === "mansion") style = "apartment";
+      if (pStoreys > 0 || pHeight > 0) st.withLevels++;
+      st.plateau++;
+    } else if (levels > 0) {
       floors = Math.round(levels);
       st.withLevels++;
     } else if (height > 0) {
       floors = Math.max(1, Math.round(height / 3.2));
       st.withLevels++;
     }
-    floors = Math.max(1, Math.min(40, floors));
+    // 一軒家・店の形は 2 階まで
+    if (style === "house" || style === "oldhouse" || style === "shop" || style === "oldshop") floors = Math.min(2, floors);
+    floors = Math.max(1, Math.min(60, floors));
     // 型ごとの寸法（district/layout.ts と同じ考え方）
     let h: number;
     if (style === "house" || style === "oldhouse") h = floors === 2 ? 6.2 : 3.9;
@@ -315,12 +402,26 @@ export function convertBuildings(raw: RawBuilding[], dem: Grid, segs: Seg[], cel
     else if (style === "mansion") h = floors * 2.95;
     else h = 3.6 + (floors - 1) * 3.2;
     if (height > 0) h = height;
+    // PLATEAU の計測高さは屋根の最高点まで。平らな屋根の型（集合住宅・マンション・テナント・平屋の店舗）はそのまま壁の高さにする。
+    // 一軒家・店は屋根を上に載せるので、階数からの高さのまま
+    const flat = style === "apartment" || style === "mansion" || style === "tenant" || style === "strip";
+    if (usage && flat && pHeight > 0) {
+      h = Math.max(3, pHeight);
+      // 計測高さが階数に比べて高すぎる（1 階あたり 6m 超。塔屋・広告塔などまで）物は、階数から
+      if (pStoreys > 0 && h / pStoreys > 6) h = 3.6 + pStoreys * 3.6;
+      // 低層部の上に塔が載る大きな複合建物（札幌駅の 2.3 万 m² で 174m など）は、外形全体を塔の高さの箱にしないよう 50m までにする。
+      // 塔の形は LOD2 を使う時に直す（配達の草案 20 章）
+      if (fa > 6000 && h > 50) h = 50;
+      // 1 階の高さが 2.6m 未満にならない階数に抑える（テナントは 1 階 3.6m）
+      const maxFloors = style === "tenant" ? 1 + Math.floor(Math.max(0, h - 3.6) / 2.6) : Math.max(1, Math.floor(h / 2.6));
+      floors = Math.max(1, Math.min(floors, maxFloors));
+    }
     // 屋根: 北海道の家は無落雪（箱形）が多い
     const v = r(8);
     const roof = style === "house" ? (v < 0.55 ? 3 : v < 0.8 ? 0 : v < 0.92 ? 2 : 1) : style === "oldhouse" || style === "oldshop" ? (v < 0.85 ? 0 : 1) : style === "shop" && v < 0.4 ? 0 : 3;
     const tile = (style === "oldhouse" || style === "oldshop") && r(9) < 0.2;
     const plaster = r(10) > 0.7;
-    const shop = style === "shop" || style === "oldshop" || (style === "tenant" && mainRoad);
+    const shop = style === "shop" || style === "oldshop" || (style === "tenant" && (usage ? shopUse : mainRoad));
     st.byStyle[style] = (st.byStyle[style] ?? 0) + 1;
     const flags = (tile ? 1 : 0) | (plaster ? 2 : 0) | (shop ? 4 : 0);
     const v16 = [cx, cz, w, d, h, angle, lo - 0.3, hi + 0.15, roadY + 0.1, gap, front, floors, BUILDING_STYLES.indexOf(style), roof, flags, seed];

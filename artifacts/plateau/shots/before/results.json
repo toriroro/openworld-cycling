@@ -1,0 +1,125 @@
+{
+  "places": {
+    "odori": {
+      "pos": {
+        "x": 239,
+        "z": 37
+      },
+      "triangles": 1530492,
+      "calls": 344,
+      "real": {
+        "near": {
+          "buildings": 586,
+          "triangles": 200450,
+          "meshes": 11
+        },
+        "far": {
+          "buildings": 7507,
+          "triangles": 78922
+        },
+        "pending": 0
+      }
+    },
+    "ekimae": {
+      "pos": {
+        "x": 44,
+        "z": -695
+      },
+      "triangles": 1389445,
+      "calls": 308,
+      "real": {
+        "near": {
+          "buildings": 284,
+          "triangles": 143100,
+          "meshes": 11
+        },
+        "far": {
+          "buildings": 6048,
+          "triangles": 62550
+        },
+        "pending": 0
+      }
+    },
+    "susukino": {
+      "pos": {
+        "x": 155,
+        "z": 914
+      },
+      "triangles": 1556417,
+      "calls": 353,
+      "real": {
+        "near": {
+          "buildings": 1034,
+          "triangles": 216494,
+          "meshes": 11
+        },
+        "far": {
+          "buildings": 9040,
+          "triangles": 94136
+        },
+        "pending": 0
+      }
+    },
+    "west": {
+      "pos": {
+        "x": -1614,
+        "z": 1204
+      },
+      "triangles": 1292698,
+      "calls": 267,
+      "real": {
+        "near": {
+          "buildings": 643,
+          "triangles": 118676,
+          "meshes": 11
+        },
+        "far": {
+          "buildings": 6465,
+          "triangles": 67626
+        },
+        "pending": 0
+      }
+    },
+    "east": {
+      "pos": {
+        "x": 1384,
+        "z": 1506
+      },
+      "triangles": 1130415,
+      "calls": 289,
+      "real": {
+        "near": {
+          "buildings": 305,
+          "triangles": 89596,
+          "meshes": 11
+        },
+        "far": {
+          "buildings": 8523,
+          "triangles": 88038
+        },
+        "pending": 0
+      }
+    },
+    "edge": {
+      "pos": {
+        "x": 1893,
+        "z": -306
+      },
+      "triangles": 1341335,
+      "calls": 323,
+      "real": {
+        "near": {
+          "buildings": 508,
+          "triangles": 201144,
+          "meshes": 11
+        },
+        "far": {
+          "buildings": 6642,
+          "triangles": 69188
+        },
+        "pending": 0
+      }
+    }
+  },
+  "errors": []
+}
