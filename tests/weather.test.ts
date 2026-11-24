@@ -1,19 +1,37 @@
 import { describe, expect, it } from "vitest";
 import { parseSave } from "../src/shared/save.ts";
-import { CLOUDY_AT, DAY_MS, FOG_AT, weatherAt, worldHour } from "../src/shared/world/weather.ts";
+import { CLOUDY_AT, DAY_MS, FOG_AT, GAME_SPEED, MONTH_DAYS, weatherAt, worldDay, worldHour } from "../src/shared/world/weather.ts";
 
 const T0 = Date.UTC(2026, 10, 14, 3, 0, 0);
 
 describe("世界の時計（概要仕様 3.7）", () => {
-  it("1 日は実時間 4 時間で、0〜24 時を回る", () => {
-    expect(DAY_MS).toBe(4 * 3600e3);
+  it("現実の 1 日 = 世界の 1 週間。世界の 1 日は約 3 時間 26 分で、0〜24 時を回る（配達の草案 17 章）", () => {
+    expect(GAME_SPEED).toBe(7);
+    expect(DAY_MS * 7).toBe(24 * 3600e3);
     const h0 = worldHour(T0);
     expect(h0).toBeGreaterThanOrEqual(0);
     expect(h0).toBeLessThan(24);
-    // 実時間 10 分 = 世界の 1 時間
-    expect(worldHour(T0 + 10 * 60e3)).toBeCloseTo((h0 + 1) % 24, 9);
-    expect(worldHour(T0 + DAY_MS)).toBeCloseTo(h0, 9);
-    expect(worldHour(-1)).toBeGreaterThan(23.99);
+    // 実時間 60 分 = 世界の 7 時間
+    expect(worldHour(T0 + 60 * 60e3)).toBeCloseTo((h0 + 7) % 24, 6);
+    expect(worldHour(T0 + DAY_MS)).toBeCloseTo(h0, 6);
+    expect(worldHour(-1 - 9 * 3600e3)).toBeGreaterThan(23.99);
+  });
+
+  it("日本時間の 0 時に世界は月曜 0 時。現実の 1 日で月曜から日曜まで、1 か月 = 現実の 4 日", () => {
+    // 2026-11-24 0:00 JST = 2026-11-23 15:00 UTC
+    const midnight = Date.UTC(2026, 10, 23, 15, 0, 0);
+    expect(worldHour(midnight)).toBeCloseTo(0, 6);
+    expect(worldDay(midnight).weekday).toBe("月");
+    expect(worldDay(midnight + 1).weekday).toBe("月");
+    expect(worldDay(midnight - 1).weekday).toBe("日");
+    expect(worldDay(midnight + 3 * DAY_MS + 1).weekday).toBe("木");
+    expect(worldDay(midnight + 24 * 3600e3 - 1).weekday).toBe("日");
+    expect(worldDay(midnight + 24 * 3600e3).day - worldDay(midnight).day).toBe(7);
+    expect(MONTH_DAYS * DAY_MS).toBe(4 * 24 * 3600e3);
+    // 正午 JST は世界の木曜 12 時
+    const noon = midnight + 12 * 3600e3;
+    expect(worldDay(noon).weekday).toBe("木");
+    expect(worldHour(noon)).toBeCloseTo(12, 6);
   });
 });
 

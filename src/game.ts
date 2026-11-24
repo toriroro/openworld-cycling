@@ -5,7 +5,7 @@
 import { SoundSystem } from "./audio/sound.ts";
 import { platform } from "./platform/index.ts";
 import { DEFAULT_SETTINGS, parseSave, SAVE_VERSION, type SaveData, type SaveSettings, type Stamp, START_MONEY, type WorkSave } from "./shared/save.ts";
-import { FIXED_WEATHER, type Weather, type WeatherKind, WEATHER_LABELS, weatherAt, worldHour } from "./shared/world/weather.ts";
+import { FIXED_WEATHER, type Weather, type WeatherKind, WEATHER_LABELS, weatherAt, worldDay, worldHour } from "./shared/world/weather.ts";
 import { RiddenLog } from "./sim/ridden.ts";
 import { watchChoice } from "./sim/watch.ts";
 import { CRR, DT } from "./sim/bicycle.ts";
@@ -2011,6 +2011,7 @@ export class Game {
       legs: this.watching ? null : this.stamina.legsShare,
       energy: this.watching ? null : this.stamina.energyShare,
       hour: this.view.env.hour,
+      weekday: this.forceSky?.hour !== undefined || this.settings.clock === "fixed" ? null : worldDay(Date.now() + this.clockOffset).weekday,
       weather: WEATHER_LABELS[this.weatherNow.kind],
     });
   }

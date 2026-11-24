@@ -28,6 +28,8 @@ export interface HudState {
   goalName?: string | null;
   /** 世界の時刻（時） */
   hour?: number;
+  /** 世界の曜日（時計を固定している時は無し） */
+  weekday?: string | null;
   /** 天候の名前 */
   weather?: string;
   /** トレーナーのケイデンス (rpm)・心拍 (bpm)。無ければ null で、表示を隠す */
@@ -388,7 +390,7 @@ export class Hud {
     if (st.pace != null) [...this.paceRow.children].forEach((el, i) => el.classList.toggle("selected", i === st.pace));
     this.stats.adventure.parentElement!.classList.toggle("hidden", st.adventure == null);
     if (st.adventure != null) this.stats.adventure.textContent = (st.adventure / 1000).toFixed(1);
-    const sky = st.hour !== undefined ? `  ${fmtHour(st.hour)}${st.weather ? ` ${st.weather}` : ""}` : "";
+    const sky = st.hour !== undefined ? `  ${st.weekday ? `${st.weekday} ` : ""}${fmtHour(st.hour)}${st.weather ? ` ${st.weather}` : ""}` : "";
     this.roadEl.textContent = `${st.roadName}  標高 ${Math.round(st.elevation)} m${sky}${st.goalDistance != null ? `  ${st.goalName ?? "行き先"}まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}${st.trainerNote ? `  ${st.trainerNote}` : ""}${st.adventureNote ? `  ${st.adventureNote}` : ""}`;
     this.pauseEl.classList.toggle("hidden", !st.paused);
     this.pedalBtn.classList.toggle("hidden", !!st.onTrainer);

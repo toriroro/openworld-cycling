@@ -4,13 +4,33 @@
 
 import { hashUnit } from "./hash.ts";
 
-/** 世界の 1 日の長さ（実時間のミリ秒）。1 日 = 実時間 4 時間【初期値】 */
-export const DAY_MS = 4 * 3600 * 1000;
+const REAL_DAY_MS = 24 * 3600 * 1000;
+/** 世界の時計の速さ: 現実の 1 日 = 世界の 1 週間（7 倍。配達の草案 17 章、2026-11-24 ユーザーの決定） */
+export const GAME_SPEED = 7;
+/** 世界の 1 日の長さ（実時間のミリ秒）= 約 3 時間 25 分 43 秒 */
+export const DAY_MS = REAL_DAY_MS / GAME_SPEED;
+/** 世界の 1 か月 = 4 週 = 28 日（現実の 4 日）。廃業の基準などの期間に使う（配達の草案 17 章） */
+export const MONTH_DAYS = 28;
+/** 日本時間の 0 時に世界の週が始まる（月曜 0 時）ようにずらす量 (ms) */
+const JST_MS = 9 * 3600 * 1000;
+export const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"] as const;
+
+/** 世界の時計のミリ秒（Unix 時刻のミリ秒から。整数の掛け算と足し算だけなので端末で一致する） */
+export function worldMs(ms: number): number {
+  return (ms + JST_MS) * GAME_SPEED;
+}
 
 /** 世界の時刻（時、0 以上 24 未満） */
 export function worldHour(ms: number): number {
-  const r = ms - Math.floor(ms / DAY_MS) * DAY_MS;
-  return (r / DAY_MS) * 24;
+  const g = worldMs(ms);
+  const r = g - Math.floor(g / REAL_DAY_MS) * REAL_DAY_MS;
+  return r / 3600000;
+}
+
+/** 世界の日の通し番号（7 で割り切れる日が月曜）と曜日 */
+export function worldDay(ms: number): { day: number; weekday: (typeof WEEKDAYS)[number] } {
+  const day = Math.floor(worldMs(ms) / REAL_DAY_MS);
+  return { day, weekday: WEEKDAYS[day - Math.floor(day / 7) * 7] };
 }
 
 export type WeatherKind = "clear" | "cloudy" | "fog";
