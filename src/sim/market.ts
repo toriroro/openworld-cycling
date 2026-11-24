@@ -1,7 +1,7 @@
 // 経済の場（配達の草案 18 章、D3）: 業者の状態を世界の日に合わせて進め、縄張りと順位を出す。描画・DOM には依存しない。
 // 一人用の段階では端末で回す（保存は SaveData.work.economy）。
 
-import { advance, Arena, createEconomy, type DayAlloc, type EconomyState, type Entity, MONTH, recordPlayer, territory, type Territory } from "../shared/economy.ts";
+import { advance, Arena, type Company, createEconomy, type DayAlloc, type EconomyState, type Entity, MONTH, ownCompany, recordPlayer, territory, type Territory } from "../shared/economy.ts";
 
 export class Market {
   state: EconomyState;
@@ -10,6 +10,8 @@ export class Market {
   yesterday: Territory;
   /** 縄張りが変わるたびに増える（地図を描き直すため） */
   version = 0;
+  /** 経営していた業者が廃業した（進めた時に分かった物。読んだら null にする） */
+  closed: Company | null = null;
   private cache = new Map<number, DayAlloc>();
 
   constructor(
@@ -29,7 +31,17 @@ export class Market {
 
   /** 世界の日が変わっていれば、昨日まで進めて縄張りを計算し直す。進めた日数を返す */
   update(today: number): number {
+    const own = this.state.player.company;
     const n = advance(this.arena, this.state, today - 1);
+    if (own) {
+      const c = this.state.companies.find((x) => x.id === own);
+      if (c?.player && c.closed !== null) {
+        this.state.player.company = null;
+        this.closed = c;
+      }
+    }
+    const mine = ownCompany(this.state);
+    if (mine) mine.seen = today;
     if (n > 0 || this.now.day !== today) {
       for (const d of this.cache.keys()) if (d <= today - MONTH - 1) this.cache.delete(d);
       this.now = this.compute(today);
@@ -40,12 +52,23 @@ export class Market {
   }
 
   /** プレイヤーが届けた。届け先の丁目が場の中なら件数に入れ、縄張りを計算し直す */
-  record(today: number, chome: string, reward: number): boolean {
+  record(today: number, chome: string, reward: number, late = false): boolean {
     if (!this.arena.index.has(chome)) return false;
-    recordPlayer(this.state, today, chome, reward);
+    recordPlayer(this.state, today, chome, reward, late);
     this.now = this.compute(today);
     this.version++;
     return true;
+  }
+
+  /** 経営している業者 */
+  own(): Company | null {
+    return ownCompany(this.state);
+  }
+
+  /** 経営の形を変えた後（営業所・名前の表示を描き直す） */
+  touch(today: number) {
+    this.now = this.compute(today);
+    this.version++;
   }
 
   /** 丁目の持ち主 */

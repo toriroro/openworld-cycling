@@ -61,6 +61,53 @@ export interface Company {
   /** 資金がマイナスの日、シェアが低い日が続いた数 */
   negDays: number;
   lowDays: number;
+  /** プレイヤーが経営する業者（D4。配達の草案 21 章）。NPC の業者では無い */
+  player?: boolean;
+  crew?: Crew[];
+  fleet?: Fleet;
+  /** 日ごとの収支（直近 14 日） */
+  ledger?: Ledger[];
+  /** 経営者が最後に来た日 */
+  seen?: number;
+  /** 次の配達員の番号 */
+  nextNo?: number;
+  /** 今日・昨日に雇った・辞めてもらった応募の id（同じ人を応募に出し直さない） */
+  taken?: string[];
+  /** 廃業の理由 */
+  reason?: string;
+}
+
+/** 配達員（プレイヤーの業者。21.2） */
+export interface Crew {
+  id: string;
+  no: number;
+  /** 速さ（0.8〜1.25 倍） */
+  speed: number;
+  /** 日給 (円) */
+  wage: number;
+  /** 勤め始めた日 */
+  since: number;
+}
+
+export type Vehicle = "ebike" | "moto" | "van";
+export type Fleet = Partial<Record<Vehicle, number>>;
+
+/** 日ごとの収支 */
+export interface Ledger {
+  day: number;
+  /** 配達員が運んだ売上と件数、あふれた件数 */
+  sales: number;
+  served: number;
+  lost: number;
+  /** 自分で届けた売上と件数 */
+  own: number;
+  ownCount: number;
+  wages: number;
+  depots: number;
+  vehicles: number;
+  dist: number;
+  /** 締めた後の資金 */
+  cash: number;
 }
 
 /** 1 日の割り振りに使う、業者のその日の形 */
@@ -71,6 +118,10 @@ export interface Snap {
   trust: number;
   price: number;
   policy: Policy;
+  /** プレイヤーの業者だけ: 1 日に運べる件数、届く距離の倍率、給料と乗り物の 1 日の費用 (円) */
+  cap?: number;
+  reach?: number;
+  daily?: number;
 }
 
 /** プレイヤーの 1 日の配達: 件数（"所属の業者の id|丁目の名前" → 件数。個人は "self"）と売上（業者の id → 円） */
@@ -199,7 +250,7 @@ export function allocate(arena: Arena, snaps: Snap[], day: number, seed: number)
       if (best === Infinity) continue;
       const dist = Math.sqrt(best);
       distKm[c * K + k] = dist / 1000;
-      const r = dist / reachOf(s.policy);
+      const r = dist / (reachOf(s.policy) * (s.reach ?? 1));
       const pr = BASE_PRICE / s.price;
       // 配達員の数は 4 乗根で効かせる（大きいほど小回りが利かない。6.7）
       // 近さは距離の 4 乗で落とす（営業所の周りが地元になる）
@@ -217,7 +268,7 @@ export function allocate(arena: Arena, snaps: Snap[], day: number, seed: number)
   }
   // 運べる分だけ、営業所に近い丁目から運ぶ（あふれた遠い分は失う）
   for (let k = 0; k < K; k++) {
-    const cap = snaps[k].staff * PER_STAFF;
+    const cap = snaps[k].cap ?? snaps[k].staff * PER_STAFF;
     if (total[k] > cap) {
       lost[k] = total[k] - cap;
       const order: number[] = [];
@@ -235,14 +286,19 @@ export function allocate(arena: Arena, snaps: Snap[], day: number, seed: number)
     let far = 0;
     for (let c = 0; c < C; c++) far += served[c * K + k] * distKm[c * K + k];
     revenue[k] = total[k] * snaps[k].price;
-    cost[k] = snaps[k].staff * WAGE + snaps[k].depots.length * DEPOT_COST + far * DIST_COST;
+    cost[k] = (snaps[k].daily ?? snaps[k].staff * WAGE) + snaps[k].depots.length * DEPOT_COST + far * DIST_COST;
   }
   return { day, ids: snaps.map((s) => s.id), served, revenue, cost, total, lost, demand };
 }
 
 // ---- 1 日進める ----
 
-const snapOf = (c: Company): Snap => ({ id: c.id, depots: [...c.depots], staff: c.staff, trust: c.trust, price: c.price, policy: c.policy });
+function snapOf(c: Company, day: number): Snap {
+  const s: Snap = { id: c.id, depots: [...c.depots], staff: c.staff, trust: c.trust, price: c.price, policy: c.policy };
+  if (!c.player) return s;
+  const p = crewPlan(c, day);
+  return { ...s, staff: c.crew?.length ?? 0, cap: Math.round(p.cap * 100) / 100, reach: Math.round(p.reach * 1000) / 1000, daily: p.wages + p.vehicles };
+}
 const active = (s: EconomyState) => s.companies.filter((c) => c.closed === null);
 
 /** 営業所を置く丁目を選ぶ: 注文が多く、自分の営業所から 800m 以上、ほかの業者の営業所から 300m 以上離れた所 */
@@ -325,24 +381,45 @@ export function createEconomy(arena: Arena, seed: number, today: number): Econom
 export function stepDay(arena: Arena, s: EconomyState, frozen = false): DayAlloc {
   const day = s.day + 1;
   const list = active(s);
-  const snaps = list.map(snapOf);
+  const snaps = list.map((c) => snapOf(c, day));
   const a = allocate(arena, snaps, day, s.seed);
+  const pd = s.player.days.find((x) => x.day === day);
   list.forEach((c, k) => {
     const profit = a.revenue[k] - a.cost[k];
     c.cash = Math.round(c.cash + profit);
     c.profit = Math.round(c.profit * 0.7 + profit * 0.3);
-    const cap = c.staff * PER_STAFF;
+    const cap = snaps[k].cap ?? c.staff * PER_STAFF;
     const util = (a.total[k] + a.lost[k]) / Math.max(1, cap);
     // あふれると遅れが出て信頼が下がる。余裕があれば少しずつ戻る
-    c.trust = Math.min(1.5, Math.max(0.5, c.trust + (a.lost[k] > 0 ? -0.03 * Math.min(1, a.lost[k] / Math.max(1, a.total[k])) : 0.004)));
-    const share = a.total[k] / Math.max(1, a.demand);
+    if (a.total[k] + a.lost[k] > 0) c.trust = Math.min(1.5, Math.max(0.5, c.trust + (a.lost[k] > 0 ? -0.03 * Math.min(1, a.lost[k] / Math.max(1, a.total[k])) : 0.004)));
+    // プレイヤーが自分で届けた分もシェアに入れる
+    let ownCount = 0;
+    if (pd) for (const [key, n] of Object.entries(pd.counts)) if (key.startsWith(`${c.id}|`)) ownCount += n;
+    const share = (a.total[k] + ownCount) / Math.max(1, a.demand);
     c.negDays = c.cash < 0 ? c.negDays + 1 : 0;
     c.lowDays = share < LOW_SHARE ? c.lowDays + 1 : 0;
-    if (c.negDays >= MONTH || c.lowDays >= MONTH) {
+    if (c.player) {
+      const p = crewPlan(c, day);
+      c.ledger = [
+        ...(c.ledger ?? []),
+        { day, sales: Math.round(a.revenue[k]), served: Math.round(a.total[k]), lost: Math.round(a.lost[k]), own: Math.round(pd?.sales[c.id] ?? 0), ownCount, wages: p.wages, depots: c.depots.length * DEPOT_COST, vehicles: p.vehicles, dist: Math.round(a.cost[k] - p.wages - p.vehicles - c.depots.length * DEPOT_COST), cash: c.cash },
+      ].slice(-LEDGER_DAYS);
+      c.taken = (c.taken ?? []).filter((id) => applicantDay(id) >= day);
+      // 経営者が来ない（17.5・21.1 の 39）: 1 か月で配達員が減り始め、2 か月で廃業
+      const away = day - (c.seen ?? day);
+      if (away > MONTH && c.crew?.length) {
+        c.crew.pop();
+        c.staff = c.crew.length;
+      }
+      if (away > 2 * MONTH) c.reason = "経営者が 2 か月来なかった";
+    }
+    if (c.negDays >= MONTH) c.reason = "資金がマイナスのまま 1 か月";
+    else if (c.lowDays >= MONTH) c.reason = "シェア 0.5% 未満のまま 1 か月";
+    if (c.reason) {
       c.closed = day;
       return;
     }
-    if (frozen) return;
+    if (frozen || c.player) return;
     const u = (salt: number) => hashUnit(s.seed ^ 0x9c0, hashString(c.id), day, salt);
     // 配達員: 運びきれない・余裕がない時は増やし、暇なら減らす
     // 配達員: 忙しくて儲かっていれば増やし、暇か赤字なら減らす
@@ -390,8 +467,8 @@ export function advance(arena: Arena, s: EconomyState, until: number): number {
 
 // ---- プレイヤーの配達 ----
 
-/** プレイヤーが届けた（届け先の丁目・報酬）を記録する */
-export function recordPlayer(s: EconomyState, day: number, chome: string, reward: number) {
+/** プレイヤーが届けた（届け先の丁目・報酬）を記録する。所属・経営の業者があれば、期限内なら信頼が少し上がり、遅れると下がる（21.2） */
+export function recordPlayer(s: EconomyState, day: number, chome: string, reward: number, late = false) {
   let d = s.player.days.find((x) => x.day === day);
   if (!d) {
     d = { day, counts: {}, sales: {} };
@@ -403,6 +480,8 @@ export function recordPlayer(s: EconomyState, day: number, chome: string, reward
   const key = `${co}|${chome}`;
   d.counts[key] = (d.counts[key] ?? 0) + 1;
   d.sales[co] = (d.sales[co] ?? 0) + reward;
+  const c = s.companies.find((x) => x.id === s.player.company && x.closed === null);
+  if (c) c.trust = Math.min(1.5, Math.max(0.5, c.trust + (late ? -0.01 : 0.002)));
 }
 
 // ---- 縄張りと順位 ----
@@ -443,7 +522,8 @@ export function territory(arena: Arena, s: EconomyState, end: number, cache: Map
     ents.push({ id, name, color, kind, staff, salesWeek: 0, salesMonth: 0, chomes: 0, area: 0 });
   };
   for (const c of active(s)) add(c.id, c.name, c.color, kindOf(c.staff), c.staff + (s.player.company === c.id ? 1 : 0));
-  add(SELF, playerName, "#ffffff", "player", 0);
+  // 経営している間は「あなた（個人）」を並べない
+  if (!ownCompany(s)) add(SELF, playerName, "#ffffff", "player", 0);
   const C = arena.chomes.length;
   const E = ents.length;
   const count = new Float64Array(C * E);
@@ -502,6 +582,246 @@ export function territory(arena: Arena, s: EconomyState, end: number, cache: Map
   return { day: end, owner, entities: ents };
 }
 
+// ---- プレイヤーの業者（D4。配達の草案 21 章） ----
+
+/** 開業の条件（21.1 の 31）、営業所を開く費用、収支を残す日数、値段の幅【初期値】 */
+export const OPEN_MONEY = 30_000;
+export const OPEN_DELIVERED = 30;
+export const DEPOT_OPEN = 20_000;
+const LEDGER_DAYS = 14;
+export const PRICE_MIN = 420;
+export const PRICE_MAX = 680;
+export const PRICE_STEP = 20;
+const APPLICANTS = 3;
+const MAX_CREW = 60;
+
+/** 乗り物（21.2）。own は配達員の自前の自転車 */
+export const VEHICLES: Record<Vehicle | "own", { label: string; price: number; daily: number; cap: number; reach: number }> = {
+  own: { label: "自前の自転車", price: 0, daily: 0, cap: PER_STAFF, reach: 1 },
+  ebike: { label: "電動自転車", price: 80_000, daily: 300, cap: 28, reach: 1.15 },
+  moto: { label: "バイク", price: 200_000, daily: 900, cap: 34, reach: 1.4 },
+  van: { label: "軽バン", price: 900_000, daily: 2_500, cap: 40, reach: 1.3 },
+};
+/** 割り当てる順（運べる件数の多い順） */
+export const VEHICLE_KINDS: Vehicle[] = ["van", "moto", "ebike"];
+
+export const ownCompany = (s: EconomyState): Company | null => s.companies.find((c) => c.player && c.closed === null && c.id === s.player.company) ?? null;
+export const depotMax = (staff: number) => (kindOf(staff) === "large" ? 8 : kindOf(staff) === "mid" ? 4 : 2);
+/** 土地勘（勤めた日数で 28 日までに +20%） */
+export const skillOf = (c: Crew, day: number) => Math.min(0.2, (Math.max(0, day - c.since) * 0.2) / MONTH);
+
+export interface CrewSlot {
+  crew: Crew;
+  vehicle: Vehicle | "own";
+  skill: number;
+  /** 1 日に運べる件数 */
+  cap: number;
+}
+
+/** 乗り物を速い配達員から割り当て、運べる件数・届く距離・1 日の費用を出す */
+export function crewPlan(c: Company, day: number): { slots: CrewSlot[]; cap: number; reach: number; wages: number; vehicles: number } {
+  const crew = [...(c.crew ?? [])].sort((a, b) => b.speed - a.speed || a.no - b.no);
+  const left: Record<Vehicle, number> = { ebike: c.fleet?.ebike ?? 0, moto: c.fleet?.moto ?? 0, van: c.fleet?.van ?? 0 };
+  const slots: CrewSlot[] = crew.map((m) => {
+    const v = VEHICLE_KINDS.find((k) => left[k] > 0) ?? "own";
+    if (v !== "own") left[v]--;
+    const skill = skillOf(m, day);
+    return { crew: m, vehicle: v, skill, cap: VEHICLES[v].cap * m.speed * (1 + skill) };
+  });
+  let cap = 0;
+  let reach = 0;
+  for (const sl of slots) {
+    cap += sl.cap;
+    reach += sl.cap * VEHICLES[sl.vehicle].reach;
+  }
+  let vehicles = 0;
+  for (const k of VEHICLE_KINDS) vehicles += (c.fleet?.[k] ?? 0) * VEHICLES[k].daily;
+  return { slots, cap, reach: cap > 0 ? reach / cap : 1, wages: crew.reduce((a, m) => a + m.wage, 0), vehicles };
+}
+
+/** 応募の id（a<日>-<番号>）の日 */
+function applicantDay(id: string): number {
+  const bar = id.indexOf("-", 2);
+  const d = Number(id.slice(1, bar));
+  return id[0] === "a" && bar > 1 && Number.isFinite(d) ? d : -Infinity;
+}
+
+/** その日の応募（世界の 1 日に 3 人。速さと日給が違う。雇った・辞めてもらった人は出さない） */
+export function applicants(s: EconomyState, c: Company, day: number): Crew[] {
+  const out: Crew[] = [];
+  const taken = new Set([...(c.taken ?? []), ...(c.crew ?? []).map((m) => m.id)]);
+  for (let i = 0; i < APPLICANTS; i++) {
+    const id = `a${day}-${i}`;
+    if (taken.has(id)) continue;
+    const u = (k: number) => hashUnit(s.seed ^ 0x5a1, day, i, k);
+    const speed = Math.round((0.8 + 0.45 * u(1)) * 100) / 100;
+    const wage = Math.round((6000 + (3000 * (speed - 0.8)) / 0.45 + 500 * u(2)) / 100) * 100;
+    out.push({ id, no: 0, speed, wage, since: day });
+  }
+  return out;
+}
+
+/** 開業できるか（できなければ理由） */
+export function openCheck(arena: Arena, s: EconomyState, chome: string | null, money: number, delivered: number): string | null {
+  if (ownCompany(s)) return "経営中";
+  if (money < OPEN_MONEY) return `所持金が ${OPEN_MONEY.toLocaleString("ja-JP")} 円に届いていない`;
+  if (delivered < OPEN_DELIVERED) return `届けた数が ${OPEN_DELIVERED} 件に届いていない`;
+  if (active(s).length >= MAX_COMPANIES) return `業者の数が上限（${MAX_COMPANIES} 社）`;
+  return depotCheck(arena, s, chome, null);
+}
+
+/** 営業所を開けるか（できなければ理由） */
+export function depotCheck(arena: Arena, s: EconomyState, chome: string | null, c: Company | null): string | null {
+  if (!chome || !arena.index.has(chome)) return "配達の範囲の外";
+  for (const o of active(s)) if (o.depots.includes(chome)) return o === c ? "この丁目には営業所がある" : `${o.name}の営業所がある丁目`;
+  if (c) {
+    if (c.depots.length >= depotMax(c.staff)) return `営業所の数が上限（配達員 ${c.staff} 人で ${depotMax(c.staff)} か所）`;
+    if (c.cash < DEPOT_OPEN) return "資金が足りない";
+  }
+  return null;
+}
+
+/** 名前の候補（使われていない造語から 3 つ） */
+export function nameChoices(s: EconomyState, day: number): string[] {
+  const used = new Set(active(s).map((c) => c.name));
+  const free = NAMES.filter((n) => !used.has(n));
+  const start = free.length ? hash(s.seed ^ 0x6e3, day) % free.length : 0;
+  const out: string[] = [];
+  for (let i = 0; i < free.length && out.length < 3; i++) out.push(free[(start + i) % free.length]);
+  return out;
+}
+
+/** 開業する: 今いる丁目に営業所を開き、所持金を業者の資金にする（21.1 の 32・33） */
+export function openCompany(arena: Arena, s: EconomyState, day: number, chome: string, name: string, money: number): Company | null {
+  if (depotCheck(arena, s, chome, null) || !nameChoices(s, day).includes(name)) return null;
+  const usedColors = new Set(active(s).map((c) => c.color));
+  const color = COLORS.find((x) => !usedColors.has(x));
+  if (!color) return null;
+  const c: Company = {
+    id: `c${s.serial++}`,
+    name,
+    color,
+    policy: "fast",
+    depots: [chome],
+    staff: 0,
+    cash: Math.round(money - DEPOT_OPEN),
+    trust: 1,
+    price: BASE_PRICE,
+    opened: day,
+    closed: null,
+    profit: 0,
+    negDays: 0,
+    lowDays: 0,
+    player: true,
+    crew: [],
+    fleet: {},
+    ledger: [],
+    seen: day,
+    nextNo: 1,
+    taken: [],
+  };
+  s.companies.push(c);
+  s.player.company = c.id;
+  return c;
+}
+
+export function hire(s: EconomyState, c: Company, day: number, id: string): boolean {
+  const a = applicants(s, c, day).find((x) => x.id === id);
+  if (!a || c.cash < 0 || (c.crew?.length ?? 0) >= MAX_CREW) return false;
+  const no = c.nextNo ?? 1;
+  c.nextNo = no + 1;
+  c.crew = [...(c.crew ?? []), { ...a, no }];
+  c.staff = c.crew.length;
+  return true;
+}
+
+/** 配達員に辞めてもらう */
+export function dismiss(c: Company, id: string): boolean {
+  const m = c.crew?.find((x) => x.id === id);
+  if (!m || !c.crew) return false;
+  c.crew = c.crew.filter((x) => x !== m);
+  c.staff = c.crew.length;
+  c.taken = [...(c.taken ?? []), id];
+  return true;
+}
+
+export function buyVehicle(c: Company, v: Vehicle): boolean {
+  if (c.cash < VEHICLES[v].price) return false;
+  c.cash -= VEHICLES[v].price;
+  c.fleet = { ...c.fleet, [v]: (c.fleet?.[v] ?? 0) + 1 };
+  return true;
+}
+
+/** 乗り物を売る（半値） */
+export function sellVehicle(c: Company, v: Vehicle): boolean {
+  if (!(c.fleet?.[v] ?? 0)) return false;
+  c.cash += VEHICLES[v].price / 2;
+  c.fleet = { ...c.fleet, [v]: (c.fleet?.[v] ?? 0) - 1 };
+  return true;
+}
+
+export function openDepot(arena: Arena, s: EconomyState, c: Company, chome: string): boolean {
+  if (depotCheck(arena, s, chome, c)) return false;
+  c.cash -= DEPOT_OPEN;
+  c.depots = [...c.depots, chome];
+  return true;
+}
+
+/** 営業所を閉じる（最後の 1 つは閉じない） */
+export function closeDepot(c: Company, chome: string): boolean {
+  if (c.depots.length <= 1 || !c.depots.includes(chome)) return false;
+  c.depots = c.depots.filter((d) => d !== chome);
+  return true;
+}
+
+export function setPrice(c: Company, price: number) {
+  c.price = Math.min(PRICE_MAX, Math.max(PRICE_MIN, Math.round(price / PRICE_STEP) * PRICE_STEP));
+}
+
+/** 畳む・廃業の後の所持金: 乗り物を半値で売り、資金がプラスならそれ、マイナスなら 0 円（21.1 の 37） */
+export function windUp(s: EconomyState, c: Company, day: number, reason = "畳んだ"): number {
+  for (const v of VEHICLE_KINDS) while (sellVehicle(c, v));
+  if (c.closed === null) {
+    c.closed = day;
+    c.reason = reason;
+  }
+  c.crew = [];
+  c.staff = 0;
+  if (s.player.company === c.id) s.player.company = null;
+  return Math.max(0, Math.round(c.cash));
+}
+
+/** 今日の見込み: 今の形で今日 1 日分を割り振った時の、業者の運ぶ件数・あふれ・売上・費用 */
+export function estimate(arena: Arena, s: EconomyState, c: Company, day: number): { served: number; lost: number; revenue: number; cost: number; demand: number } {
+  const list = active(s);
+  const k = list.indexOf(c);
+  const a = allocate(
+    arena,
+    list.map((x) => snapOf(x, day)),
+    day,
+    s.seed,
+  );
+  return { served: a.total[k] ?? 0, lost: a.lost[k] ?? 0, revenue: a.revenue[k] ?? 0, cost: a.cost[k] ?? 0, demand: a.demand };
+}
+
+/** 丁目の 1 日の注文の量（平日の基本）と、いちばん近いほかの業者の営業所 */
+export function chomeInfo(arena: Arena, s: EconomyState, chome: string, self: Company | null): { base: number; nearest: { name: string; m: number } | null } | null {
+  const i = arena.index.get(chome);
+  if (i === undefined) return null;
+  const ch = arena.chomes[i];
+  let nearest: { name: string; m: number } | null = null;
+  for (const c of active(s)) {
+    if (c === self) continue;
+    for (const d of c.depots) {
+      const p = arena.chomes[arena.index.get(d) ?? -1];
+      if (!p) continue;
+      const m = Math.sqrt((p.x - ch.x) * (p.x - ch.x) + (p.z - ch.z) * (p.z - ch.z));
+      if (!nearest || m < nearest.m) nearest = { name: c.name, m };
+    }
+  }
+  return { base: ch.base, nearest };
+}
+
 // ---- 保存 ----
 
 const num = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
@@ -518,7 +838,35 @@ const counts = (v: unknown) => {
 function sanitizeSnap(v: unknown): Snap | null {
   const o = obj(v);
   if (typeof o.id !== "string") return null;
-  return { id: o.id, depots: strs(o.depots), staff: Math.max(0, num(o.staff, 1)), trust: num(o.trust, 1), price: num(o.price, BASE_PRICE), policy: pol(o.policy) };
+  const s: Snap = { id: o.id, depots: strs(o.depots), staff: Math.max(0, num(o.staff, 1)), trust: num(o.trust, 1), price: num(o.price, BASE_PRICE), policy: pol(o.policy) };
+  if (typeof o.cap === "number") s.cap = Math.max(0, num(o.cap, 0));
+  if (typeof o.reach === "number") s.reach = Math.min(2, Math.max(0.5, num(o.reach, 1)));
+  if (typeof o.daily === "number") s.daily = Math.max(0, num(o.daily, 0));
+  return s;
+}
+
+function sanitizeCrew(v: unknown): Crew[] {
+  return (Array.isArray(v) ? v : [])
+    .slice(0, 80)
+    .map((x) => {
+      const o = obj(x);
+      return typeof o.id === "string" && o.id.length < 40 ? { id: o.id, no: Math.round(num(o.no, 0)), speed: Math.min(1.5, Math.max(0.5, num(o.speed, 1))), wage: Math.max(0, Math.round(num(o.wage, WAGE))), since: num(o.since, 0) } : null;
+    })
+    .filter((x): x is Crew => !!x);
+}
+
+function sanitizeLedger(v: unknown): Ledger[] {
+  const keys = ["sales", "served", "lost", "own", "ownCount", "wages", "depots", "vehicles", "dist", "cash"] as const;
+  return (Array.isArray(v) ? v : [])
+    .slice(-LEDGER_DAYS)
+    .map((x) => {
+      const o = obj(x);
+      if (typeof o.day !== "number") return null;
+      const l = { day: o.day } as Ledger;
+      for (const k of keys) l[k] = Math.round(num(o[k], 0));
+      return l;
+    })
+    .filter((x): x is Ledger => !!x);
 }
 
 /** 保存データの経済を読む（壊れていれば null） */
@@ -545,6 +893,20 @@ export function sanitizeEconomy(v: unknown): EconomyState | null {
       negDays: Math.max(0, Math.round(num(c.negDays, 0))),
       lowDays: Math.max(0, Math.round(num(c.lowDays, 0))),
     });
+    const co = companies[companies.length - 1];
+    if (typeof c.reason === "string") co.reason = str(c.reason, "");
+    if (c.player === true) {
+      co.player = true;
+      co.crew = sanitizeCrew(c.crew);
+      co.staff = co.crew.length;
+      const f = obj(c.fleet);
+      co.fleet = {};
+      for (const k of VEHICLE_KINDS) if (typeof f[k] === "number") co.fleet[k] = Math.max(0, Math.min(200, Math.round(num(f[k], 0))));
+      co.ledger = sanitizeLedger(c.ledger);
+      co.seen = num(c.seen, o.day);
+      co.nextNo = Math.max(1, Math.round(num(c.nextNo, co.crew.length + 1)));
+      co.taken = strs(c.taken);
+    }
   }
   const history = (Array.isArray(o.history) ? o.history : [])
     .map((h) => {

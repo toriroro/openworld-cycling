@@ -950,3 +950,47 @@ html, body {
 .ranking-item.mine {
   background: rgba(255, 207, 74, 0.12);
 }
+
+/* 経営（配達の草案 21 章） */
+.company-note {
+  white-space: pre-line;
+}
+.company-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  flex: none;
+  max-width: 45%;
+}
+.company-actions .btn {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+.company-sub {
+  padding: 10px 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.company-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-bottom: 8px;
+}
+.company-open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.company-open .btn {
+  min-height: 40px;
+}
+.btn:disabled {
+  opacity: 0.45;
+}

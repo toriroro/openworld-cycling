@@ -47,9 +47,10 @@ import { JourneyPanel } from "./ui/journey-panel.ts";
 import { AddressBook, type AddressPoint, D0_STREET_BOX } from "./shared/world/address.ts";
 import { Delivery, type DeliveryOrder, makeOrder, orderSeed, type Place, REGULAR_AFTER } from "./shared/delivery.ts";
 import { chomeSpot, MEAL_SIGNS } from "./shared/work-places.ts";
-import { Arena, type EconomyState } from "./shared/economy.ts";
+import { Arena, type EconomyState, openCompany, ownCompany, windUp } from "./shared/economy.ts";
 import { Market } from "./sim/market.ts";
 import { RankingPanel } from "./ui/ranking-panel.ts";
+import { CompanyPanel } from "./ui/company-panel.ts";
 import { type StreetAsk, StreetWork } from "./sim/street-work.ts";
 import { type Walker, walkersNear } from "./sim/pedestrians.ts";
 import { DeliveryPanel, DeliveryStrip, OfferCard } from "./ui/delivery-panel.ts";
@@ -221,8 +222,18 @@ export class Game {
   private offer: DeliveryOrder | null = null;
   delivery: Delivery | null = null;
   private orderNo = 0;
-  /** 所持金・届けた数・期限に間に合った数（配達の草案 14 章。保存する） */
-  money = START_MONEY;
+  /** 所持金（経営していない時）・届けた数・期限に間に合った数（配達の草案 14 章。保存する） */
+  private wallet = START_MONEY;
+  /** 所持金。経営している間は業者の資金（配達の草案 21.1 の 32） */
+  get money(): number {
+    const c = this.market ? ownCompany(this.market.state) : null;
+    return c ? c.cash : this.wallet;
+  }
+  set money(v: number) {
+    const c = this.market ? ownCompany(this.market.state) : null;
+    if (c) c.cash = Math.round(v);
+    else this.wallet = v;
+  }
   delivered = 0;
   onTime = 0;
   /** 配達の案内（草案 3.3・14.1）: none = 住所と地図だけ、map = 地図に行き先の印、route = 経路を自動で引く */
@@ -259,6 +270,7 @@ export class Game {
   market: Market | null = null;
   private economySaved: EconomyState | null = null;
   private rankingPanel = new RankingPanel();
+  private companyPanel = new CompanyPanel();
   private marketT = 0;
   /** 縄張りを塗った画像（地図に重ねる） */
   private territoryImg: { canvas: HTMLCanvasElement; version: number } | null = null;
@@ -796,11 +808,14 @@ export class Game {
       marks: () => [...this.deliveryMarks(), ...this.workMarks(true)],
       territory: () => this.territoryLayer(),
       depots: () => this.market?.depots() ?? [],
-      legend: () =>
-        [...(this.market?.now.entities ?? [])]
-          .filter((e) => e.area > 0)
-          .sort((p, q) => q.area - p.area)
-          .map((e) => ({ name: e.name, color: e.color })),
+      // 経営している業者は先頭に（凡例は 8 行まで）
+      legend: () => {
+        const mine = this.market?.own()?.id;
+        return [...(this.market?.now.entities ?? [])]
+          .filter((e) => e.area > 0 || e.id === mine)
+          .sort((p, q) => Number(q.id === mine) - Number(p.id === mine) || q.area - p.area)
+          .map((e) => ({ name: e.id === mine ? `${e.name}（経営）` : e.name, color: e.color }));
+      },
       reveal: () => (this.adventure?.active ? ADVENTURE_REVEAL : null),
     });
   }
@@ -1248,6 +1263,34 @@ export class Game {
       this.hud.toggleMenu(false);
       this.openRanking();
     });
+    this.hud.addButton("経営", () => {
+      this.hud.toggleMenu(false);
+      this.openCompany();
+    });
+    this.companyPanel.onChange = () => {
+      this.market?.touch(this.worldToday());
+      void this.save();
+    };
+    this.companyPanel.onOpen = (name, chome) => {
+      const m = this.market;
+      if (!m) return;
+      if (!openCompany(m.arena, m.state, this.worldToday(), chome, name, this.wallet)) return;
+      this.wallet = 0;
+      this.companyPanel.closedNote = "";
+      m.touch(this.worldToday());
+      void this.save();
+      this.openCompany();
+    };
+    this.companyPanel.onWindUp = () => {
+      const m = this.market;
+      const c = m?.own();
+      if (!m || !c) return;
+      this.wallet = windUp(m.state, c, this.worldToday());
+      this.companyPanel.closedNote = `${c.name}を畳んだ。所持金 ${this.wallet.toLocaleString("ja-JP")} 円`;
+      m.touch(this.worldToday());
+      void this.save();
+      this.openCompany();
+    };
     this.rankingPanel.onJoin = (id) => {
       if (!this.market) return;
       this.market.state.player.company = id;
@@ -1300,7 +1343,7 @@ export class Game {
 
   /** 保存データの仕事の記録を戻す（無ければ始めの状態） */
   private applyWork(w: WorkSave | null) {
-    this.money = w?.money ?? START_MONEY;
+    this.wallet = w?.money ?? START_MONEY;
     this.delivered = w?.delivered ?? 0;
     this.onTime = w?.onTime ?? 0;
     this.stamina = Stamina.fromJSON(w?.stamina ?? null);
@@ -1309,7 +1352,10 @@ export class Game {
     this.appOn = w?.app ?? true;
     this.regulars = { ...(w?.regulars ?? {}) };
     this.economySaved = w?.economy ?? null;
-    if (this.market) this.market = new Market(this.market.arena, this.roads.seed, this.worldToday(), this.economySaved);
+    if (this.market) {
+      this.market = new Market(this.market.arena, this.roads.seed, this.worldToday(), this.economySaved);
+      this.checkClosed();
+    }
     if (this.ride) this.ride.routeStyle = this.routeStyle;
     const sel = this.workSelects;
     if (sel.guide) sel.guide.value = this.deliveryGuide;
@@ -1522,6 +1568,7 @@ export class Game {
     const center = book.byName.get("大通西4丁目") ?? { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 };
     const arena = new Arena(list, { x0: a.x, z0: a.z, x1: b.x, z1: b.z }, center, (x, z) => book.at(x, z), this.roads.seed);
     this.market = new Market(arena, this.roads.seed, this.worldToday(), this.economySaved);
+    this.checkClosed();
     // 配達用のバン・軽トラの半分ほどを、その丁目の持ち主の業者の色にする
     this.traffic.paint = (x, z, type, u) => {
       if ((type !== "van" && type !== "keiTruck") || u > 0.6) return null;
@@ -1565,6 +1612,36 @@ export class Game {
     return { image: img.canvas, x0: r.x0, z0: r.z0, x1: r.x0 + r.nx * r.cell, z1: r.z0 + r.nz * r.cell };
   }
 
+  /** 経営していた業者が廃業していたら、個人に戻して知らせる（配達の草案 21.1 の 37） */
+  private checkClosed() {
+    const m = this.market;
+    const c = m?.closed;
+    if (!m || !c) return;
+    m.closed = null;
+    this.wallet = windUp(m.state, c, c.closed ?? m.state.day, c.reason);
+    this.companyPanel.closedNote = `${c.name}は廃業した（${c.reason ?? "—"}）。所持金 ${this.wallet.toLocaleString("ja-JP")} 円`;
+    m.touch(this.worldToday());
+    void this.save();
+    this.openCompany();
+  }
+
+  /** 経営の画面を開く（配達の草案 21 章） */
+  openCompany() {
+    const m = this.market;
+    if (!m) {
+      this.deliveryPanel.showOutside("大通の周り 約 4km 四方（北14条〜南16条、西20丁目〜東13丁目あたり）");
+      return;
+    }
+    m.update(this.worldToday());
+    this.companyPanel.open(() => {
+      const mk = this.market;
+      if (!mk) return null;
+      const p = this.ride?.road ? this.ride.pose() : this.anchor;
+      const at = this.inDeliveryArea(p.x, p.z) ? this.addresses?.at(p.x, p.z) : null;
+      return { market: mk, today: this.worldToday(), money: this.wallet, delivered: this.delivered, here: at && mk.arena.index.has(at.name) ? at.name : null };
+    });
+  }
+
   /** 順位の画面を開く */
   openRanking() {
     const m = this.market;
@@ -1579,6 +1656,7 @@ export class Game {
       yesterday: m.yesterday.entities,
       info,
       company: m.state.player.company,
+      owns: !!m.own(),
       weekday: `${worldDay(Date.now() + this.clockOffset).weekday}曜`,
       changed: m.changedSinceYesterday(),
     });
@@ -1662,7 +1740,7 @@ export class Game {
     }
     // 届け先の丁目の件数に入れる（所属の業者、無ければ個人。縄張り）
     const dropAt = this.addresses.at(r.order.dropoff.x, r.order.dropoff.z);
-    if (dropAt && this.market) this.market.record(this.worldToday(), dropAt.name, r.reward);
+    if (dropAt && this.market) this.market.record(this.worldToday(), dropAt.name, r.reward, r.late);
     this.delivery = null;
     this.waitingPerson = null;
     this.deliveryNote = null;
@@ -2097,7 +2175,8 @@ export class Game {
     this.updateDeliveryStrip(ride.time);
     if (this.market && t - this.marketT > 1000) {
       this.marketT = t;
-      this.market.update(this.worldToday());
+      if (this.market.update(this.worldToday()) > 0) this.companyPanel.refresh();
+      this.checkClosed();
     }
     this.updateApp(ride.time);
     this.hud.update({
