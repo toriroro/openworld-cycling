@@ -22,9 +22,27 @@ export class StopPanel {
     document.body.appendChild(this.root);
     this.nameEl = h("div", "stop-name", "", this.root);
     this.rows = h("dl", "stop-rows", "", this.root);
+    this.extras = h("div", "delivery-buttons stop-extras", "", this.root);
     const b = h("button", "btn stop-depart", "出発", this.root);
     b.type = "button";
     b.addEventListener("click", () => this.onDepart());
+  }
+
+  private extras: HTMLElement;
+  private note: HTMLElement | null = null;
+
+  /** 店でできること（食べる・休む。配達の草案 14.2）と、その結果の一行 */
+  setExtras(buttons: { label: string; disabled?: boolean; onClick: () => void }[], note = "") {
+    this.extras.replaceChildren();
+    for (const x of buttons) {
+      const e = h("button", "btn", x.label, this.extras);
+      e.type = "button";
+      e.disabled = !!x.disabled;
+      e.addEventListener("click", x.onClick);
+    }
+    if (!this.note) this.note = h("div", "stop-note", "", this.root);
+    this.note.textContent = note;
+    this.root.insertBefore(this.note, this.extras);
   }
 
   /** landmarks: 名所の立ち寄りの時の、行った名所の数と全部の数 */

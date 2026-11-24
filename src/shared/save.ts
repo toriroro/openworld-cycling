@@ -52,6 +52,38 @@ export interface SaveSettings {
   trainerRoute: "manual" | "follow" | "unridden";
 }
 
+/** 仕事（配達）の記録（配達の草案 14 章、D1）。受けている注文は保存しない */
+export interface WorkSave {
+  money: number;
+  delivered: number;
+  /** 期限に間に合った件数 */
+  onTime: number;
+  /** 脚と体力（Stamina.toJSON） */
+  stamina: { legs: number; energy: number } | null;
+  /** 配達の案内: 住所と地図だけ / 地図に行き先の印 / 経路を自動で引く */
+  guide: "none" | "map" | "route";
+  routeStyle: "short" | "flat" | "main";
+  /** 配達アプリの知らせを受ける */
+  app: boolean;
+}
+
+/** 仕事を始めた時の所持金 (円)【初期値】（最初から喫茶店で食べられるように） */
+export const START_MONEY = 1000;
+
+export function sanitizeWork(value: unknown): WorkSave {
+  const w = rec(value);
+  const st = rec(w.stamina);
+  return {
+    money: Math.round(num(w.money, START_MONEY, -1e9, 1e12)),
+    delivered: Math.round(num(w.delivered, 0, 0, 1e9)),
+    onTime: Math.round(num(w.onTime, 0, 0, 1e9)),
+    stamina: typeof st.legs === "number" && typeof st.energy === "number" ? { legs: num(st.legs, 0, 0), energy: num(st.energy, 0, 0) } : null,
+    guide: w.guide === "map" || w.guide === "route" ? w.guide : "none",
+    routeStyle: w.routeStyle === "flat" || w.routeStyle === "main" ? w.routeStyle : "short",
+    app: w.app !== false,
+  };
+}
+
 export interface SaveData {
   version: number;
   /** 保存した時の世界生成の版（違えば道路の識別子が合わないことがある） */
@@ -69,6 +101,8 @@ export interface SaveData {
   watching: boolean;
   /** 冒険の乗り方の帳簿（冒険の草案 6 章）。自由で始めた世界は null */
   adventure: ReturnType<AdventureLedger["toJSON"]> | null;
+  /** 仕事（配達）の記録。無い保存データは null */
+  work: WorkSave | null;
 }
 
 export const DEFAULT_SETTINGS: SaveSettings = {
@@ -168,5 +202,6 @@ export function parseSave(text: string | null): SaveData | null {
     outfit: r.outfit ? sanitizeOutfit(r.outfit) : DEFAULT_OUTFIT,
     watching: r.watching === true,
     adventure: AdventureLedger.fromJSON(r.adventure)?.toJSON() ?? null,
+    work: r.work ? sanitizeWork(r.work) : null,
   };
 }

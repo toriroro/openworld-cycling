@@ -12,7 +12,7 @@ import { cornerCurve, junctionShape, type Vec3 } from "./junction-shape.ts";
 import type { PowerSource } from "./power.ts";
 import { RIDDEN_BIN, RiddenLog } from "./ridden.ts";
 import { type RoadNetwork, type RoadPosition, roadSpacing, sampleRoad } from "./road-network.ts";
-import { planRoute, type RoutePlan } from "./route-plan.ts";
+import { planRoute, type RoutePlan, type RouteStyle } from "./route-plan.ts";
 
 /** カーブで許す横加速度 (m/s²)【初期値】 */
 export const LATERAL_ACCEL = 4;
@@ -98,6 +98,8 @@ export class Ride {
   /** 行き先と、そこまでの経路（モック仕様 6.3） */
   goal: { x: number; z: number } | null = null;
   plan: RoutePlan | null = null;
+  /** 経路の引き方（配達の草案 14.1） */
+  routeStyle: RouteStyle = "short";
   goalReached = false;
   private replanT = 0;
   private replanAfterJunction = false;
@@ -185,7 +187,7 @@ export class Ride {
 
   private replan() {
     this.replanT = 30;
-    this.plan = this.goal ? planRoute(this.net, this.pos, this.goal.x, this.goal.z) : null;
+    this.plan = this.goal ? planRoute(this.net, this.pos, this.goal.x, this.goal.z, this.routeStyle) : null;
     if (this.upcoming && this.upcoming.selected !== null && this.upcoming.byPlan) this.upcoming.selected = null;
     this.applyPlan();
   }

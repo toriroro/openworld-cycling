@@ -94,7 +94,7 @@ export class DeliveryPanel {
     this.button("閉じる", () => this.onClose());
   }
 
-  showResult(r: DeliveryResult, money: number, count: number) {
+  showResult(r: DeliveryResult, money: number, count: number, onTime: number) {
     this.fill("届けた", [
       ["届け先", r.order.dropoff.name],
       ["かかった時間", fmtDuration(r.elapsed)],
@@ -102,7 +102,7 @@ export class DeliveryPanel {
       ["走った距離", km(r.ridden)],
       ["報酬", `${r.reward} 円`],
       ["所持金", `${money} 円`],
-      ["届けた数", `${count} 件`],
+      ["届けた数", `${count} 件（期限内 ${onTime} 件）`],
     ]);
     this.button("次の注文", () => this.onOther(), true);
     this.button("閉じる", () => this.onClose());
@@ -135,5 +135,56 @@ export class DeliveryStrip {
     this.time.textContent = `残り ${fmtDuration(st.remaining)}`;
     this.time.classList.toggle("late", st.remaining < 0);
     if (this.note.textContent !== st.note) this.note.textContent = st.note;
+  }
+}
+
+/** 配達アプリの知らせ（右上、U ターンの下）: 注文の要点と、受けるまでの残り秒（配達の草案 14.3） */
+export class OfferCard {
+  readonly root: HTMLElement;
+  private body: HTMLElement;
+  private timer: HTMLElement;
+  onAccept: () => void = () => {};
+  onSkip: () => void = () => {};
+
+  constructor(parent: HTMLElement) {
+    this.root = h("div", "offer-card hidden", "", parent);
+    const head = h("div", "offer-head", "", this.root);
+    h("span", "offer-title", "配達アプリ", head);
+    this.timer = h("span", "offer-timer", "", head);
+    this.body = h("dl", "stop-rows offer-rows", "", this.root);
+    const btns = h("div", "delivery-buttons", "", this.root);
+    const ok = h("button", "btn delivery-primary", "受ける", btns);
+    ok.type = "button";
+    ok.addEventListener("click", () => this.onAccept());
+    const no = h("button", "btn", "見送る", btns);
+    no.type = "button";
+    no.addEventListener("click", () => this.onSkip());
+  }
+
+  get isOpen() {
+    return !this.root.classList.contains("hidden");
+  }
+
+  show(o: DeliveryOrder, fromHere: number) {
+    this.body.replaceChildren();
+    for (const [k, v] of [
+      ["受け取り", `${o.pickup.name}（直線 ${km(fromHere)}）`],
+      ["届け先", `${o.dropoff.name}（直線 ${km(o.distance)}）`],
+      ["期限", fmtDuration(o.limit)],
+      ["報酬", `${o.reward} 円`],
+    ]) {
+      h("dt", "", k, this.body);
+      h("dd", "", v, this.body);
+    }
+    this.root.classList.remove("hidden");
+  }
+
+  setTimer(s: number) {
+    const t = `${Math.max(0, Math.ceil(s))} 秒`;
+    if (this.timer.textContent !== t) this.timer.textContent = t;
+  }
+
+  hide() {
+    this.root.classList.add("hidden");
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_OUTFIT } from "../src/shared/outfit.ts";
-import { DEFAULT_SETTINGS, parseSave, SAVE_VERSION, type SaveData } from "../src/shared/save.ts";
+import { DEFAULT_SETTINGS, parseSave, SAVE_VERSION, type SaveData, START_MONEY } from "../src/shared/save.ts";
 import { RiddenLog } from "../src/sim/ridden.ts";
 import { POWER_MAX } from "../src/sim/power.ts";
 
@@ -19,6 +19,7 @@ describe("保存データ（モック仕様 7.3）", () => {
     outfit: DEFAULT_OUTFIT,
     watching: true,
     adventure: { mode: "adventure", since: 1795000000, balance: 12345.6, spent: 7654.4, imports: [{ id: "fit:run:1795000100", sport: "run", start: 1795000100, distance: 5000, seconds: 1800, credit: 50000, source: "fit" }], journey: { startedAt: 1795001000, lastSimulated: 1795002000 }, lastJourney: null },
+    work: { money: 2340, delivered: 5, onTime: 4, stamina: { legs: 9000, energy: 800000 }, guide: "route", routeStyle: "flat", app: false },
   };
 
   it("書いて読むと同じ", () => {
@@ -37,6 +38,14 @@ describe("保存データ（モック仕様 7.3）", () => {
     expect(p.settings.quality).toBeNull();
     expect(p.stamps).toHaveLength(1);
     expect(p.outfit).toEqual(DEFAULT_OUTFIT);
+    expect(p.work).toBeNull();
+    // 仕事の記録の壊れた項目は既定値
+    const w = parseSave(JSON.stringify({ version: 1, work: { money: "x", guide: "auto", routeStyle: 3, stamina: { legs: 1 } } }))!.work!;
+    expect(w.money).toBe(START_MONEY);
+    expect(w.guide).toBe("none");
+    expect(w.routeStyle).toBe("short");
+    expect(w.stamina).toBeNull();
+    expect(w.app).toBe(true);
   });
 });
 

@@ -112,6 +112,11 @@ export class Delivery {
     readonly startOdometer: number,
   ) {}
 
+  /** 受け渡し以外で経った時間を足す（喫茶店で休んだ時など） */
+  addTime(s: number) {
+    this.handover += s;
+  }
+
   get target(): AddressPoint {
     return this.phase === "pickup" ? this.order.pickup : this.order.dropoff;
   }

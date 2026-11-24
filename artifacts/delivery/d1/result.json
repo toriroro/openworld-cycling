@@ -1,0 +1,123 @@
+{
+  "errors": [],
+  "offer": "配達アプリ\n24 秒\n受け取り\n北2条西5丁目（直線 0.5 km）\n届け先\n北10条東4丁目（直線 1.5 km）\n期限\n11:40\n報酬\n550 円\n受ける\n見送る",
+  "delivery": {
+    "panel": "届けた\n届け先\n北10条東4丁目\nかかった時間\n7:57\n期限\n11:40\n走った距離\n3.2 km\n報酬\n550 円\n所持金\n1550 円\n届けた数\n1 件（期限内 1 件）\n次の注文\n閉じる",
+    "phases": [
+      "pickup",
+      "dropoff",
+      "done"
+    ],
+    "last": {
+      "phase": "done",
+      "pace": 0,
+      "speed": 0.06677309082328978,
+      "legs": 1,
+      "energy": 0.9421740277746099,
+      "odo": 3218.6285013311654,
+      "time": 457.27499999974845,
+      "panel": true
+    }
+  },
+  "allOut": [
+    {
+      "legs": 97,
+      "watts": 320,
+      "cap": null
+    },
+    {
+      "legs": 93,
+      "watts": 320,
+      "cap": null
+    },
+    {
+      "legs": 93,
+      "watts": 320,
+      "cap": null
+    },
+    {
+      "legs": 91,
+      "watts": 320,
+      "cap": null
+    },
+    {
+      "legs": 87,
+      "watts": 320,
+      "cap": null
+    },
+    {
+      "legs": 84,
+      "watts": 320,
+      "cap": null
+    },
+    {
+      "legs": 81,
+      "watts": 320,
+      "cap": null
+    },
+    {
+      "legs": 78,
+      "watts": 320,
+      "cap": null
+    },
+    {
+      "legs": 74,
+      "watts": 320,
+      "cap": null
+    },
+    {
+      "legs": 71,
+      "watts": 320,
+      "cap": null
+    },
+    {
+      "legs": 68,
+      "watts": 320,
+      "cap": null
+    },
+    {
+      "legs": 65,
+      "watts": 320,
+      "cap": null
+    }
+  ],
+  "routeStyles": {
+    "short": 4718,
+    "flat": 4718,
+    "main": 4749
+  },
+  "cafe": {
+    "name": "喫茶店（北12条東4丁目）",
+    "d": 403,
+    "before": {
+      "money": 1550,
+      "energy": 0.28821097222206077,
+      "stop": true
+    },
+    "after": {
+      "money": 650,
+      "energy": 0.7465443055553941
+    }
+  },
+  "frames": {
+    "p50": 17.699999999982538,
+    "p95": 18.10000000000582
+  },
+  "save": {
+    "saved": {
+      "money": 650,
+      "delivered": 1,
+      "onTime": 1,
+      "guide": "route",
+      "energy": 895853
+    },
+    "loaded": {
+      "money": 650,
+      "delivered": 1,
+      "onTime": 1,
+      "guide": "route",
+      "energy": 895853
+    },
+    "same": true
+  }
+}

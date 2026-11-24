@@ -5,7 +5,8 @@ import { CAMERA_LABELS, CAMERA_MODES, type CameraMode } from "../render/camera-r
 import { POWER_MAX, POWER_MIN } from "../sim/power.ts";
 import type { Quality } from "../render/world-view.ts";
 import type { Upcoming } from "../sim/ride.ts";
-import type { Input } from "./input.ts";
+import type { Action, Input } from "./input.ts";
+import { PACE_LABELS } from "../shared/stamina.ts";
 
 export interface HudState {
   speed: number;
@@ -40,6 +41,11 @@ export interface HudState {
   adventure?: number | null;
   /** 冒険の距離が無くて止まっている時の知らせ */
   adventureNote?: string | null;
+  /** ペース（0〜4）。null ならペースの列を隠す（配達の草案 14.1） */
+  pace?: number | null;
+  /** 脚・体力 (0〜1)。null なら隠す（草案 14.2） */
+  legs?: number | null;
+  energy?: number | null;
 }
 
 export interface Settings {
@@ -83,6 +89,7 @@ export class Hud {
   private pedalBtn!: HTMLButtonElement;
   private uturnBtn: HTMLButtonElement;
   private roadEl: HTMLElement;
+  private paceBar: HTMLElement;
   private settingsEls: {
     power: HTMLInputElement;
     powerOut: HTMLElement;
@@ -113,6 +120,8 @@ export class Hud {
       ["cadence", "ケイデンス", "rpm"],
       ["heart", "心拍", "bpm"],
       ["adventure", "冒険の残り", "km"],
+      ["legs", "脚", "%"],
+      ["energy", "体力", "%"],
     ] as const) {
       const box = h("div", `stat stat-${key}`, "", info);
       h("span", "stat-label", label, box);
@@ -121,6 +130,14 @@ export class Hud {
       this.stats[key] = v;
     }
     this.roadEl = h("div", "road-name", "", this.root);
+
+    // 下中央: ペース（配達の草案 14.1）
+    this.paceBar = h("div", "pace-bar hidden", "", this.root);
+    PACE_LABELS.forEach((label, i) => {
+      const b = h("button", "btn pace-btn", label, this.paceBar);
+      b.type = "button";
+      this.input.bindTap(b, `pace-${i}` as Action);
+    });
 
     // 上中央: 分岐の候補
     this.branch = h("div", "branch", "", this.root);
@@ -343,6 +360,17 @@ export class Hud {
     };
     opt("cadence", st.cadence);
     opt("heart", st.heartRate);
+    for (const key of ["legs", "energy"] as const) {
+      const v = st[key];
+      const box = this.stats[key].parentElement!;
+      box.classList.toggle("hidden", v == null);
+      if (v != null) {
+        this.stats[key].textContent = String(Math.round(v * 100));
+        box.classList.toggle("low", v < 0.2);
+      }
+    }
+    this.paceBar.classList.toggle("hidden", st.pace == null);
+    if (st.pace != null) [...this.paceBar.children].forEach((el, i) => el.classList.toggle("selected", i === st.pace));
     this.stats.adventure.parentElement!.classList.toggle("hidden", st.adventure == null);
     if (st.adventure != null) this.stats.adventure.textContent = (st.adventure / 1000).toFixed(1);
     const sky = st.hour !== undefined ? `  ${fmtHour(st.hour)}${st.weather ? ` ${st.weather}` : ""}` : "";

@@ -14,7 +14,15 @@ export type Action =
   | "outfit"
   | "look-left"
   | "look-right"
-  | "u-turn";
+  | "u-turn"
+  /** ペース（配達の草案 14.1）: 0 = 止まる〜4 = 全力、上げる・下げる */
+  | "pace-0"
+  | "pace-1"
+  | "pace-2"
+  | "pace-3"
+  | "pace-4"
+  | "pace-up"
+  | "pace-down";
 
 export class Input {
   pedalKey = false;
@@ -76,6 +84,19 @@ export class Input {
           break;
         case "KeyV":
           this.queue.push("watch");
+          break;
+        case "Digit0":
+        case "Digit1":
+        case "Digit2":
+        case "Digit3":
+        case "Digit4":
+          this.queue.push(`pace-${e.code.slice(5)}` as Action);
+          break;
+        case "KeyW":
+          this.queue.push("pace-up");
+          break;
+        case "KeyS":
+          this.queue.push("pace-down");
           break;
         case "KeyP":
         case "Escape":
