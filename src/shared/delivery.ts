@@ -83,7 +83,21 @@ export interface DeliveryOrder {
   /** 期限 (s、受けてから) */
   limit: number;
   reward: number;
+  /** 大きめの小包（家からの発送の一部。リアキャリアが要る。配達の草案 22.6 の 49） */
+  big?: boolean;
 }
+
+/** 自転車の装備（22.6 の 49）: 背負い鞄（初期）とリアキャリア */
+export type Gear = "bag" | "carrier";
+export const GEAR_LABELS: Record<Gear, string> = { bag: "背負い鞄", carrier: "リアキャリア" };
+/** リアキャリアの値段 (円)、大きめの小包の割合と報酬の倍率【初期値】 */
+export const CARRIER_COST = 15_000;
+const BIG_SHARE = 0.4;
+const BIG_BONUS = 1.25;
+/** 同時に持てる注文の数 */
+export const carryLimit = (gear: Gear) => (gear === "carrier" ? 2 : 1);
+/** その装備で受けられない注文なら理由 */
+export const gearBlocks = (o: DeliveryOrder, gear: Gear): string | null => (o.big && gear !== "carrier" ? "大きめの小包はリアキャリアが要る" : null);
 
 export interface DeliveryResult {
   order: DeliveryOrder;
@@ -175,7 +189,10 @@ export function errandOrder(kind: "forgot" | "shopping" | "papers", from: Place,
 export function parcelOrder(house: Place, candidates: Place[], no: number, seed: number): DeliveryOrder | null {
   const drops = candidates.filter((p) => within(p, house, KIND_DROP_RANGE.parcel));
   if (!drops.length) return null;
-  return finish(no, "house", "parcel", house, drops[hash(seed, no, 1) % drops.length], house, true);
+  const big = hash(seed, no, 2) / 4294967296 < BIG_SHARE;
+  const o = finish(no, "house", "parcel", house, drops[hash(seed, no, 1) % drops.length], house, true, big ? BIG_BONUS : 1);
+  if (big) o.big = true;
+  return o;
 }
 
 /** 止まっている所が、その場所か（丁目なら走る道の左右にその丁目がある。店・家・人なら止まる所の近く） */

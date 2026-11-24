@@ -4,6 +4,8 @@
 import {
   applicants,
   buyVehicle,
+  CARRIER_FACTOR,
+  CARRIER_PRICE,
   chomeInfo,
   closeDepot,
   type Company,
@@ -12,6 +14,7 @@ import {
   depotCheck,
   dismiss,
   estimate,
+  giveCarrier,
   hire,
   KIND_LABELS,
   kindOf,
@@ -25,10 +28,32 @@ import {
   PRICE_STEP,
   sellVehicle,
   setPrice,
+  TRUCK_KINDS,
+  vehicleCheck,
   VEHICLE_KINDS,
   VEHICLES,
 } from "../shared/economy.ts";
-import { WEEKDAYS } from "../shared/world/weather.ts";
+import {
+  addTruck,
+  cancelContract,
+  canRenew,
+  contractEnd,
+  contractEstimate,
+  contractMax,
+  type FreightDest,
+  freightCheck,
+  freightOffers,
+  type FreightSummary,
+  removeTruck,
+  renewContract,
+  takeContract,
+  truckCheck,
+  truckFor,
+  freeTruckFor,
+  trucksNeeded,
+  truckState,
+} from "../shared/freight.ts";
+import { DAY_MS, WEEKDAYS, worldDay } from "../shared/world/weather.ts";
 import type { Market } from "../sim/market.ts";
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = "", parent?: HTMLElement) => {
@@ -54,15 +79,26 @@ export interface CompanyContext {
   delivered: number;
   /** 今いる丁目（配達の範囲の外なら null） */
   here: string | null;
+  /** 今の時刻（Unix ミリ秒） */
+  now: number;
+  /** 長距離の便の行き先（本店からの道。調べている間は null） */
+  dests: FreightDest[] | null;
 }
 
-type Tab = "ledger" | "crew" | "vehicles" | "depots";
+export type CompanyTab = "ledger" | "crew" | "vehicles" | "depots" | "freight";
+type Tab = CompanyTab;
 const TABS: [Tab, string][] = [
   ["ledger", "収支"],
   ["crew", "配達員"],
   ["vehicles", "乗り物"],
   ["depots", "営業所"],
+  ["freight", "便"],
 ];
+/** 現実の時間の長さ（分・時間） */
+const span = (ms: number) => {
+  const m = Math.max(0, Math.round(ms / 60_000));
+  return m < 60 ? `${m} 分` : `${Math.floor(m / 60)} 時間 ${m - Math.floor(m / 60) * 60} 分`;
+};
 
 export class CompanyPanel {
   readonly root: HTMLElement;
@@ -74,6 +110,9 @@ export class CompanyPanel {
   private ctx: (() => CompanyContext | null) | null = null;
   private pickedName: string | null = null;
   private confirmWindUp = false;
+  private confirmCancel: string | null = null;
+  /** 留守の間の便（開いた時に便の画面の上に出す。22.1 の 46） */
+  away: FreightSummary | null = null;
   /** 廃業・畳んだ時の知らせ（次に開業の画面を出す時に見せる） */
   closedNote = "";
   /** 経営の形を変えた（保存・地図の描き直し） */
@@ -109,9 +148,11 @@ export class CompanyPanel {
     return !this.root.classList.contains("hidden");
   }
 
-  open(ctx: () => CompanyContext | null) {
+  open(ctx: () => CompanyContext | null, tab?: Tab) {
     this.ctx = ctx;
+    if (tab) this.tab = tab;
     this.confirmWindUp = false;
+    this.confirmCancel = null;
     this.render();
     this.root.classList.remove("hidden");
   }
@@ -119,6 +160,12 @@ export class CompanyPanel {
   close() {
     this.root.classList.add("hidden");
     this.confirmWindUp = false;
+    this.away = null;
+  }
+
+  /** 便の画面を開いていれば描き直す（トラックの様子） */
+  refreshFreight() {
+    if (this.isOpen && this.tab === "freight") this.render();
   }
 
   /** 開いていれば描き直す（世界の日が変わった時など） */
@@ -206,6 +253,7 @@ export class CompanyPanel {
     if (this.tab === "ledger") this.renderLedger(ctx, c);
     else if (this.tab === "crew") this.renderCrew(ctx, c);
     else if (this.tab === "vehicles") this.renderVehicles(ctx, c);
+    else if (this.tab === "freight") this.renderFreight(ctx, c);
     else this.renderDepots(ctx, c);
   }
 
@@ -225,10 +273,11 @@ export class CompanyPanel {
     const ledger = [...(c.ledger ?? [])].reverse().slice(0, 7);
     if (!ledger.length) h("div", "stamp-empty", "締めた日はまだ無い", this.list);
     for (const l of ledger) {
-      const cost = l.wages + l.depots + l.vehicles + l.dist;
-      this.item(`${weekday(l.day)}  利益 ${signed(l.sales + l.own - cost)}`, [
-        `売上 ${yen(l.sales + l.own)}（配達員 ${l.served} 件 ${yen(l.sales)}、自分 ${l.ownCount} 件 ${yen(l.own)}）  あふれ ${l.lost} 件`,
-        `費用 給料 ${yen(l.wages)}  営業所 ${yen(l.depots)}  乗り物 ${yen(l.vehicles)}  距離 ${yen(l.dist)}`,
+      const cost = l.wages + l.depots + l.vehicles + l.dist + l.fuel + l.fee;
+      const sales = l.sales + l.own + l.fsales;
+      this.item(`${weekday(l.day)}  利益 ${signed(sales - cost)}`, [
+        `売上 ${yen(sales)}（配達員 ${l.served} 件 ${yen(l.sales)}、自分 ${l.ownCount} 件 ${yen(l.own)}${l.trips || l.dropped ? `、便 ${l.trips} 便 ${yen(l.fsales)}` : ""}）  あふれ ${l.lost} 件${l.late ? `  便の遅れ ${l.late}` : ""}${l.dropped ? `  落とした荷 ${l.dropped}` : ""}`,
+        `費用 給料 ${yen(l.wages)}  営業所 ${yen(l.depots)}  乗り物 ${yen(l.vehicles)}  距離 ${yen(l.dist)}${l.fuel ? `  燃料 ${yen(l.fuel)}` : ""}${l.fee ? `  違約金 ${yen(l.fee)}` : ""}`,
         `締めた後の資金 ${yen(l.cash)}`,
       ]);
     }
@@ -239,10 +288,23 @@ export class CompanyPanel {
     const plan = crewPlan(c, ctx.today);
     this.sub(`配達員 ${plan.slots.length} 人  1 日 ${Math.round(plan.cap)} 件まで  給料 1 日 ${yen(plan.wages)}`);
     if (!plan.slots.length) h("div", "stamp-empty", "配達員がいない", this.list);
-    for (const sl of [...plan.slots].sort((a, b) => a.crew.no - b.crew.no)) {
-      const act = this.item(`配達員 ${sl.crew.no}`, [`速さ ${sl.crew.speed.toFixed(2)} 倍  土地勘 +${Math.round(sl.skill * 100)}%  ${VEHICLES[sl.vehicle].label}`, `1 日 ${Math.round(sl.cap)} 件  日給 ${yen(sl.crew.wage)}`]);
+    const rows = [...plan.slots.map((sl) => ({ m: sl.crew, sl })), ...plan.drivers.map((m) => ({ m, sl: null }))].sort((a, b) => a.m.no - b.m.no);
+    for (const { m, sl } of rows) {
+      const bike = sl && (sl.vehicle === "own" || sl.vehicle === "ebike");
+      const gear = m.carrier ? `リアキャリア${bike ? `（件数 ${CARRIER_FACTOR} 倍）` : ""}` : "背負い鞄";
+      const act = this.item(
+        `配達員 ${m.no}`,
+        sl
+          ? [`速さ ${m.speed.toFixed(2)} 倍  土地勘 +${Math.round(sl.skill * 100)}%  ${VEHICLES[sl.vehicle].label}  ${gear}`, `1 日 ${Math.round(sl.cap)} 件  日給 ${yen(m.wage)}`]
+          : [`速さ ${m.speed.toFixed(2)} 倍  便の運転手`, `日給 ${yen(m.wage)}`],
+      );
+      if (!m.carrier)
+        this.button(act, `リアキャリア ${yen(CARRIER_PRICE)}`, () => {
+          giveCarrier(c, m.id);
+          this.changed();
+        }, c.cash < CARRIER_PRICE);
       this.button(act, "辞めてもらう", () => {
-        dismiss(c, sl.crew.id);
+        dismiss(c, m.id);
         this.changed();
       });
     }
@@ -269,14 +331,119 @@ export class CompanyPanel {
       this.button(act, "買う", () => {
         buyVehicle(c, k);
         this.changed();
-      }, c.cash < v.price);
+      }, !!vehicleCheck(c, k));
       this.button(act, `売る ${yen(v.price / 2)}`, () => {
         sellVehicle(c, k);
         this.changed();
       }, n === 0);
     }
+    this.sub(`リアキャリア ${yen(CARRIER_PRICE)}: 自前の自転車・電動自転車の配達員の件数が ${CARRIER_FACTOR} 倍（配達員のタブで渡す）`);
     const own = plan.slots.filter((sl) => sl.vehicle === "own").length;
     this.item(VEHICLES.own.label, [`割り当ての無い配達員 ${own} 人`, `1 人 1 日 ${VEHICLES.own.cap} 件  届く距離 1.00 倍`]);
+  }
+
+  // ---- 長距離の便（22 章） ----
+
+  private renderFreight(ctx: CompanyContext, c: Company) {
+    const s = ctx.market.state;
+    const plan = crewPlan(c, ctx.today);
+    const a = this.away;
+    if (a) {
+      this.item(`留守の間の便（${span(a.to - a.from)}）`, [
+        `着いた ${a.trips} 便（遅れ ${a.late}、事故 ${a.accidents}）  落とした荷 ${a.dropped}`,
+        `運賃 ${yen(a.sales)}  燃料 ${yen(a.fuel)}${a.fee ? `  違約金 ${yen(a.fee)}` : ""}`,
+        ...(a.ended.length ? [`期間が終わった契約 ${a.ended.join("、")}`] : []),
+      ]);
+    }
+    // トラック（2 トン・3 トン・10 トン）
+    this.sub("トラック  運転手は遅い配達員から回す。世界の 1 日待たせた荷は落とし、運賃の半分を違約金で払う");
+    for (const v of TRUCK_KINDS) {
+      const tv = VEHICLES[v];
+      const n = c.fleet?.[v] ?? 0;
+      const used = (c.contracts ?? []).reduce((a, k) => a + k.runs.filter((r) => r.v === v).length, 0);
+      const why = vehicleCheck(c, v);
+      const ta = this.item(`トラック ${tv.label}`, [`持っている ${n} 台（便に付けている ${used} 台）`, `積める ${tv.tons} トン  ${yen(tv.price)}  1 日 ${yen(tv.daily)}  燃料 1 km ${tv.fuel} 円`, ...(why && why !== "資金が足りない" ? [why] : [])]);
+      this.button(ta, "買う", () => {
+        buyVehicle(c, v);
+        this.changed();
+      }, !!why);
+      this.button(ta, `売る ${yen(tv.price / 2)}`, () => {
+        sellVehicle(c, v);
+        this.changed();
+      }, n <= used);
+    }
+    // 契約
+    const list = c.contracts ?? [];
+    this.sub(`契約 ${list.length} / ${contractMax(c.staff)} 本`);
+    if (!list.length) h("div", "stamp-empty", "契約は無い", this.list);
+    const driverNos = plan.drivers.map((m) => m.no);
+    let di = 0;
+    for (const k of list) {
+      const end = contractEnd(k);
+      const left = Math.max(0, (end - ctx.now) / DAY_MS);
+      const nos = driverNos.slice(di, di + k.runs.length);
+      di += k.runs.length;
+      const runs = k.runs.map((r, i) => {
+        const st = truckState(r, ctx.now);
+        return `${i + 1} 台目（${VEHICLES[r.v].label}） ${st.leg === "home" ? "営業所" : st.leg === "out" ? (ctx.now < r.arr ? `${k.town}へ 着くまで ${span(r.arr - ctx.now)}` : `${k.town}で降ろしている`) : `戻る 着くまで ${span(r.free - ctx.now)}`}`;
+      });
+      const endDay = worldDay(end).day;
+      const act = this.item(`${k.town}へ ${k.cargo}（${k.shipper}）`, [
+        `1 日 ${k.loads} 便  荷 ${k.tons} トン（${VEHICLES[truckFor(k.tons) ?? "t10"].label}から）  1 便 ${yen(k.rate)}  片道 ${k.km.toFixed(1)} km・${Math.round(k.min)} 分`,
+        `残り 世界の ${left.toFixed(1)} 日（${weekday(endDay)}曜まで）${canRenew(k, ctx.now) ? "  更新できる" : ""}`,
+        `トラック ${k.runs.length} 台（1 日 ${k.loads} 便に要る ${trucksNeeded(k)} 台）${nos.length ? `  運転手 ${nos.map((n) => `${n} 番`).join("・")}` : ""}`,
+        ...runs,
+        `これまで 着いた ${k.sum.trips} 便（遅れ ${k.sum.late}）  落とした荷 ${k.sum.dropped}  運賃 ${yen(k.sum.sales)}`,
+      ]);
+      this.button(act, "−", () => {
+        removeTruck(k);
+        this.changed();
+      }, !k.runs.length);
+      const why = truckCheck(c, k);
+      this.button(act, "+", () => {
+        addTruck(c, k, ctx.now);
+        this.changed();
+      }, !!why || k.next >= k.total).title = why ?? "";
+      if (canRenew(k, ctx.now))
+        this.button(act, "更新", () => {
+          renewContract(k, ctx.now);
+          this.changed();
+        });
+      if (k.next < k.total)
+        this.button(act, this.confirmCancel === k.id ? "やめる" : "やめる…", () => {
+          if (this.confirmCancel !== k.id) {
+            this.confirmCancel = k.id;
+            this.render();
+            return;
+          }
+          this.confirmCancel = null;
+          cancelContract(k);
+          this.changed();
+        });
+    }
+    // 今日の申し込み
+    this.sub(`今日（${weekday(ctx.today)}）の申し込み`);
+    const why = freightCheck(c);
+    if (why) h("div", "stamp-meta", why, this.list);
+    if (!ctx.dests) {
+      h("div", "stamp-empty", "行き先までの道を調べている", this.list);
+      return;
+    }
+    const offers = freightOffers(s, c, ctx.today, ctx.dests);
+    if (!offers.length) h("div", "stamp-empty", "今日の申し込みは無い", this.list);
+    const wage = plan.drivers[0]?.wage ?? 7000;
+    for (const o of offers) {
+      const need = trucksNeeded(o);
+      const e = contractEstimate(o, need, wage);
+      const act = this.item(`${o.town}へ ${o.cargo}（${o.shipper}）`, [
+        `1 日 ${o.loads} 便  荷 ${o.tons} トン（${VEHICLES[truckFor(o.tons) ?? "t10"].label}から${freeTruckFor(c, o.tons) ? "。空いたトラックあり" : ""}）  1 便 ${yen(o.rate)}  片道 ${o.km.toFixed(1)} km・${Math.round(o.min)} 分  期間 世界の 28 日`,
+        `トラック ${need} 台で 1 日 ${e.trips.toFixed(1)} 便。見込み 1 日 運賃 ${yen(e.sales)} − 燃料 ${yen(e.fuel)} − トラック ${yen(e.trucks)} − 運転手 ${yen(e.wages)} = ${signed(e.profit)}`,
+      ]);
+      this.button(act, "契約する", () => {
+        if (ctx.dests) takeContract(s, c, ctx.today, ctx.now, ctx.dests, o.id);
+        this.changed();
+      }, !!why);
+    }
   }
 
   private renderDepots(ctx: CompanyContext, c: Company) {

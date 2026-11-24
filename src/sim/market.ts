@@ -1,6 +1,8 @@
 // 経済の場（配達の草案 18 章、D3）: 業者の状態を世界の日に合わせて進め、縄張りと順位を出す。描画・DOM には依存しない。
 // 一人用の段階では端末で回す（保存は SaveData.work.economy）。
 
+import { AWAY_MS, type FreightSummary, runFreight } from "../shared/freight.ts";
+import { dayStartMs } from "../shared/world/weather.ts";
 import { advance, Arena, type Company, createEconomy, type DayAlloc, type EconomyState, type Entity, MONTH, ownCompany, recordPlayer, territory, type Territory } from "../shared/economy.ts";
 
 export class Market {
@@ -12,6 +14,8 @@ export class Market {
   version = 0;
   /** 経営していた業者が廃業した（進めた時に分かった物。読んだら null にする） */
   closed: Company | null = null;
+  /** 留守の間の便（閉じていた・進めていなかった間にまとめて進めた分。読んだら null にする。22.1 の 46） */
+  away: FreightSummary | null = null;
   private cache = new Map<number, DayAlloc>();
 
   constructor(
@@ -19,20 +23,45 @@ export class Market {
     seed: number,
     today: number,
     saved: EconomyState | null,
+    now = dayStartMs(today),
   ) {
     this.state = saved && saved.seed === seed ? saved : createEconomy(arena, seed, today);
     this.now = this.yesterday = this.compute(today);
-    this.update(today);
+    this.update(today, now);
   }
 
   private compute(end: number): Territory {
     return territory(this.arena, this.state, end, this.cache);
   }
 
-  /** 世界の日が変わっていれば、昨日まで進めて縄張りを計算し直す。進めた日数を返す */
-  update(today: number): number {
+  /**
+   * 世界の日が変わっていれば、昨日まで進めて縄張りを計算し直す。長距離の便は now（Unix ミリ秒）まで進める
+   * （日をまたぐ分は、その日を締める前にその日の終わりまで）。進めた日数を返す
+   */
+  update(today: number, now = dayStartMs(today)): number {
     const own = this.state.player.company;
-    const n = advance(this.arena, this.state, today - 1);
+    const was = ownCompany(this.state)?.freightAt;
+    const sums: FreightSummary[] = [];
+    const run = (t: number) => {
+      const r = runFreight(this.state, t);
+      if (r) sums.push(r);
+    };
+    const n = advance(this.arena, this.state, today - 1, (d) => run(Math.min(now, dayStartMs(d + 1))));
+    run(now);
+    if (was !== undefined && now - was > AWAY_MS && sums.length) {
+      const a: FreightSummary = { from: was, to: now, trips: 0, late: 0, accidents: 0, dropped: 0, sales: 0, fuel: 0, fee: 0, ended: [] };
+      for (const x of sums) {
+        a.trips += x.trips;
+        a.late += x.late;
+        a.accidents += x.accidents;
+        a.dropped += x.dropped;
+        a.sales += x.sales;
+        a.fuel += x.fuel;
+        a.fee += x.fee;
+        a.ended.push(...x.ended);
+      }
+      if (a.trips || a.dropped || a.ended.length) this.away = a;
+    }
     if (own) {
       const c = this.state.companies.find((x) => x.id === own);
       if (c?.player && c.closed !== null) {

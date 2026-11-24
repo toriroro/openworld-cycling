@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SIGN_TEXT } from "../src/render/building/atlas-layout.ts";
-import { Delivery, errandOrder, HANDOVER_S, KIND_DROP_RANGE, makeOrder, orderReward, parcelOrder, type Place, REGULAR_BONUS, SHOPPING_RANGE, SPOT_REACH, stoppedAt } from "../src/shared/delivery.ts";
+import { carryLimit, Delivery, errandOrder, gearBlocks, HANDOVER_S, KIND_DROP_RANGE, makeOrder, orderReward, parcelOrder, type Place, REGULAR_BONUS, SHOPPING_RANGE, SPOT_REACH, stoppedAt } from "../src/shared/delivery.ts";
 import { AddressBook, type AddressPoint } from "../src/shared/world/address.ts";
 import { BUILDING_REC, BUILDING_STYLES, type HokkaidoBuildings } from "../src/shared/world/hokkaido.ts";
 import type { Road } from "../src/shared/world/types.ts";
@@ -195,6 +195,23 @@ describe("頼み事・家からの発送・常連の注文（配達の草案 16 
     const t = o.dropoff;
     const r = d.update(book, { x: t.x, z: t.z - 5, dx: 1, dz: 0 }, 0, 100, 1500);
     expect(r && r !== "picked" ? r.elapsed : null).toBe(90 + 2 * HANDOVER_S);
+  });
+
+  it("大きめの小包はリアキャリアが要り、報酬が 1.25 倍。リアキャリアで 2 件まで持てる（配達の草案 22.6 の 49）", () => {
+    const house: Place = { name: "家", x: 0, z: 0, kind: "house", id: "h1" };
+    const list = Array.from({ length: 60 }, (_, i) => parcelOrder(house, pts, i, 9)!).filter(Boolean);
+    const big = list.filter((o) => o.big);
+    // 4 割ほどが大きめ
+    expect(big.length).toBeGreaterThan(list.length * 0.2);
+    expect(big.length).toBeLessThan(list.length * 0.6);
+    for (const o of big) {
+      expect(o.reward).toBe(orderReward(o.distance, "parcel", 0, 1.25));
+      expect(gearBlocks(o, "bag")).toMatch(/リアキャリア/);
+      expect(gearBlocks(o, "carrier")).toBeNull();
+    }
+    for (const o of list.filter((x) => !x.big)) expect(gearBlocks(o, "bag")).toBeNull();
+    expect(carryLimit("bag")).toBe(1);
+    expect(carryLimit("carrier")).toBe(2);
   });
 
   it("店・家・人の前は、止まる所の近くで止まると着いた", () => {

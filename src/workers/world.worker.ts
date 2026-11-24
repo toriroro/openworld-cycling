@@ -42,6 +42,11 @@ async function prepare(req: Exclude<WorldRequest, { type: "init" }>) {
 function handle(req: Exclude<WorldRequest, { type: "init" }>) {
   try {
     if (!world) throw new Error("world not initialized");
+    if (req.type === "route") {
+      const route = world instanceof HokkaidoWorld ? world.truckRoute(req.from[0], req.from[1], req.to[0], req.to[1]) : null;
+      post({ type: "route", id: req.id, route });
+      return;
+    }
     if (req.type === "prune") {
       world.prune(req.keep);
       return;

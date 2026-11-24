@@ -70,6 +70,8 @@ export interface WorkSave {
   regulars: Record<string, number>;
   /** 経済の場（業者・縄張り・プレイヤーの所属と配達の記録。配達の草案 18 章）。まだ作っていなければ null */
   economy: EconomyState | null;
+  /** 自転車の装備（配達の草案 22.6 の 49） */
+  gear: "bag" | "carrier";
 }
 
 /** 仕事を始めた時の所持金 (円)【初期値】（最初から喫茶店で食べられるように） */
@@ -96,6 +98,7 @@ export function sanitizeWork(value: unknown): WorkSave {
     app: w.app !== false,
     regulars: sanitizeCounts(w.regulars),
     economy: w.economy ? sanitizeEconomy(w.economy) : null,
+    gear: w.gear === "carrier" ? "carrier" : "bag",
   };
 }
 

@@ -29,7 +29,11 @@ export class DeliveryPanel {
   onOther: () => void = () => {};
   onClose: () => void = () => {};
   onMove: () => void = () => {};
-  onCancel: () => void = () => {};
+  /** 受けている注文の i 件目をやめる・そちらへ向かう（リアキャリアで 2 件持てる。配達の草案 22.6 の 49） */
+  onCancel: (i: number) => void = () => {};
+  onFocus: (i: number) => void = () => {};
+  /** リアキャリアを買う */
+  onBuyGear: () => void = () => {};
 
   constructor() {
     this.root = h("div", "stop-panel delivery-panel hidden");
@@ -43,9 +47,10 @@ export class DeliveryPanel {
     return !this.root.classList.contains("hidden");
   }
 
-  private button(label: string, onClick: () => void, primary = false) {
+  private button(label: string, onClick: () => void, primary = false, disabled = false) {
     const b = h("button", `btn${primary ? " delivery-primary" : ""}`, label, this.buttons);
     b.type = "button";
+    b.disabled = disabled;
     b.addEventListener("click", onClick);
   }
 
@@ -76,16 +81,34 @@ export class DeliveryPanel {
     this.button("閉じる", () => this.onClose());
   }
 
-  /** 受けている注文（メニューから開いた時） */
-  showActive(o: DeliveryOrder, picked: boolean, remaining: number) {
-    this.fill("配達中", [
-      ["受け取り", `${o.pickup.name}${picked ? "（済み）" : ""}`],
-      ["届け先", o.dropoff.name],
-      ["残り", fmtDuration(remaining)],
-      ["報酬", `${o.reward} 円`],
-    ]);
+  /** 受けている注文（メニューから開いた時）。先頭が向かっている注文。room ならもう 1 件受けられる */
+  showActive(list: { o: DeliveryOrder; picked: boolean; remaining: number }[], room: boolean) {
+    const rows: [string, string][] = [];
+    list.forEach(({ o, picked, remaining }, i) => {
+      const head = list.length > 1 ? `${i + 1} 件目${i === 0 ? "（向かっている）" : ""} ` : "";
+      rows.push(
+        [`${head}受け取り`, `${o.pickup.name}${picked ? "（済み）" : ""}`],
+        [`${head}届け先`, o.dropoff.name],
+        [`${head}残り`, `${fmtDuration(remaining)}  報酬 ${o.reward} 円`],
+      );
+    });
+    this.fill("配達中", rows);
     this.button("閉じる", () => this.onClose(), true);
-    this.button("注文をやめる", () => this.onCancel());
+    for (let i = 1; i < list.length; i++) this.button(`${i + 1} 件目へ向かう`, () => this.onFocus(i));
+    if (room) this.button("ほかの注文も受ける", () => this.onOther());
+    list.forEach((_, i) => this.button(list.length > 1 ? `${i + 1} 件目をやめる` : "注文をやめる", () => this.onCancel(i)));
+  }
+
+  /** 自転車の装備（22.6 の 49） */
+  showGear(gear: string, carry: number, money: number, price: number, has: boolean) {
+    this.fill("装備", [
+      ["今の装備", gear],
+      ["同時に持てる注文", `${carry} 件`],
+      ["大きめの小包（家からの発送）", has ? "運べる" : "リアキャリアが要る"],
+      ["所持金", `${money} 円`],
+    ]);
+    if (!has) this.button(`リアキャリアを買う ${price.toLocaleString("ja-JP")} 円`, () => this.onBuyGear(), true, money < price);
+    this.button("閉じる", () => this.onClose(), has);
   }
 
   /** 配達を受けられる範囲の外にいる */
@@ -130,10 +153,10 @@ export class DeliveryStrip {
     this.note = h("div", "delivery-note", "", this.root);
   }
 
-  update(st: { phase: "pickup" | "dropoff"; name: string; remaining: number; note: string } | null) {
+  update(st: { phase: "pickup" | "dropoff"; name: string; remaining: number; note: string; more?: number } | null) {
     this.root.classList.toggle("hidden", !st);
     if (!st) return;
-    const t = `${st.phase === "pickup" ? "受け取り" : "届け先"} ${st.name}`;
+    const t = `${st.phase === "pickup" ? "受け取り" : "届け先"} ${st.name}${st.more ? `（ほか ${st.more} 件）` : ""}`;
     if (this.target.textContent !== t) this.target.textContent = t;
     this.time.textContent = `残り ${fmtDuration(st.remaining)}`;
     this.time.classList.toggle("late", st.remaining < 0);
@@ -150,6 +173,7 @@ export class OfferCard {
   private body: HTMLElement;
   private title: HTMLElement;
   private timer: HTMLElement;
+  private ok!: HTMLButtonElement;
   onAccept: () => void = () => {};
   onSkip: () => void = () => {};
 
@@ -160,7 +184,7 @@ export class OfferCard {
     this.timer = h("span", "offer-timer", "", head);
     this.body = h("dl", "stop-rows offer-rows", "", this.root);
     const btns = h("div", "delivery-buttons", "", this.root);
-    const ok = h("button", "btn delivery-primary", "受ける", btns);
+    const ok = (this.ok = h("button", "btn delivery-primary", "受ける", btns));
     ok.type = "button";
     ok.addEventListener("click", () => this.onAccept());
     const no = h("button", "btn", "見送る", btns);
@@ -172,8 +196,9 @@ export class OfferCard {
     return !this.root.classList.contains("hidden");
   }
 
-  show(o: DeliveryOrder, fromHere: number) {
+  show(o: DeliveryOrder, fromHere: number, block: string | null = null) {
     this.body.replaceChildren();
+    this.ok.disabled = !!block;
     this.title.textContent = ORDER_SOURCE_LABELS[o.source];
     this.timer.textContent = "";
     for (const [k, v] of [
@@ -182,6 +207,8 @@ export class OfferCard {
       ["届け先", `${o.dropoff.name}  直線 ${km(o.distance)}`],
       ["期限", fmtDuration(o.limit)],
       ["報酬", `${o.reward} 円`],
+      ...(o.big ? [["大きさ", "大きめ"]] : []),
+      ...(block ? [["受けられない", block]] : []),
     ]) {
       h("dt", "", k, this.body);
       h("dd", "", v, this.body);

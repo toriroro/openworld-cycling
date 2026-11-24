@@ -75,6 +75,73 @@ export interface Company {
   taken?: string[];
   /** 廃業の理由 */
   reason?: string;
+  /** 長距離の便の契約（D5。配達の草案 22 章。計算は freight.ts） */
+  contracts?: Contract[];
+  /** 便の日ごとの結果（締める前の分。締めると収支へ移す） */
+  freight?: FreightDay[];
+  /** 便を最後に進めた時刻（Unix ミリ秒） */
+  freightAt?: number;
+}
+
+/** 長距離の便の契約（22 章） */
+export interface Contract {
+  /** 申し込みの id（k<日>-<番号>） */
+  id: string;
+  shipper: string;
+  cargo: string;
+  /** 行き先の市町と、その中心の位置 */
+  town: string;
+  x: number;
+  z: number;
+  /** 出る営業所の丁目 */
+  from: string;
+  /** 片道の道のり (km) と時間（分。晴れ） */
+  km: number;
+  min: number;
+  /** 世界の 1 日の便数と 1 便の運賃 (円)、1 便の荷の量（トン。22.6 の 51） */
+  loads: number;
+  rate: number;
+  tons: number;
+  /** 最初の荷が出る時刻（Unix ミリ秒）と、契約の荷の数（更新で増える） */
+  t0: number;
+  total: number;
+  /** 次に積む荷の番号 */
+  next: number;
+  /** 付けたトラック（1 台に運転手 1 人） */
+  runs: Run[];
+  /** 走っている便（着いたら運賃が入る） */
+  pending: Trip[];
+  /** この契約の通算 */
+  sum: { trips: number; late: number; dropped: number; sales: number };
+}
+
+/** トラック 1 台（車の段）の今の便: 出た時刻・着く時刻・営業所へ戻る時刻（Unix ミリ秒） */
+export interface Run {
+  v: TruckKind;
+  out: number;
+  arr: number;
+  free: number;
+}
+
+export interface Trip {
+  load: number;
+  arrive: number;
+  due: number;
+  pay: number;
+  late: boolean;
+  accident: boolean;
+}
+
+/** 便の 1 日の結果 */
+export interface FreightDay {
+  day: number;
+  sales: number;
+  fuel: number;
+  /** 落とした荷の違約金 */
+  fee: number;
+  trips: number;
+  late: number;
+  dropped: number;
 }
 
 /** 配達員（プレイヤーの業者。21.2） */
@@ -87,9 +154,13 @@ export interface Crew {
   wage: number;
   /** 勤め始めた日 */
   since: number;
+  /** リアキャリアを渡した（自転車の配達員だけ件数が増える。22.6 の 49） */
+  carrier?: boolean;
 }
 
-export type Vehicle = "ebike" | "moto" | "van";
+/** 町: 電動自転車・バイク・軽自動車・軽バン。長距離の便: truck（2 トン）・3 トン・10 トン（22.6 の 50） */
+export type Vehicle = "ebike" | "moto" | "kei" | "van" | "truck" | "t3" | "t10";
+export type TruckKind = "truck" | "t3" | "t10";
 export type Fleet = Partial<Record<Vehicle, number>>;
 
 /** 日ごとの収支 */
@@ -106,6 +177,13 @@ export interface Ledger {
   depots: number;
   vehicles: number;
   dist: number;
+  /** 長距離の便: 運賃、燃料、違約金、着いた便・遅れ・落とした荷の数（D5） */
+  fsales: number;
+  fuel: number;
+  fee: number;
+  trips: number;
+  late: number;
+  dropped: number;
   /** 締めた後の資金 */
   cash: number;
 }
@@ -400,9 +478,29 @@ export function stepDay(arena: Arena, s: EconomyState, frozen = false): DayAlloc
     c.lowDays = share < LOW_SHARE ? c.lowDays + 1 : 0;
     if (c.player) {
       const p = crewPlan(c, day);
+      const f = c.freight?.find((x) => x.day === day);
+      c.freight = (c.freight ?? []).filter((x) => x.day > day);
       c.ledger = [
         ...(c.ledger ?? []),
-        { day, sales: Math.round(a.revenue[k]), served: Math.round(a.total[k]), lost: Math.round(a.lost[k]), own: Math.round(pd?.sales[c.id] ?? 0), ownCount, wages: p.wages, depots: c.depots.length * DEPOT_COST, vehicles: p.vehicles, dist: Math.round(a.cost[k] - p.wages - p.vehicles - c.depots.length * DEPOT_COST), cash: c.cash },
+        {
+          day,
+          sales: Math.round(a.revenue[k]),
+          served: Math.round(a.total[k]),
+          lost: Math.round(a.lost[k]),
+          own: Math.round(pd?.sales[c.id] ?? 0),
+          ownCount,
+          wages: p.wages,
+          depots: c.depots.length * DEPOT_COST,
+          vehicles: p.vehicles,
+          dist: Math.round(a.cost[k] - p.wages - p.vehicles - c.depots.length * DEPOT_COST),
+          fsales: Math.round(f?.sales ?? 0),
+          fuel: Math.round(f?.fuel ?? 0),
+          fee: Math.round(f?.fee ?? 0),
+          trips: f?.trips ?? 0,
+          late: f?.late ?? 0,
+          dropped: f?.dropped ?? 0,
+          cash: c.cash,
+        },
       ].slice(-LEDGER_DAYS);
       c.taken = (c.taken ?? []).filter((id) => applicantDay(id) >= day);
       // 経営者が来ない（17.5・21.1 の 39）: 1 か月で配達員が減り始め、2 か月で廃業
@@ -456,9 +554,10 @@ export function stepDay(arena: Arena, s: EconomyState, frozen = false): DayAlloc
 /**
  * until の日まで進める。CATCHUP_FULL より前の分は、営業所・配達員を変えずに進める（資金・信頼・廃業だけ動く）
  */
-export function advance(arena: Arena, s: EconomyState, until: number): number {
+export function advance(arena: Arena, s: EconomyState, until: number, before?: (day: number) => void): number {
   let n = 0;
   while (s.day < until) {
+    before?.(s.day + 1);
     stepDay(arena, s, until - s.day > CATCHUP_FULL);
     n++;
   }
@@ -595,15 +694,29 @@ export const PRICE_STEP = 20;
 const APPLICANTS = 3;
 const MAX_CREW = 60;
 
-/** 乗り物（21.2）。own は配達員の自前の自転車 */
-export const VEHICLES: Record<Vehicle | "own", { label: string; price: number; daily: number; cap: number; reach: number }> = {
+/**
+ * 乗り物（21.2・22.6）。own は配達員の自前の自転車。cap・reach は町の配達（1 人 1 日の件数・届く距離）。
+ * トラックは長距離の便だけ: tons は積める量（トン）、fuel は 1 km の燃料 (円)
+ */
+export const VEHICLES: Record<Vehicle | "own", { label: string; price: number; daily: number; cap: number; reach: number; tons?: number; fuel?: number }> = {
   own: { label: "自前の自転車", price: 0, daily: 0, cap: PER_STAFF, reach: 1 },
   ebike: { label: "電動自転車", price: 80_000, daily: 300, cap: 28, reach: 1.15 },
   moto: { label: "バイク", price: 200_000, daily: 900, cap: 34, reach: 1.4 },
+  kei: { label: "軽自動車", price: 600_000, daily: 1_500, cap: 32, reach: 1.3 },
   van: { label: "軽バン", price: 900_000, daily: 2_500, cap: 40, reach: 1.3 },
+  truck: { label: "2 トン", price: 1_000_000, daily: 2_500, cap: 0, reach: 1, tons: 2, fuel: 40 },
+  t3: { label: "3 トン", price: 1_600_000, daily: 3_500, cap: 0, reach: 1, tons: 3, fuel: 50 },
+  t10: { label: "10 トン", price: 5_000_000, daily: 9_000, cap: 0, reach: 1, tons: 10, fuel: 80 },
 };
-/** 割り当てる順（運べる件数の多い順） */
-export const VEHICLE_KINDS: Vehicle[] = ["van", "moto", "ebike"];
+/** 町の配達で割り当てる順（運べる件数の多い順） */
+export const VEHICLE_KINDS: Vehicle[] = ["van", "moto", "kei", "ebike"];
+/** 長距離の便のトラック（積める量の少ない順） */
+export const TRUCK_KINDS: TruckKind[] = ["truck", "t3", "t10"];
+/** トラックも含めた全部（費用・売る・保存） */
+export const ALL_VEHICLES: Vehicle[] = [...VEHICLE_KINDS, ...TRUCK_KINDS];
+/** リアキャリア（配達員に渡す。自前の自転車・電動自転車の件数が 1.15 倍）【初期値】 */
+export const CARRIER_PRICE = 15_000;
+export const CARRIER_FACTOR = 1.15;
 
 export const ownCompany = (s: EconomyState): Company | null => s.companies.find((c) => c.player && c.closed === null && c.id === s.player.company) ?? null;
 export const depotMax = (staff: number) => (kindOf(staff) === "large" ? 8 : kindOf(staff) === "mid" ? 4 : 2);
@@ -618,15 +731,25 @@ export interface CrewSlot {
   cap: number;
 }
 
-/** 乗り物を速い配達員から割り当て、運べる件数・届く距離・1 日の費用を出す */
-export function crewPlan(c: Company, day: number): { slots: CrewSlot[]; cap: number; reach: number; wages: number; vehicles: number } {
-  const crew = [...(c.crew ?? [])].sort((a, b) => b.speed - a.speed || a.no - b.no);
-  const left: Record<Vehicle, number> = { ebike: c.fleet?.ebike ?? 0, moto: c.fleet?.moto ?? 0, van: c.fleet?.van ?? 0 };
+/** 便に付けたトラックの数（= 運転手の数） */
+export const runsOf = (c: Company) => (c.contracts ?? []).reduce((a, k) => a + k.runs.length, 0);
+
+/**
+ * 乗り物を速い配達員から割り当て、運べる件数・届く距離・1 日の費用を出す。
+ * 便のトラックの運転手は、遅い配達員から回す（町の配達から外れる。22.1 の 43）
+ */
+export function crewPlan(c: Company, day: number): { slots: CrewSlot[]; drivers: Crew[]; cap: number; reach: number; wages: number; vehicles: number } {
+  const all = [...(c.crew ?? [])].sort((a, b) => b.speed - a.speed || a.no - b.no);
+  const nd = Math.min(all.length, runsOf(c));
+  const crew = all.slice(0, all.length - nd);
+  const drivers = all.slice(all.length - nd);
+  const left: Record<Vehicle, number> = { ebike: c.fleet?.ebike ?? 0, moto: c.fleet?.moto ?? 0, kei: c.fleet?.kei ?? 0, van: c.fleet?.van ?? 0, truck: 0, t3: 0, t10: 0 };
   const slots: CrewSlot[] = crew.map((m) => {
     const v = VEHICLE_KINDS.find((k) => left[k] > 0) ?? "own";
     if (v !== "own") left[v]--;
     const skill = skillOf(m, day);
-    return { crew: m, vehicle: v, skill, cap: VEHICLES[v].cap * m.speed * (1 + skill) };
+    const bag = m.carrier && (v === "own" || v === "ebike") ? CARRIER_FACTOR : 1;
+    return { crew: m, vehicle: v, skill, cap: VEHICLES[v].cap * bag * m.speed * (1 + skill) };
   });
   let cap = 0;
   let reach = 0;
@@ -635,8 +758,8 @@ export function crewPlan(c: Company, day: number): { slots: CrewSlot[]; cap: num
     reach += sl.cap * VEHICLES[sl.vehicle].reach;
   }
   let vehicles = 0;
-  for (const k of VEHICLE_KINDS) vehicles += (c.fleet?.[k] ?? 0) * VEHICLES[k].daily;
-  return { slots, cap, reach: cap > 0 ? reach / cap : 1, wages: crew.reduce((a, m) => a + m.wage, 0), vehicles };
+  for (const k of ALL_VEHICLES) vehicles += (c.fleet?.[k] ?? 0) * VEHICLES[k].daily;
+  return { slots, drivers, cap, reach: cap > 0 ? reach / cap : 1, wages: all.reduce((a, m) => a + m.wage, 0), vehicles };
 }
 
 /** 応募の id（a<日>-<番号>）の日 */
@@ -745,16 +868,35 @@ export function dismiss(c: Company, id: string): boolean {
   return true;
 }
 
+/** 乗り物を買えるか（できなければ理由）。10 トンは大手から（22.6 の 52） */
+export function vehicleCheck(c: Company, v: Vehicle): string | null {
+  if (v === "t10" && kindOf(c.staff) !== "large") return `10 トンは大手（配達員 25 人）から。今 ${c.staff} 人`;
+  if (c.cash < VEHICLES[v].price) return "資金が足りない";
+  return null;
+}
+
+/** 配達員にリアキャリアを渡す */
+export function giveCarrier(c: Company, id: string): boolean {
+  const m = c.crew?.find((x) => x.id === id);
+  if (!m || m.carrier || c.cash < CARRIER_PRICE) return false;
+  c.cash -= CARRIER_PRICE;
+  m.carrier = true;
+  return true;
+}
+
 export function buyVehicle(c: Company, v: Vehicle): boolean {
-  if (c.cash < VEHICLES[v].price) return false;
+  if (vehicleCheck(c, v)) return false;
   c.cash -= VEHICLES[v].price;
   c.fleet = { ...c.fleet, [v]: (c.fleet?.[v] ?? 0) + 1 };
   return true;
 }
 
-/** 乗り物を売る（半値） */
+/** 便に付けているその段のトラックの数 */
+export const runsOfKind = (c: Company, v: Vehicle) => (c.contracts ?? []).reduce((a, k) => a + k.runs.filter((r) => r.v === v).length, 0);
+
+/** 乗り物を売る（半値）。便に付けているトラックは売らない */
 export function sellVehicle(c: Company, v: Vehicle): boolean {
-  if (!(c.fleet?.[v] ?? 0)) return false;
+  if (!(c.fleet?.[v] ?? 0) || (c.fleet?.[v] ?? 0) <= runsOfKind(c, v)) return false;
   c.cash += VEHICLES[v].price / 2;
   c.fleet = { ...c.fleet, [v]: (c.fleet?.[v] ?? 0) - 1 };
   return true;
@@ -780,7 +922,8 @@ export function setPrice(c: Company, price: number) {
 
 /** 畳む・廃業の後の所持金: 乗り物を半値で売り、資金がプラスならそれ、マイナスなら 0 円（21.1 の 37） */
 export function windUp(s: EconomyState, c: Company, day: number, reason = "畳んだ"): number {
-  for (const v of VEHICLE_KINDS) while (sellVehicle(c, v));
+  c.contracts = [];
+  for (const v of ALL_VEHICLES) while (sellVehicle(c, v));
   if (c.closed === null) {
     c.closed = day;
     c.reason = reason;
@@ -850,13 +993,16 @@ function sanitizeCrew(v: unknown): Crew[] {
     .slice(0, 80)
     .map((x) => {
       const o = obj(x);
-      return typeof o.id === "string" && o.id.length < 40 ? { id: o.id, no: Math.round(num(o.no, 0)), speed: Math.min(1.5, Math.max(0.5, num(o.speed, 1))), wage: Math.max(0, Math.round(num(o.wage, WAGE))), since: num(o.since, 0) } : null;
+      if (typeof o.id !== "string" || o.id.length >= 40) return null;
+      const m: Crew = { id: o.id, no: Math.round(num(o.no, 0)), speed: Math.min(1.5, Math.max(0.5, num(o.speed, 1))), wage: Math.max(0, Math.round(num(o.wage, WAGE))), since: num(o.since, 0) };
+      if (o.carrier === true) m.carrier = true;
+      return m;
     })
     .filter((x): x is Crew => !!x);
 }
 
 function sanitizeLedger(v: unknown): Ledger[] {
-  const keys = ["sales", "served", "lost", "own", "ownCount", "wages", "depots", "vehicles", "dist", "cash"] as const;
+  const keys = ["sales", "served", "lost", "own", "ownCount", "wages", "depots", "vehicles", "dist", "fsales", "fuel", "fee", "trips", "late", "dropped", "cash"] as const;
   return (Array.isArray(v) ? v : [])
     .slice(-LEDGER_DAYS)
     .map((x) => {
@@ -867,6 +1013,53 @@ function sanitizeLedger(v: unknown): Ledger[] {
       return l;
     })
     .filter((x): x is Ledger => !!x);
+}
+
+function sanitizeContracts(v: unknown): Contract[] {
+  const out: Contract[] = [];
+  for (const x of (Array.isArray(v) ? v : []).slice(0, 8)) {
+    const o = obj(x);
+    if (typeof o.id !== "string" || typeof o.town !== "string") continue;
+    const sum = obj(o.sum);
+    out.push({
+      id: str(o.id, ""),
+      shipper: str(o.shipper, "荷主"),
+      cargo: str(o.cargo, "荷"),
+      town: str(o.town, ""),
+      x: num(o.x, 0),
+      z: num(o.z, 0),
+      from: str(o.from, ""),
+      km: Math.max(0, num(o.km, 0)),
+      min: Math.max(1, num(o.min, 60)),
+      loads: Math.min(3, Math.max(1, Math.round(num(o.loads, 1)))),
+      rate: Math.max(0, Math.round(num(o.rate, 0))),
+      tons: Math.min(10, Math.max(0.1, num(o.tons, 2))),
+      t0: num(o.t0, 0),
+      total: Math.max(0, Math.round(num(o.total, 0))),
+      next: Math.max(0, Math.round(num(o.next, 0))),
+      runs: (Array.isArray(o.runs) ? o.runs : []).slice(0, 12).map((r) => {
+        const y = obj(r);
+        const v: TruckKind = y.v === "t3" || y.v === "t10" ? y.v : "truck";
+        return { v, out: num(y.out, 0), arr: num(y.arr, 0), free: num(y.free, 0) };
+      }),
+      pending: (Array.isArray(o.pending) ? o.pending : []).slice(0, 40).map((t) => {
+        const y = obj(t);
+        return { load: Math.round(num(y.load, 0)), arrive: num(y.arrive, 0), due: num(y.due, 0), pay: Math.round(num(y.pay, 0)), late: y.late === true, accident: y.accident === true };
+      }),
+      sum: { trips: Math.round(num(sum.trips, 0)), late: Math.round(num(sum.late, 0)), dropped: Math.round(num(sum.dropped, 0)), sales: Math.round(num(sum.sales, 0)) },
+    });
+  }
+  return out;
+}
+
+function sanitizeFreight(v: unknown): FreightDay[] {
+  return (Array.isArray(v) ? v : [])
+    .slice(-MONTH)
+    .map((x) => {
+      const o = obj(x);
+      return typeof o.day === "number" ? { day: o.day, sales: Math.round(num(o.sales, 0)), fuel: Math.round(num(o.fuel, 0)), fee: Math.round(num(o.fee, 0)), trips: Math.round(num(o.trips, 0)), late: Math.round(num(o.late, 0)), dropped: Math.round(num(o.dropped, 0)) } : null;
+    })
+    .filter((x): x is FreightDay => !!x);
 }
 
 /** 保存データの経済を読む（壊れていれば null） */
@@ -901,11 +1094,14 @@ export function sanitizeEconomy(v: unknown): EconomyState | null {
       co.staff = co.crew.length;
       const f = obj(c.fleet);
       co.fleet = {};
-      for (const k of VEHICLE_KINDS) if (typeof f[k] === "number") co.fleet[k] = Math.max(0, Math.min(200, Math.round(num(f[k], 0))));
+      for (const k of ALL_VEHICLES) if (typeof f[k] === "number") co.fleet[k] = Math.max(0, Math.min(200, Math.round(num(f[k], 0))));
       co.ledger = sanitizeLedger(c.ledger);
       co.seen = num(c.seen, o.day);
       co.nextNo = Math.max(1, Math.round(num(c.nextNo, co.crew.length + 1)));
       co.taken = strs(c.taken);
+      if (Array.isArray(c.contracts)) co.contracts = sanitizeContracts(c.contracts);
+      if (Array.isArray(c.freight)) co.freight = sanitizeFreight(c.freight);
+      if (typeof c.freightAt === "number") co.freightAt = num(c.freightAt, 0);
     }
   }
   const history = (Array.isArray(o.history) ? o.history : [])

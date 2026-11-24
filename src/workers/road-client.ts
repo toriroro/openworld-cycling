@@ -4,6 +4,7 @@
 import type { Poi, Road } from "../shared/world/types.ts";
 import { type Rect, World } from "../shared/world/world.ts";
 import type { HokkaidoWorld } from "../shared/world/hokkaido.ts";
+import type { TruckRoute } from "../shared/world/truck-route.ts";
 import { type WorldChoice, workerInit } from "../world-choice.ts";
 import { RoadNetwork } from "../sim/road-network.ts";
 import type { PackedRoads } from "./terrain-tile.ts";
@@ -169,7 +170,27 @@ export class RoadClient {
     }
   }
 
+  private routeWaits = new Map<number, (r: TruckRoute | null) => void>();
+
+  /** 長距離の便の経路（配達の草案 22 章）。北海道の世界でなければ null */
+  truckRoute(fx: number, fz: number, tx: number, tz: number): Promise<TruckRoute | null> {
+    if (!this.worker) {
+      const w = this.fallback;
+      return Promise.resolve(w && "truckRoute" in w ? w.truckRoute(fx, fz, tx, tz) : null);
+    }
+    const id = this.reqId++;
+    return new Promise((resolve) => {
+      this.routeWaits.set(id, resolve);
+      this.worker!.postMessage({ type: "route", id, from: [fx, fz], to: [tx, tz] } satisfies WorldRequest);
+    });
+  }
+
   private onMessage(msg: WorldResponse) {
+    if (msg.type === "route" || (msg.type === "error" && this.routeWaits.has(msg.id))) {
+      this.routeWaits.get(msg.id)?.(msg.type === "route" ? msg.route : null);
+      this.routeWaits.delete(msg.id);
+      return;
+    }
     if (msg.type === "error") {
       console.error("road worker", msg.message);
       if (this.inFlight) this.queue.push(this.inFlight);

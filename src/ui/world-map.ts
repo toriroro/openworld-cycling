@@ -68,6 +68,8 @@ export interface GameMapLayer {
   depots?: () => { x: number; z: number; color: string; company: string }[];
   /** 縄張りの凡例（商圏の広い順） */
   legend?: () => { name: string; color: string }[];
+  /** 長距離の便: 経路（世界座標 x, z の並び）・業者の色・行き先・トラックの位置（配達の草案 22 章） */
+  freight?: () => { path: number[]; color: string; town: string; trucks: { x: number; z: number; back: boolean }[] }[];
 }
 
 /** 縄張りを塗る縮尺の上限 (m/px) */
@@ -812,6 +814,34 @@ export class WorldMap {
         ctx.strokeRect(sx - 6, sy - 6, 12, 12);
         if (this.mpp <= 2.6) label(ctx, `${d.company} 営業所`, sx + 9, sy + 4, 12, "#202020");
       }
+    // 長距離の便: 経路の線、行き先の名前、トラック（向かう = 塗り、戻る = 白抜き）
+    for (const f of this.opts.game?.freight?.() ?? []) {
+      ctx.beginPath();
+      for (let i = 0; i < f.path.length; i += 2) {
+        const [sx, sy] = toScreen(f.path[i], f.path[i + 1]);
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = "rgba(255,255,255,0.8)";
+      ctx.stroke();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = f.color;
+      ctx.setLineDash([10, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const n = f.path.length;
+      const [ex, ey] = toScreen(f.path[n - 2], f.path[n - 1]);
+      label(ctx, `便 ${f.town}`, ex + 8, ey - 6, 13, "#202020");
+      for (const t of f.trucks) {
+        const [sx, sy] = toScreen(t.x, t.z);
+        ctx.fillStyle = t.back ? "#ffffff" : f.color;
+        ctx.strokeStyle = t.back ? f.color : "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.fillRect(sx - 7, sy - 5, 14, 10);
+        ctx.strokeRect(sx - 7, sy - 5, 14, 10);
+      }
+    }
     // 縄張りの凡例（左下。下の帯の上）
     const leg = terr ? (this.opts.game?.legend?.() ?? []) : [];
     if (leg.length) {

@@ -33,7 +33,12 @@ export function worldDay(ms: number): { day: number; weekday: (typeof WEEKDAYS)[
   return { day, weekday: WEEKDAYS[day - Math.floor(day / 7) * 7] };
 }
 
-export type WeatherKind = "clear" | "cloudy" | "fog";
+/** 世界の日 day が始まる Unix 時刻のミリ秒（worldDay の逆。その日に入る最初の整数のミリ秒） */
+export function dayStartMs(day: number): number {
+  return Math.ceil((day * REAL_DAY_MS) / GAME_SPEED) - JST_MS;
+}
+
+export type WeatherKind ="clear" | "cloudy" | "fog";
 
 export const WEATHER_LABELS: Record<WeatherKind, string> = { clear: "晴れ", cloudy: "曇り", fog: "霧" };
 

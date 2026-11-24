@@ -1,6 +1,7 @@
 // 道路生成用 Worker とのやり取りの形。転送できる ArrayBuffer だけを使う（概要仕様 9.5 #3）。
 
 import type { Junction, Poi, RailLine, Road, WorldNode } from "../shared/world/types.ts";
+import type { TruckRoute } from "../shared/world/truck-route.ts";
 import type { CrossingInfo, Rect } from "../shared/world/world.ts";
 
 export type WorldRequest =
@@ -10,7 +11,9 @@ export type WorldRequest =
   | { type: "region"; id: number; rect: Rect }
   /** 鉄道（鉄道の草案 L1。地図だけ） */
   | { type: "rail"; id: number; rect: Rect }
-  | { type: "prune"; keep: Rect };
+  | { type: "prune"; keep: Rect }
+  /** 長距離の便の経路（配達の草案 22 章。北海道の世界だけ。道路網の全体で探す） */
+  | { type: "route"; id: number; from: [number, number]; to: [number, number] };
 
 export interface RegionPayload {
   nodes: WorldNode[];
@@ -27,4 +30,5 @@ export type WorldResponse =
   | { type: "tile"; id: number; pixels: Uint8ClampedArray; ms: number }
   | { type: "region"; id: number; data: RegionPayload }
   | { type: "rail"; id: number; lines: RailLine[]; ms: number }
+  | { type: "route"; id: number; route: TruckRoute | null }
   | { type: "error"; id: number; message: string };

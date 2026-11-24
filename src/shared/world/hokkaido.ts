@@ -2,6 +2,7 @@
 // 生成の世界の Terrain・World と同じ窓口で高さ・水・景観・道路を返す。
 // データの取得（fetch）は呼ぶ側（Worker）が行い、ここには ArrayBuffer を渡す。DOM・三角関数を使わない（モック 4.2）。
 
+import { type TruckRoute, TruckGraph } from "./truck-route.ts";
 import { smoothstep } from "./noise.ts";
 import type { LandscapeWeights, TerrainSample } from "./terrain.ts";
 import type { Junction, Poi, RailLine, Road, RoadClass, Span, WorldNode } from "./types.ts";
@@ -389,6 +390,17 @@ export class HokkaidoWorld {
       return { road, bounds: { x0: x0 - pad, z0: z0 - pad, x1: x1 + pad, z1: z1 + pad } };
     });
     this.junctions = new Map(meta.junctions.map((j) => [j.id, j]));
+  }
+
+  private truckGraph: TruckGraph | null = null;
+
+  /** 長距離の便の経路（配達の草案 22 章）。道路網の全体で、時間の短い道 */
+  truckRoute(fx: number, fz: number, tx: number, tz: number): TruckRoute | null {
+    this.truckGraph ??= new TruckGraph(
+      this.roads.map((r) => r.road),
+      this.junctions.values(),
+    );
+    return this.truckGraph.route(fx, fz, tx, tz);
   }
 
   prune(_keep: Rect) {
