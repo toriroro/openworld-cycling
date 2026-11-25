@@ -1,7 +1,8 @@
-// ウェブ版の公開設定。Worker（worker/index.ts）がパスワードを確かめてから静的ファイルを渡す。/api はまだ無い。
+// ウェブ版の公開設定。Worker（worker/index.ts）がパスワードを確かめてから静的ファイルと /api（アカウントとセーブ。配達の草案 23.3）を渡す。
 // 公開: npm run deploy
 // 秘密（設定ファイルには書かない）: SITE_PASSWORD（遊ぶ人に伝えるパスワード、12 文字以上）、SESSION_SECRET（Cookie の署名用の乱数）
 //   npx wrangler secret put SITE_PASSWORD
+//   npx wrangler secret put PASSWORD_PEPPER（アカウントのログイン鍵に混ぜる秘密、32 文字以上。一度決めたら変えない）
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "openworld-cycling",
@@ -15,6 +16,12 @@
   },
   // 版ごとの URL（<版>-openworld-cycling.….workers.dev）は出さない。古い版は認証の無い状態で残るため。
   "preview_urls": false,
+  // アカウントとセーブ（D6a。docs/online.md）。Durable Object は使わない。
+  // database_id は本番の D1 を作った時（npx wrangler d1 create openworld-cycling）に出る値へ書き換える。
+  // ローカル（npm run db:migrate:local、wrangler dev）はこのままで動く。
+  "d1_databases": [
+    { "binding": "DB", "database_name": "openworld-cycling", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+  ],
   // パスワードの試行の上限（Cloudflare の拠点ごとの概数）
   "ratelimits": [
     { "name": "LOGIN_LIMIT_IP", "namespace_id": "4101", "simple": { "limit": 5, "period": 60 } },

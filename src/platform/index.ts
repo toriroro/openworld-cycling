@@ -22,6 +22,8 @@ export interface Platform {
   bluetooth: BluetoothPort;
   /** ファイルを端末に保存する（ウェブはダウンロード。iOS は共有の画面を後で。トレーナー連携の草案 6.2） */
   saveFile(name: string, bytes: Uint8Array, type: string): Promise<void>;
+  /** API（/api/*）の接続先。ウェブ版は同じオリジン（""）。iOS アプリでは公開サイトを指す（概要仕様 9.5 の 6） */
+  apiBase: string;
 }
 
 const PREFIX = "owc:";
@@ -113,6 +115,7 @@ function webPlatform(): Platform {
       globalThis.open?.(url, "_blank", "noopener");
     },
     bluetooth: webBluetooth(),
+    apiBase: "",
     async saveFile(name, bytes, type) {
       const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type }));
       const a = document.createElement("a");

@@ -2,3 +2,5 @@
 # 公開先の値とは別の、確認用の値を使う。乱数で作るなら: node scripts/make-dev-vars.mjs
 SITE_PASSWORD=
 SESSION_SECRET=
+# アカウントのログイン鍵のハッシュに混ぜる秘密（32 文字以上。配達の草案 23.3）
+PASSWORD_PEPPER=

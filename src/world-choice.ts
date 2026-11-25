@@ -32,8 +32,11 @@ export interface WorldChoice {
 
 export const WORLD_LABELS: Record<WorldId, string> = { generated: "生成の世界", hokkaido: "北海道（札幌）" };
 
+/** 世界ごとの保存の鍵（アカウントでログインしている時は、後ろに account.ts の scopeSuffix を付ける） */
+export const SAVE_KEYS: Record<WorldId, string> = { generated: SAVE_KEY, hokkaido: `${SAVE_KEY}-hokkaido` };
+
 export function generatedWorld(seed: number): WorldChoice {
-  return { id: "generated", seed, base: "", saveKey: SAVE_KEY, origin: { x: ORIGIN.x, z: ORIGIN.z }, generator: GENERATOR_VERSION, label: WORLD_LABELS.generated, local: null, attribution: [] };
+  return { id: "generated", seed, base: "", saveKey: SAVE_KEYS.generated, origin: { x: ORIGIN.x, z: ORIGIN.z }, generator: GENERATOR_VERSION, label: WORLD_LABELS.generated, local: null, attribution: [] };
 }
 
 /** 北海道の世界（変換データを読む。読めなければ例外） */
@@ -45,7 +48,7 @@ export async function hokkaidoWorld(seed: number, base = HOKKAIDO_BASE): Promise
     id: "hokkaido",
     seed,
     base,
-    saveKey: `${SAVE_KEY}-hokkaido`,
+    saveKey: SAVE_KEYS.hokkaido,
     // 大通公園の東の端（北緯 43.0596 度・東経 141.3530 度）
     origin: { x: 240, z: 40 },
     generator: HOKKAIDO_GENERATOR,

@@ -8,6 +8,8 @@ import "./ui/game.css";
 import { startM2 } from "./dev/m2-camera.ts";
 import { startPerfOverlay } from "./ui/perf-overlay.ts";
 import { Game } from "./game.ts";
+import * as account from "./online/account.ts";
+import { AccountPanel } from "./ui/account-panel.ts";
 import { platform } from "./platform/index.ts";
 import { groundProbe, rayCheck } from "./render/raycheck.ts";
 import { type Quality, WorldView } from "./render/world-view.ts";
@@ -70,7 +72,39 @@ if (q.get("mode") === "m2" && devTools) {
   // 自動操作のブラウザ（検証スクリプト）と場所を指定した時は起動画面を出さない
   // ?title=1 は自動操作のブラウザでも起動画面を出す（確認用）
   const title = (q.get("title") === "1" || !navigator.webdriver) && q.get("notitle") !== "1" && resume;
+  // アカウント（配達の草案 23.3、D6a）: ゲームが保存を読む前に、サーバーの保存を手元に入れる。
+  // 遅い時は 8 秒で先へ進む（その後に届いた新しい保存は手元に入れず、「ほかの端末で進んだ保存がある」と出す）
+  await Promise.race([account.initAccount().catch((e) => console.error("account", e)), new Promise((r) => setTimeout(r, 8000))]);
+  account.markStarted();
+  world.saveKey += account.scopeSuffix();
   const game = new Game(view, roads, { x: startX, z: startZ }, { resume, title, dev: !!devTools });
+  const accountPanel = new AccountPanel();
+  accountPanel.onSaveNow = () => game.save();
+  accountPanel.onReload = (save) => {
+    if (!save) game.blockSave = true;
+    location.reload();
+  };
+  // 走っている間は 10 秒ごとに保存する。送るのは 60 秒に 1 回まで（account.ts）。裏に回る時はすぐ送る
+  game.onSaved = async () => {
+    await account.noteLocalWrite();
+    if (document.visibilityState === "hidden") void account.pushNow({ leaving: true });
+  };
+  const accountLabel = () => {
+    const a = account.currentAccount() ?? account.expiredAccount();
+    game.title.setAccount(a ? `${a.loginId}・${account.SYNC_LABELS[account.syncState()]}` : "ゲスト（ログインしていない）");
+  };
+  accountLabel();
+  account.onSyncState((s) => {
+    accountLabel();
+    // ほかの端末で進んだ・食い違った時は、アカウントの画面を出す
+    if ((s === "remote" || s === "conflict") && !accountPanel.isOpen) accountPanel.open();
+  });
+  game.title.onAccount = () => accountPanel.open();
+  game.hud.addButton("アカウント", () => {
+    game.hud.toggleMenu(false);
+    accountPanel.open();
+  });
+  if (account.syncState() === "remote" || account.syncState() === "conflict") accountPanel.open();
   game.title.onWorld = (id) => void switchWorld(id);
   if (q.get("perf") === "1") startPerfOverlay(view, game);
   // 検証用: ?time= と ?weather=clear|cloudy|fog で時刻・天候を決める（保存しない）

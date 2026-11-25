@@ -994,3 +994,73 @@ html, body {
 .btn:disabled {
   opacity: 0.45;
 }
+
+/* アカウント（配達の草案 23.3、D6a）。起動画面の上にも出す */
+.stamp-book.account {
+  z-index: 36;
+}
+.account.busy {
+  cursor: progress;
+}
+.account.busy .btn {
+  pointer-events: none;
+  opacity: 0.6;
+}
+.account-note {
+  padding: 4px 0;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.account-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 14px;
+}
+.account-key {
+  opacity: 0.75;
+}
+.account-val {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.account-form {
+  display: grid;
+  gap: 8px;
+  padding: 6px 0 10px;
+}
+.account-field {
+  display: grid;
+  gap: 3px;
+  font-size: 13px;
+}
+.account-field input {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  font-size: 16px;
+}
+.account-error {
+  min-height: 1em;
+  font-size: 13px;
+  color: #ffcf4a;
+}
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0;
+}
+.title-account {
+  margin-bottom: 12px;
+}
+.title-account .btn {
+  width: 100%;
+  min-height: 40px;
+  font-size: 13px;
+  text-align: left;
+}

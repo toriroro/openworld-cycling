@@ -29,6 +29,9 @@ export class TitleScreen {
   onHelp: () => void = () => {};
   /** 世界を選び直した（読み込み直しが要る） */
   onWorld: (id: WorldId) => void = () => {};
+  /** アカウントの画面を開く（配達の草案 23.3） */
+  onAccount: () => void = () => {};
+  private account: HTMLButtonElement;
 
   constructor(world?: WorldChoice) {
     this.root = h("div", "title-screen hidden");
@@ -43,9 +46,17 @@ export class TitleScreen {
       b.setAttribute("aria-pressed", String(id === current));
       if (id !== current) b.addEventListener("click", () => this.onWorld(id));
     }
+    // アカウント（ログインしているか・同期の状態）
+    this.account = btn("アカウント", h("div", "title-account", "", panel));
+    this.account.addEventListener("click", () => this.onAccount());
     this.info = h("div", "title-info", "", panel);
     this.buttons = h("div", "title-buttons", "", panel);
     if (world?.attribution.length) panel.appendChild(creditLine(world, "title-credit"));
+  }
+
+  /** アカウントのボタンの文言（「ゲスト」「rider_01・同期済み」など） */
+  setAccount(text: string) {
+    this.account.textContent = `アカウント: ${text}`;
   }
 
   get visible() {

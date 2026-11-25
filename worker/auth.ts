@@ -8,6 +8,8 @@
 // 型は DOM と共通の標準 API だけを使う（tests/ から Node でも動かすため）。
 // 入口のモジュール（index.ts）はハンドラ以外を export できないので、中身はこのファイルに置く。
 
+import { handleApi } from "./api.ts";
+import type { D1Like } from "./db.ts";
 import { loginPage, messagePage } from "./login-page.ts";
 
 export interface RateLimiter {
@@ -24,6 +26,10 @@ export interface Env {
   LOGIN_LIMIT_IP?: RateLimiter;
   /** 全体の試行の上限（接続元を変えながらの総当たりを抑える）。 */
   LOGIN_LIMIT_ALL?: RateLimiter;
+  /** アカウントとセーブ（配達の草案 23.3、D6a）。/api/* だけが使う */
+  DB?: D1Like;
+  /** ログイン鍵のハッシュに混ぜる秘密。`wrangler secret put PASSWORD_PEPPER` で登録する。一度決めたら変えない */
+  PASSWORD_PEPPER?: string;
 }
 
 export const COOKIE_NAME = "__Host-owc";
@@ -198,7 +204,11 @@ export async function handle(request: Request, env: Env, nowMs: number): Promise
   const url = new URL(request.url);
   if (url.pathname === LOGIN_PATH) return login(request, env, s, url, nowMs);
 
-  if (await hasSession(request, s, nowMs)) return env.ASSETS.fetch(request);
+  if (await hasSession(request, s, nowMs)) {
+    // API（D6a）も門の内側に置く（配達の草案 23.10）
+    if (url.pathname.startsWith("/api/")) return handleApi(request, env, nowMs);
+    return env.ASSETS.fetch(request);
+  }
 
   if (wantsHtml(request)) return page(loginPage({ next: safeNext(url.pathname + url.search) }), 401);
   return new Response("認証が必要です", {

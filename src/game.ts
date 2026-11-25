@@ -138,6 +138,10 @@ export class Game {
   private saveT = 0;
   /** 最後に保存した時刻（確認用） */
   lastSaved = "";
+  /** 保存した後（アカウントの同期。main.ts） */
+  onSaved: () => Promise<void> | void = () => {};
+  /** 保存を止める（サーバーの保存を手元に入れて読み込み直す間。配達の草案 23.3） */
+  blockSave = false;
   /** 眺める乗り方で自動で切り替えた視点の記録（確認用） */
   readonly watchCameraLog: { t: number; camera: CameraMode }[] = [];
   /** 最後に描いた時刻（フレームレートの上限用） */
@@ -636,10 +640,11 @@ export class Game {
   }
 
   async save() {
-    if (!this.loaded) return;
+    if (!this.loaded || this.blockSave) return;
     const d = this.snapshot();
     await platform.storage.save(this.view.world.saveKey, JSON.stringify(d));
     this.lastSaved = d.savedAt;
+    await this.onSaved();
   }
 
   /** 起点の近くの道路に乗せる（起点の町から出る道を選ぶ） */
