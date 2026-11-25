@@ -37,6 +37,9 @@ export interface Place {
   kind?: PlaceKind;
   /** 店・家の識別子（建物の種）、頼み事の識別子 */
   id?: string;
+  /** 店・家・人の建物（人なら立っている所）の位置。光の柱を立てる（配達の草案 26 章）。無ければ道の脇から求める */
+  bx?: number;
+  bz?: number;
 }
 
 /** 注文の出どころ（草案 14.3） */
@@ -210,6 +213,32 @@ export function stoppedAt(book: AddressBook, target: Place, pose: { x: number; z
   return false;
 }
 
+/** 受け渡しの円の半径 (m)【初期値】（配達の草案 26 章） */
+export const ZONE_R = 5;
+/** 円の中心を道の端から内側へ寄せる量 (m) */
+const ZONE_CURB = 1.5;
+
+export interface HandoffZone {
+  x: number;
+  z: number;
+  r: number;
+}
+
+/**
+ * 受け渡しの円（配達の草案 26 章）: 走る道の上の点 spot（道の中心、向き dx・dz、道の幅 width）から、
+ * 建物 (bx, bz) の側の道の端の少し内側に置く。この円に入れば、速さによらず受け取り・受け渡しになる
+ */
+export function handoffZone(spot: { x: number; z: number; dx: number; dz: number; width: number }, building: { x: number; z: number }): HandoffZone {
+  const nx = -spot.dz;
+  const nz = spot.dx;
+  const side = (building.x - spot.x) * nx + (building.z - spot.z) * nz >= 0 ? 1 : -1;
+  const off = Math.max(0, spot.width / 2 - ZONE_CURB) * side;
+  return { x: spot.x + nx * off, z: spot.z + nz * off, r: ZONE_R };
+}
+
+/** (x, z) が受け渡しの円の中か */
+export const inZone = (zone: HandoffZone, p: { x: number; z: number }): boolean => d2(p, zone) <= zone.r * zone.r;
+
 export type DeliveryPhase = "pickup" | "dropoff";
 
 /** 受けた注文の進み具合。時刻は走行の時間 (s) */
@@ -253,6 +282,11 @@ export class Delivery {
    */
   update(book: AddressBook, pose: { x: number; z: number; dx: number; dz: number }, speed: number, time: number, odometer: number): "picked" | DeliveryResult | null {
     if (!stoppedAt(book, this.target, pose, speed)) return null;
+    return this.handoff(time, odometer);
+  }
+
+  /** 受け取り・受け渡しを 1 つ進める（受け渡しの円に入った時。配達の草案 26 章） */
+  handoff(time: number, odometer: number): "picked" | DeliveryResult {
     this.handover += HANDOVER_S;
     if (this.phase === "pickup") {
       this.phase = "dropoff";

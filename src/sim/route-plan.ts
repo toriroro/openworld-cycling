@@ -1,5 +1,6 @@
 // 行き先までの最短経路（モック仕様 6.3「地図で行き先を指定すると、最短経路に沿って分岐を自動で選ぶ」）。
 // 読み込み済みの道路網の上で、接続点を頂点・接続点の間の道路を辺にしたダイクストラ法。
+// 曲がるたびに重みを足して、まっすぐ進む回数の多い経路にする（配達の草案 26 章）。
 
 import type { JunctionArm, Road } from "../shared/world/types.ts";
 import type { RoadNetwork, RoadPosition } from "./road-network.ts";
@@ -78,6 +79,37 @@ export function segmentCost(r: Road, s0: number, s1: number, style: RouteStyle):
   return len + CLIMB_COST * climb;
 }
 
+/**
+ * 接続点で曲がる時に足す重み (m)。まっすぐ進む回数の多い経路を選ぶ（配達の草案 26 章）【初期値】。
+ * 入る向きと出る向きのなす角が約 35° 未満（内積 0.82 以上）なら、まっすぐとみなす
+ */
+export const TURN_COST = 150;
+const STRAIGHT_DOT = 0.82;
+
+/** 道路 r の位置 s での、向き dir に進む時の水平の向き（単位ベクトル） */
+function headingAt(r: Road, s: number, dir: number): [number, number] {
+  const P = r.points;
+  const n = P.length / 3;
+  const ds = r.length / (n - 1);
+  const i = Math.min(n - 1, Math.max(0, Math.round(s / ds)));
+  const a = Math.max(0, i - 2);
+  const b = Math.min(n - 1, i + 2);
+  const dx = (P[b * 3] - P[a * 3]) * dir;
+  const dz = (P[b * 3 + 2] - P[a * 3 + 2]) * dir;
+  const l = Math.sqrt(dx * dx + dz * dz) || 1;
+  return [dx / l, dz / l];
+}
+
+/** 道路 inRoad を向き inDir で接続点（その道路の位置 inS）に入り、腕 arm へ出る時に曲がるか */
+export function isTurn(net: RoadNetwork, inRoad: string, inS: number, inDir: number, arm: JunctionArm): boolean {
+  const ri = net.roads.get(inRoad);
+  const ro = net.roads.get(arm.road);
+  if (!ri || !ro) return false;
+  const [ax, az] = headingAt(ri, inS, inDir);
+  const [bx, bz] = headingAt(ro, arm.s, arm.dir);
+  return ax * bx + az * bz < STRAIGHT_DOT;
+}
+
 /** 行き先と接続点の位置の比べで許す誤差 (m) */
 const GOAL_EPS = 0.5;
 
@@ -137,7 +169,8 @@ export function planRoute(net: RoadNetwork, from: RoadPosition, goalX: number, g
   len.set("@start", 0);
   prev.set("@start", null);
   push(0, "@start");
-  const relax = (fromV: string, base: number, road: string, s: number, dir: 1 | -1, junction: string, arm: JunctionArm | null) => {
+  // turn: この腕へ曲がる重み。行き先がこの腕の上なら足さない（接続点の上の行き先に、曲がる腕から着いたことにしない）
+  const relax = (fromV: string, base: number, road: string, s: number, dir: 1 | -1, junction: string, arm: JunctionArm | null, turn = 0) => {
     // 行き先が同じ道路のこの向きの先にあれば終点へ。
     // 0.5m の誤差を許す（行き止まりの端に行き先があると、端の接続点の s と行き先の s が丸めで 0.001m ずれ、どこからも着けなかった。藻岩山展望台）
     if (road === goal.road && (goal.s - s) * dir >= -GOAL_EPS) {
@@ -154,7 +187,7 @@ export function planRoute(net: RoadNetwork, from: RoadPosition, goalX: number, g
     }
     const nj = nextOn(road, s, dir);
     if (!nj) return;
-    const d = base + cost(road, s, nj.s);
+    const d = base + turn + cost(road, s, nj.s);
     const v = `${nj.junction.id}|${road}|${dir}|${nj.s}`;
     if (d < (dist.get(v) ?? Infinity)) {
       dist.set(v, d);
@@ -180,7 +213,7 @@ export function planRoute(net: RoadNetwork, from: RoadPosition, goalX: number, g
       if (!net.roads.has(a.road)) continue;
       // 来た道へそのまま戻る腕は使わない
       if (a.road === inRoad && a.dir === -Number(inDir) && Math.abs(a.s - Number(inS)) < 0.5) continue;
-      relax(v, d, a.road, a.s, a.dir, jid, a);
+      relax(v, d, a.road, a.s, a.dir, jid, a, isTurn(net, inRoad, Number(inS), Number(inDir), a) ? TURN_COST : 0);
     }
   }
   if (!dist.has("@goal")) return null;
@@ -195,4 +228,47 @@ export function planRoute(net: RoadNetwork, from: RoadPosition, goalX: number, g
   }
   steps.reverse();
   return { steps, length: len.get("@goal")!, goal: { road: goal.road, s: goal.s } };
+}
+
+/**
+ * 経路の線（世界座標 x, z の交互の並び）。今の位置 from から、接続点ごとに選ぶ腕をたどって行き先まで（地図に引く。配達の草案 26 章）。
+ * 道路の点を間引かずに使う。経路の途中で道路が読み込まれていなければ、そこまで
+ */
+export function planPath(net: RoadNetwork, from: RoadPosition, plan: RoutePlan): number[] {
+  const out: number[] = [];
+  const along = (r: Road, s0: number, s1: number) => {
+    const P = r.points;
+    const n = P.length / 3;
+    const ds = r.length / (n - 1);
+    const put = (s: number) => {
+      const f = Math.min(n - 1, Math.max(0, s / ds));
+      const i = Math.min(n - 2, Math.floor(f));
+      const t = f - i;
+      out.push(P[i * 3] + (P[(i + 1) * 3] - P[i * 3]) * t + r.origin[0], P[i * 3 + 2] + (P[(i + 1) * 3 + 2] - P[i * 3 + 2]) * t + r.origin[1]);
+    };
+    put(s0);
+    if (s1 > s0) for (let i = Math.floor(s0 / ds) + 1; i * ds < s1; i++) put(i * ds);
+    else for (let i = Math.ceil(s0 / ds) - 1; i * ds > s1; i--) put(i * ds);
+    put(s1);
+  };
+  let road = from.road;
+  let s = from.s;
+  let dir = from.dir;
+  for (const st of plan.steps) {
+    const r = net.roads.get(road);
+    if (!r) return out;
+    let at: number | null = null;
+    for (const j of net.junctionsOn(road)) {
+      if (j.junction.id !== st.junction || (j.s - s) * dir < -GOAL_EPS) continue;
+      if (at === null || Math.abs(j.s - s) < Math.abs(at - s)) at = j.s;
+    }
+    if (at === null) return out;
+    along(r, s, at);
+    road = st.arm.road;
+    s = st.arm.s;
+    dir = st.arm.dir;
+  }
+  const r = net.roads.get(road);
+  if (r && road === plan.goal.road) along(r, s, plan.goal.s);
+  return out;
 }

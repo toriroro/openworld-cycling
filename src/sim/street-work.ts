@@ -137,7 +137,7 @@ export class StreetWork {
     for (const s of shopsNear(this.buildings, x, z, r, signs, this.inside)) {
       const spot = this.spotOf(s);
       if (!spot) continue;
-      out.push({ name: `${SHOP_SIGNS[s.sign]}（${this.short(s.x, s.z)}）`, x: spot.x, z: spot.z, kind: "shop", id: s.id });
+      out.push({ name: `${SHOP_SIGNS[s.sign]}（${this.short(s.x, s.z)}）`, x: spot.x, z: spot.z, kind: "shop", id: s.id, bx: s.x, bz: s.z });
     }
     return out;
   }
@@ -151,12 +151,12 @@ export class StreetWork {
   orderFor(ask: StreetAsk, candidates: Place[], no: number, seed: number): DeliveryOrder | null {
     if (ask.kind === "errand") {
       const e = ask.errand;
-      const from: Place = { name: `頼んだ人（${this.short(e.x, e.z)}）`, x: e.roadX, z: e.roadZ, kind: "person", id: e.id };
+      const from: Place = { name: `頼んだ人（${this.short(e.x, e.z)}）`, x: e.roadX, z: e.roadZ, kind: "person", id: e.id, bx: e.x, bz: e.z };
       const shops = e.kind === "shopping" ? this.shopPlaces(e.roadX, e.roadZ, 650, GOODS_SIGNS) : [];
       return errandOrder(e.kind, from, candidates, shops, no, hash(seed, 0xe77, no));
     }
     const f = ask.flag;
-    const house: Place = { name: `家（${this.short(f.house.x, f.house.z)}）`, x: f.spot.x, z: f.spot.z, kind: "house", id: f.house.id };
+    const house: Place = { name: `家（${this.short(f.house.x, f.house.z)}）`, x: f.spot.x, z: f.spot.z, kind: "house", id: f.house.id, bx: f.house.x, bz: f.house.z };
     return parcelOrder(house, candidates, no, hash(seed, 0x40c, no));
   }
 }

@@ -31,6 +31,17 @@ export function paceWatts(pace: Pace, cp: number): number {
   return PACE_SHARE[pace] * cp;
 }
 
+/**
+ * ペースごとの走りの補助（配達の草案 26 章）: 推進に使う出力を、漕いだ出力のこの倍にする。脚と体力は漕いだ出力で減る。
+ * 平らな道で ゆっくり 30・ふつう 40・急ぐ 50・全力 約 56 km/h になる値（DEFAULT_BIKE で求めた）【初期値】
+ */
+export const PACE_ASSIST = [1, 1.08, 1.63, 2.24, 2.24] as const;
+/** ペースごとの平らな道の速さ (km/h)。この速さより遅い間は、早く届くように前へ押す力を足す（src/sim/ride.ts の cruise）【初期値】 */
+export const PACE_SPEED = [0, 30, 40, 50, 56] as const;
+
+/** 車に当たった時に減る体力（体力の量に対する割合）【初期値】 */
+export const CAR_HIT = 0.05;
+
 /** 食べ物（喫茶店）: 値段 (円) と戻る体力 (J)【初期値】 */
 export const FOODS = [
   { id: "coffee", name: "コーヒーとパン", price: 500, energy: 250_000 },
@@ -74,6 +85,11 @@ export class Stamina {
   }
   get bonk(): boolean {
     return this.energy <= 0;
+  }
+
+  /** 体力を量の share だけ減らす（車に当たった時） */
+  hit(share: number) {
+    this.energy = Math.max(0, this.energy - this.p.energy * share);
   }
 
   eat(energy: number) {

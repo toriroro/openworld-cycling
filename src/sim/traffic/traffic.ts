@@ -546,6 +546,23 @@ export class Traffic {
     return best;
   }
 
+  /**
+   * 自転車（プレイヤー）と重なっている車（配達の草案 26 章）。車の長さ・幅の箱に、自転車の半分の長さ・幅を足して比べる。
+   * 高さが 3m 以上違えば（橋の上と下）重ならない
+   */
+  contacts(rider: { x: number; y: number; z: number }): Vehicle[] {
+    const out: Vehicle[] = [];
+    for (const v of this.vehicles) {
+      if (Math.abs(rider.y - v.y) > 3) continue;
+      const rx = rider.x - v.x;
+      const rz = rider.z - v.z;
+      const lon = rx * v.dx + rz * v.dz;
+      const lat = -rx * v.dz + rz * v.dx;
+      if (Math.abs(lon) <= v.length / 2 + BIKE_LENGTH / 2 && Math.abs(lat) <= v.width / 2 + BIKE_WIDTH / 2) out.push(v);
+    }
+    return out;
+  }
+
   /** 対向車が前 dist m 以内にいるか（道路の幅の中） */
   private oncomingNear(v: Vehicle, dist: number): boolean {
     for (const o of this.vehicles) {

@@ -29,6 +29,10 @@ export class Input {
   brakeKey = false;
   pedalTouch = false;
   brakeTouch = false;
+  /** 左右位置を動かし続けている向き（-1 左・1 右）と、押し始めた時刻（配達の草案 26 章） */
+  private laneKeys = { left: false, right: false };
+  private laneTouch = 0;
+  laneSince = 0;
   private queue: Action[] = [];
   /** 最後に操作した時刻（眺める乗り方で HUD を消すため） */
   lastActivity = performance.now();
@@ -66,9 +70,13 @@ export class Input {
           break;
         case "KeyA":
           this.queue.push("lane-left");
+          this.laneKeys.left = true;
+          this.laneSince = performance.now();
           break;
         case "KeyD":
           this.queue.push("lane-right");
+          this.laneKeys.right = true;
+          this.laneSince = performance.now();
           break;
         case "KeyQ":
           this.queue.push("look-left");
@@ -107,10 +115,14 @@ export class Input {
     addEventListener("keyup", (e) => {
       if (e.code === "Space") this.pedalKey = false;
       if (e.code === "ShiftLeft" || e.code === "ShiftRight") this.brakeKey = false;
+      if (e.code === "KeyA") this.laneKeys.left = false;
+      if (e.code === "KeyD") this.laneKeys.right = false;
     });
     // ウィンドウを離れたら押しっぱなしを解く
     addEventListener("blur", () => {
       this.pedalKey = this.brakeKey = this.pedalTouch = this.brakeTouch = false;
+      this.laneKeys.left = this.laneKeys.right = false;
+      this.laneTouch = 0;
     });
     addEventListener("pointerdown", () => (this.lastActivity = performance.now()));
     addEventListener("pointermove", () => (this.lastActivity = performance.now()), { passive: true });
@@ -121,6 +133,10 @@ export class Input {
   }
   get brake() {
     return this.brakeKey || this.brakeTouch;
+  }
+  /** 左右位置を動かし続けている向き（-1・0・1） */
+  get lane(): number {
+    return this.laneTouch || (this.laneKeys.left ? -1 : 0) + (this.laneKeys.right ? 1 : 0);
   }
 
   push(a: Action) {
@@ -151,6 +167,17 @@ export class Input {
     el.addEventListener("pointerup", off);
     el.addEventListener("pointercancel", off);
     el.addEventListener("lostpointercapture", off);
+  }
+
+  /** 左右位置のボタン: 押した時に 1 回動かし、押している間は動かし続ける */
+  bindLane(el: HTMLElement, dir: -1 | 1) {
+    this.bindHold(el, (on) => {
+      if (on) {
+        this.queue.push(dir < 0 ? "lane-left" : "lane-right");
+        this.laneTouch = dir;
+        this.laneSince = performance.now();
+      } else if (this.laneTouch === dir) this.laneTouch = 0;
+    });
   }
 
   /** 押した時に1回 */

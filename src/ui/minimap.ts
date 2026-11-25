@@ -3,7 +3,7 @@
 
 import type { Poi, Road } from "../shared/world/types.ts";
 import type { RiddenLog } from "../sim/ridden.ts";
-import { drawLandmark } from "./world-map.ts";
+import { drawLandmark, ROUTE_COLOR, TARGET_COLORS } from "./world-map.ts";
 
 const RIDDEN = "#ff8a1f";
 const ROAD = "rgba(245,245,240,0.85)";
@@ -23,6 +23,10 @@ export interface MinimapInput {
   landmarks?: { x: number; z: number; visited: boolean; goal: boolean }[];
   /** 仕事の印（道端の頼み事の人・旗の家。配達の草案 16 章）。円の中だけ描く */
   work?: { x: number; z: number }[];
+  /** 配達の行き先（受け取り・届け先）。円の外なら縁に出す（配達の草案 26 章） */
+  targets?: { x: number; z: number; kind: "pickup" | "dropoff"; active: boolean }[];
+  /** 行き先までの経路の線（世界座標 x, z の交互の並び） */
+  route?: number[] | null;
 }
 
 export class Minimap {
@@ -116,6 +120,22 @@ export class Minimap {
         ctx.stroke();
       }
     }
+    // 行き先までの経路
+    const route = m.route;
+    if (route && route.length >= 4) {
+      ctx.beginPath();
+      for (let i = 0; i < route.length; i += 2) {
+        const [sx, sy] = toScreen(route[i], route[i + 1]);
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.strokeStyle = "rgba(4,24,32,0.9)";
+      ctx.lineWidth = 6 * dpr;
+      ctx.stroke();
+      ctx.strokeStyle = ROUTE_COLOR;
+      ctx.lineWidth = 3.4 * dpr;
+      ctx.stroke();
+    }
     // 喫茶店
     const byId = new Map(roads.map((rd) => [rd.id, rd]));
     for (const p of m.pois) {
@@ -172,6 +192,26 @@ export class Minimap {
       ctx.fillStyle = "#2fd0ff";
       ctx.fill();
       ctx.strokeStyle = "#08202a";
+      ctx.lineWidth = 2 * dpr;
+      ctx.stroke();
+    }
+    // 配達の行き先: 円の中なら大きめの丸、外なら縁に（いま向かっている方を後に描いて上に）
+    for (const g of [...(m.targets ?? [])].sort((a, b) => Number(a.active) - Number(b.active))) {
+      let [gx, gy] = toScreen(g.x, g.z);
+      const ddx = gx - R, ddy = gy - R;
+      const d = Math.sqrt(ddx * ddx + ddy * ddy);
+      const lim = R - 9 * dpr;
+      if (d > lim) {
+        gx = R + (ddx / d) * lim;
+        gy = R + (ddy / d) * lim;
+      }
+      ctx.beginPath();
+      ctx.arc(gx, gy, (g.active ? 7 : 5) * dpr, 0, Math.PI * 2);
+      ctx.fillStyle = TARGET_COLORS[g.kind];
+      ctx.globalAlpha = g.active ? 1 : 0.6;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2 * dpr;
       ctx.stroke();
     }

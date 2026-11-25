@@ -2,6 +2,7 @@
 // 地図を押すと行き先を指定する。「ワープ」を押してから地図を押すと、押した所の近くの走る道へ移る。開いている間だけ地図用の Worker を動かす。
 
 import type { WorldChoice } from "../world-choice.ts";
+import { platform } from "../platform/index.ts";
 import { creditLine } from "./credit.ts";
 import { type GameMapLayer, WorldMap } from "./world-map.ts";
 
@@ -13,6 +14,8 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = ""
   return e;
 };
 
+const MPP_KEY = "map-mpp";
+
 export class MapOverlay {
   readonly root: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -22,6 +25,8 @@ export class MapOverlay {
   /** 次に地図を押した所へワープする（地図を閉じると戻る） */
   warping = false;
   map: WorldMap | null = null;
+  /** 最後に見ていた縮尺 (m/px)。開き直しても同じ縮尺で出す（配達の草案 26 章）。端末に覚えておく */
+  private mpp = 10;
   onClose: () => void = () => {};
   onClearGoal: () => void = () => {};
 
@@ -29,6 +34,10 @@ export class MapOverlay {
     private seed: number,
     private world?: WorldChoice,
   ) {
+    void platform.storage.load(MPP_KEY).then((t) => {
+      const v = Number(t);
+      if (t && v > 0 && Number.isFinite(v) && !this.map) this.mpp = v;
+    });
     this.root = h("div", "map-overlay hidden");
     document.body.appendChild(this.root);
     this.canvas = h("canvas", "map-canvas", "", this.root);
@@ -63,11 +72,13 @@ export class MapOverlay {
   open(x: number, z: number, layer: GameMapLayer) {
     if (this.map) return;
     this.root.classList.remove("hidden");
-    this.map = new WorldMap(this.canvas, { seed: this.seed, world: this.world?.id === "hokkaido" ? "hokkaido" : undefined, x, z, mpp: 10, game: layer });
+    this.map = new WorldMap(this.canvas, { seed: this.seed, world: this.world?.id === "hokkaido" ? "hokkaido" : undefined, x, z, mpp: this.mpp, game: layer });
   }
 
   close() {
     if (!this.map) return;
+    this.mpp = this.map.mpp;
+    void platform.storage.save(MPP_KEY, String(this.mpp));
     this.map.destroy();
     this.map = null;
     this.setWarping(false);

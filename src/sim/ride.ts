@@ -77,6 +77,10 @@ interface TurnPlan {
   offOut: number;
 }
 
+/** ペースの速さまで前へ押す力 (N) と、弱め始める速さの差 (m/s)【初期値】（配達の草案 26 章）。平らな道で 0→36km/h が約 10 秒 */
+export const CRUISE_FORCE = 110;
+const CRUISE_TAPER = 1.5;
+
 export class Ride {
   pos: RoadPosition;
   speed = 0;
@@ -85,6 +89,10 @@ export class Ride {
   /** 利用者が動かした左右位置の量 (m) */
   laneShift = 0;
   watts = 0;
+  /** 推進に使う出力の倍率（ペースの補助。配達の草案 26 章）。watts は漕いだ出力のまま */
+  assist = 1;
+  /** ペースの速さ (m/s)。漕いでいて、これより遅い間は前へ押す力を足す。0 なら足さない（配達の草案 26 章） */
+  cruise = 0;
   brake = 0;
   autoBrake = 0;
   grade = 0;
@@ -214,6 +222,19 @@ export class Ride {
     return true;
   }
 
+  /**
+   * 推進に使う出力 (W)。漕いだ出力 × 補助の倍率。ペースの速さより遅い間は、少なくとも CRUISE_FORCE の力になるようにする
+   * （速さとの差が CRUISE_TAPER より小さくなると弱める。上りでは坂の分を引くので、上りの速さは倍率だけの時と同じ）
+   */
+  private propulsionWatts(): number {
+    const w = this.watts * this.assist;
+    if (this.cruise <= 0 || this.watts <= 0 || this.speed >= this.cruise) return w;
+    const k = Math.min(1, (this.cruise - this.speed) / CRUISE_TAPER);
+    const climb = this.bike.mass * 9.80665 * Math.max(0, this.grade);
+    const force = Math.max(0, CRUISE_FORCE - climb) * k;
+    return Math.max(w, force * Math.max(0.5, this.speed));
+  }
+
   /** 1歩進める（DT 秒）。道路が読み込まれていなければ止まって待つ */
   step(dt = DT) {
     const road = this.road;
@@ -237,7 +258,7 @@ export class Ride {
     this.autoBrake = this.speed > limit ? Math.min(1, (this.speed - limit) * 0.6 + 0.15) : 0;
     this.brake = Math.max(brake, this.autoBrake);
     this.watts = this.autoBrake > 0 ? 0 : watts;
-    const r = integrateSpeed(this.speed, this.grade, this.brake, this.watts, dt, this.bike);
+    const r = integrateSpeed(this.speed, this.grade, this.brake, this.propulsionWatts(), dt, this.bike);
     let dist = r.distance;
     this.speed = r.speed;
     if (edge < Infinity && dist >= edge - EDGE_MARGIN) {

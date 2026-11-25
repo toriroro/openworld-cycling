@@ -88,6 +88,9 @@ export class Hud {
   private menuBtn: HTMLButtonElement;
   private pauseEl: HTMLElement;
   private touch: HTMLElement;
+  private flashEl!: HTMLElement;
+  private vignette!: HTMLElement;
+  private flashTimer = 0;
   private pedalBtn!: HTMLButtonElement;
   private uturnBtn: HTMLButtonElement;
   private roadEl: HTMLElement;
@@ -280,23 +283,32 @@ export class Hud {
     this.keysEl = h("div", "menu-end", "", this.menu);
     this.settingsEls = { power, powerOut, quality, clock, hour, hourOut, weather, camera };
 
+    // 短い知らせ（受け取った・渡した・車に当たった）
+    this.flashEl = h("div", "flash hidden", "", this.root);
+    this.vignette = h("div", "hit-vignette hidden", "", this.root);
+
     // 一時停止の表示
     this.pauseEl = h("div", "pause-banner hidden", "一時停止中", this.root);
     this.pauseEl.addEventListener("pointerdown", () => this.input.push("pause"));
 
-    // タッチ端末: 右下に漕ぐ・ブレーキ、左下に左右位置
+    // タッチ端末: 左下の角に「左へ」、右下の角に「右へ」、その左に漕ぐ・ブレーキ（配達の草案 26 章）。
+    // 左右は押した時に少し動き、押している間は動き続ける
     this.touch = h("div", "touch", "", this.root);
+    const left = h("div", "touch-left", "", this.touch);
+    const ll = h("button", "btn touch-btn lane", "", left);
+    h("span", "lane-arrow", "◀", ll);
+    h("span", "lane-label", "左へ", ll);
     const right = h("div", "touch-right", "", this.touch);
     const brake = h("button", "btn touch-btn brake", "ブレーキ", right);
     const pedal = h("button", "btn touch-btn pedal", "漕ぐ", right);
+    const lr = h("button", "btn touch-btn lane", "", right);
+    h("span", "lane-arrow", "▶", lr);
+    h("span", "lane-label", "右へ", lr);
     this.pedalBtn = pedal;
     this.input.bindHold(pedal, (on) => (this.input.pedalTouch = on));
     this.input.bindHold(brake, (on) => (this.input.brakeTouch = on));
-    const left = h("div", "touch-left", "", this.touch);
-    const ll = h("button", "btn touch-btn lane", "◀ 左へ", left);
-    const lr = h("button", "btn touch-btn lane", "右へ ▶", left);
-    this.input.bindTap(ll, "lane-left");
-    this.input.bindTap(lr, "lane-right");
+    this.input.bindLane(ll, -1);
+    this.input.bindLane(lr, 1);
     const coarse = matchMedia("(pointer: coarse)").matches || new URLSearchParams(location.search).get("touch") === "1";
     const showTouch = (on: boolean) => {
       this.touch.classList.toggle("hidden", !on);
@@ -413,11 +425,13 @@ export class Hud {
     if (key === this.branchKey) return;
     const sameJunction = this.branchKey.startsWith(u.junction.id + "|");
     this.branchKey = key;
-    if (!sameJunction || this.branch.childElementCount !== u.choices.length + 1) {
+    if (!sameJunction || this.branch.querySelectorAll(".choice").length !== u.choices.length) {
       this.branch.replaceChildren();
       h("div", "branch-dist", "", this.branch);
+      // 候補は左に曲がる物から右に曲がる物へ並んでいる（ride.ts で角度の順）。1 行に並べる
+      const row = h("div", "branch-row", "", this.branch);
       u.choices.forEach((c, i) => {
-        const b = h("button", "btn choice", "", this.branch);
+        const b = h("button", "btn choice", "", row);
         b.type = "button";
         const arrow = h("span", "arrow", "↑", b);
         arrow.style.transform = `rotate(${(c.angle * 180) / Math.PI}deg)`;
@@ -433,6 +447,26 @@ export class Hud {
     }
     (this.branch.firstChild as HTMLElement).textContent = `分岐まで ${Math.round(u.distance)} m`;
     [...this.branch.querySelectorAll(".choice")].forEach((el, i) => el.classList.toggle("selected", i === active));
+  }
+
+  /** 短い知らせを画面の上の方に出す。hit は画面の縁を赤く光らせる */
+  flash(text: string, tone: "ok" | "hit") {
+    const f = this.flashEl;
+    f.textContent = text;
+    f.className = `flash flash-${tone}`;
+    // 同じ知らせを続けて出しても動きを始めからにする
+    void f.offsetWidth;
+    f.classList.add("show");
+    if (tone === "hit") {
+      this.vignette.classList.remove("hidden", "show");
+      void this.vignette.offsetWidth;
+      this.vignette.classList.add("show");
+    }
+    clearTimeout(this.flashTimer);
+    this.flashTimer = window.setTimeout(() => {
+      f.classList.add("hidden");
+      this.vignette.classList.add("hidden");
+    }, 1600);
   }
 
   /** 候補を押した時の番号（Game が取り出す） */

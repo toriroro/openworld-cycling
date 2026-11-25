@@ -193,20 +193,27 @@ html, body {
   text-overflow: ellipsis;
   pointer-events: none;
 }
+/* 分岐の案内（配達の草案 26 章）: 上の行に分岐までの距離、下の行に候補を左から右へ。画面を隠さないよう小さく、半ば透かす */
 .branch {
   position: fixed;
   top: calc(var(--safe-t) + 10px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 8px;
-  align-items: stretch;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
   max-width: calc(100vw - 260px);
 }
+.branch-row {
+  display: flex;
+  gap: 5px;
+  align-items: stretch;
+  max-width: 100%;
+}
 .branch-dist {
-  align-self: center;
   padding: 0 8px;
-  font-size: 12px;
+  font-size: 11px;
   color: #dfe3e8;
   white-space: nowrap;
   text-shadow: 0 1px 2px #000;
@@ -216,8 +223,10 @@ html, body {
   display: grid;
   grid-template-rows: auto auto auto;
   justify-items: center;
-  padding: 6px 10px;
-  min-width: 84px;
+  min-width: 56px;
+  min-height: 0;
+  padding: 3px 8px;
+  background: rgba(14, 18, 24, 0.55);
 }
 .choice.selected {
   background: rgba(255, 211, 77, 0.9);
@@ -225,16 +234,19 @@ html, body {
 }
 .choice .arrow {
   display: inline-block;
-  font-size: 22px;
+  font-size: 17px;
   line-height: 1;
 }
 .choice .dest {
+  max-width: 24vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 12px;
   white-space: nowrap;
 }
 .choice .far {
-  font-size: 11px;
+  font-size: 10px;
   opacity: 0.85;
 }
 .uturn {
@@ -252,18 +264,19 @@ html, body {
   background: rgba(14, 18, 24, 0.85);
   font-size: 18px;
 }
+/* タッチの操作（配達の草案 26 章）: 左下の角に「左へ」、右下の角に「右へ」、その左に漕ぐ・ブレーキ */
 .touch-right {
   position: fixed;
-  right: calc(var(--safe-r) + 12px);
-  bottom: calc(var(--safe-b) + 12px);
+  right: calc(var(--safe-r) + 10px);
+  bottom: calc(var(--safe-b) + 10px);
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-end;
 }
 .touch-left {
   position: fixed;
   left: calc(var(--safe-l) + 10px);
-  bottom: calc(var(--safe-b) + 92px);
+  bottom: calc(var(--safe-b) + 10px);
   display: flex;
   gap: 8px;
 }
@@ -280,8 +293,85 @@ html, body {
   font-size: 14px;
 }
 .touch-btn.lane {
-  min-width: 64px;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.lane-arrow {
+  font-size: 22px;
+  line-height: 1;
+}
+.lane-label {
   font-size: 13px;
+}
+/* 短い知らせ（受け取った・渡した・車に当たった） */
+.flash {
+  position: fixed;
+  left: 50%;
+  top: 34%;
+  transform: translate(-50%, -50%);
+  padding: 8px 18px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 6;
+}
+.flash-ok {
+  background: rgba(20, 70, 44, 0.88);
+  color: #d9ffe9;
+}
+.flash-hit {
+  background: rgba(110, 20, 20, 0.88);
+  color: #ffe1e1;
+}
+.flash.show {
+  animation: flash-pop 1.6s ease-out forwards;
+}
+@keyframes flash-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+  25% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.hit-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 90px 30px rgba(230, 30, 30, 0.75);
+  opacity: 0;
+  z-index: 5;
+}
+.hit-vignette.show {
+  animation: hit-fade 0.7s ease-out forwards;
+}
+@keyframes hit-fade {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 .dev-hud {
   display: none;
@@ -300,31 +390,24 @@ html, body {
     font-size: 26px;
   }
   .branch {
-    top: calc(var(--safe-t) + 170px);
+    top: calc(var(--safe-t) + 146px);
     max-width: calc(100vw - 20px);
-    flex-wrap: wrap;
-    justify-content: center;
   }
   .road-name {
     bottom: auto;
     top: calc(var(--safe-t) + 18px);
     max-width: calc(100vw - 200px);
   }
-  .touch-left {
-    bottom: calc(var(--safe-b) + 12px);
-  }
 }
 
-/* タッチ端末の横画面: 左下は 左右位置のボタンを下、走行情報をその上に */
+/* タッチ端末の横画面: 下の角は左右のボタン、下の中ほどはペース。走行情報は左上（出典の下）、道の名前はペースの上 */
 @media (orientation: landscape) {
-  .hud-root.has-touch .touch-left {
-    bottom: calc(var(--safe-b) + 10px);
-  }
   .hud-root.has-touch .ride-info {
-    bottom: calc(var(--safe-b) + 64px);
+    top: calc(var(--safe-t) + 110px);
+    bottom: auto;
   }
   .hud-root.has-touch .road-name {
-    bottom: calc(var(--safe-b) + 14px);
+    bottom: calc(var(--safe-b) + 124px);
   }
 }
 
@@ -652,6 +735,12 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   z-index: 5;
+}
+/* 横画面: 分岐の案内（上の中ほど、2 行）と重ならないよう、その下に置く */
+@media (orientation: landscape) {
+  .ride-credit {
+    top: calc(var(--safe-t) + 86px);
+  }
 }
 .title-credit {
   margin-top: 12px;

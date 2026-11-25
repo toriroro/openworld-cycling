@@ -15,6 +15,7 @@ import { DistrictMeshes } from "./district/meshes.ts";
 import { Towns } from "./towns.ts";
 import { TrafficView } from "./traffic/traffic-view.ts";
 import { PedestrianView } from "./pedestrians.ts";
+import { HandoffView } from "./handoff-marks.ts";
 import { RealBuildings } from "./real-buildings.ts";
 import { RealStreets } from "./real-streets.ts";
 import { RealPoles } from "./real-poles.ts";
@@ -59,6 +60,8 @@ export class WorldView {
   readonly trafficView = new TrafficView();
   /** 歩く人・頼み事の印・家の旗（配達の草案 16 章） */
   readonly pedestrians = new PedestrianView();
+  /** 受け渡しの所の光の柱と円（配達の草案 26 章） */
+  readonly handoff = new HandoffView();
   private pruneT = 0;
   quality: Quality = "standard";
   /** 描画の原点（世界座標、REBASE_UNIT の倍数） */
@@ -185,7 +188,7 @@ export class WorldView {
           this.realBuildings.refresh();
         }
       });
-    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group, this.districts.group, this.trafficView.group, this.pedestrians.group);
+    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group, this.districts.group, this.trafficView.group, this.pedestrians.group, this.handoff.group);
     this.setQuality(matchMedia("(pointer: coarse)").matches ? "light" : "standard");
   }
 

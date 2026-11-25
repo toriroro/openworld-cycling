@@ -60,8 +60,10 @@ export interface GameMapLayer {
   reveal?: () => number | null;
   /** 住所（丁目の名前を拡大した時に描く。配達の草案 13 章） */
   addresses?: AddressBook;
-  /** 配達の行き先の印（配達の草案 3.3 の案内） */
-  marks?: () => { x: number; z: number; name: string }[];
+  /** 配達の行き先の印（配達の草案 3.3 の案内）。kind があれば受け取り・届け先の色の目立つ印（26 章） */
+  marks?: () => { x: number; z: number; name: string; kind?: "pickup" | "dropoff"; active?: boolean }[];
+  /** 行き先までの経路の線（世界座標 x, z の交互の並び。配達の草案 26 章） */
+  route?: () => number[] | null;
   /** 縄張り: 丁目ごとに持ち主の業者の色を塗った画像と、それが覆う世界の範囲（配達の草案 18 章） */
   territory?: () => { image: CanvasImageSource; x0: number; z0: number; x1: number; z1: number } | null;
   /** 業者の営業所 */
@@ -71,6 +73,11 @@ export interface GameMapLayer {
   /** 長距離の便: 経路（世界座標 x, z の並び）・業者の色・行き先・トラックの位置（配達の草案 22 章） */
   freight?: () => { path: number[]; color: string; town: string; trucks: { x: number; z: number; back: boolean }[] }[];
 }
+
+/** 経路の線と、受け取り・届け先の色（3D の光の柱・円と同じ。配達の草案 26 章） */
+export const ROUTE_COLOR = "#2fd0ff";
+export const TARGET_COLORS = { pickup: "#ff4fa3", dropoff: "#35e08a" } as const;
+const TARGET_LABELS = { pickup: "受け取り", dropoff: "届け先" } as const;
 
 /** 縄張りを塗る縮尺の上限 (m/px) */
 const TERRITORY_MPP = 40;
@@ -859,18 +866,108 @@ export class WorldMap {
         y += 18;
       }
     }
-    // 配達の行き先の印
-    for (const m of this.opts.game?.marks?.() ?? []) {
-      if (m.x < v.x0 || m.x > v.x1 || m.z < v.z0 || m.z > v.z1) continue;
-      const [sx, sy] = toScreen(m.x, m.z);
+    // 行き先までの経路の線
+    const route = this.opts.game?.route?.();
+    if (route && route.length >= 4) {
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
       ctx.beginPath();
-      ctx.arc(sx, sy, 11, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255,138,31,0.35)";
-      ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = "#ff8a1f";
+      for (let i = 0; i < route.length; i += 2) {
+        const [sx, sy] = toScreen(route[i], route[i + 1]);
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.strokeStyle = "rgba(4,24,32,0.9)";
+      ctx.lineWidth = 9;
       ctx.stroke();
-      label(ctx, m.name, sx + 14, sy + 4, 13, "#7a3600");
+      ctx.strokeStyle = ROUTE_COLOR;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      ctx.restore();
+    }
+    // 配達の行き先の印。受け取り・届け先は色の付いた大きな針と名前の札。画面の外なら縁に向きの印
+    const pulse = (performance.now() % 1400) / 1400;
+    const all = this.opts.game?.marks?.() ?? [];
+    for (const m of [...all].sort((a, b) => Number(!!a.active) - Number(!!b.active))) {
+      const [sx, sy] = toScreen(m.x, m.z);
+      if (!m.kind) {
+        if (m.x < v.x0 || m.x > v.x1 || m.z < v.z0 || m.z > v.z1) continue;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 11, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,138,31,0.35)";
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#ff8a1f";
+        ctx.stroke();
+        label(ctx, m.name, sx + 14, sy + 4, 13, "#7a3600");
+        continue;
+      }
+      const color = TARGET_COLORS[m.kind];
+      const W = this.cssW;
+      const H = this.cssH;
+      const pad = 26;
+      if (sx < pad || sx > W - pad || sy < pad || sy > H - pad) {
+        // 画面の外: 中心から行き先へ向かう線が縁と交わる所に、向きの三角
+        const cx = W / 2, cy = H / 2;
+        const ddx = sx - cx, ddy = sy - cy;
+        const t = Math.min((W / 2 - pad) / Math.abs(ddx || 1e-6), (H / 2 - pad) / Math.abs(ddy || 1e-6));
+        const ex = cx + ddx * t, ey = cy + ddy * t;
+        const l = Math.hypot(ddx, ddy) || 1;
+        const ux = ddx / l, uy = ddy / l;
+        ctx.beginPath();
+        ctx.moveTo(ex + ux * 14, ey + uy * 14);
+        ctx.lineTo(ex - ux * 6 - uy * 11, ey - uy * 6 + ux * 11);
+        ctx.lineTo(ex - ux * 6 + uy * 11, ey - uy * 6 - ux * 11);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#ffffff";
+        ctx.stroke();
+        continue;
+      }
+      // 広がる輪
+      ctx.beginPath();
+      ctx.arc(sx, sy, 8 + pulse * 26, 0, Math.PI * 2);
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 1 - pulse;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      // 針（先が行き先）
+      const hgt = m.active ? 40 : 32;
+      const rad = m.active ? 13 : 10;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.bezierCurveTo(sx - rad * 0.4, sy - hgt * 0.45, sx - rad * 1.05, sy - hgt + rad * 0.9, sx - rad, sy - hgt + rad);
+      ctx.arc(sx, sy - hgt + rad, rad, Math.PI, 0);
+      ctx.bezierCurveTo(sx + rad * 1.05, sy - hgt + rad * 0.9, sx + rad * 0.4, sy - hgt * 0.45, sx, sy);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(sx, sy - hgt + rad, rad * 0.42, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      // 名前の札
+      const text = `${TARGET_LABELS[m.kind]}　${m.name}`;
+      ctx.font = "bold 13px sans-serif";
+      const tw = ctx.measureText(text).width;
+      // 右に入らなければ針の左に出す
+      const bx = sx + rad + 6 + tw + 14 <= W - 4 ? sx + rad + 6 : sx - rad - 6 - tw - 14;
+      const by = sy - hgt + rad - 11;
+      ctx.fillStyle = "rgba(14,18,24,0.88)";
+      ctx.beginPath();
+      ctx.roundRect(bx, by, tw + 14, 22, 6);
+      ctx.fill();
+      ctx.fillStyle = color;
+      ctx.fillRect(bx, by, 4, 22);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(text, bx + 9, by + 16);
     }
 
     // 印（起点候補の 15km 円）
