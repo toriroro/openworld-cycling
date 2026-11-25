@@ -12,6 +12,7 @@ import {
   dismiss,
   estimate,
   hire,
+  hireDelta,
   MONTH,
   nameChoices,
   OPEN_DELIVERED,
@@ -79,7 +80,8 @@ describe("開業と経営（配達の草案 21 章、D4）", () => {
 
   it("開業すると所持金が資金になり、営業所が 1 つ。経営中は「あなた（個人）」を並べない", () => {
     const { s, c, chome } = opened();
-    expect(c.cash).toBe(100_000 - DEPOT_OPEN);
+    // 開業の時の営業所は費用を取らない（25.3 の 63）
+    expect(c.cash).toBe(100_000);
     expect(c.depots).toEqual([chome]);
     expect(ownCompany(s)).toBe(c);
     expect(s.player.company).toBe(c.id);
@@ -157,6 +159,19 @@ describe("開業と経営（配達の草案 21 章、D4）", () => {
     expect(estimate(arena, s, c, TODAY + 1).served).toBeLessThan(lo);
   });
 
+  it("雇った時の今日の見込みの差は、雇ってから見積もった差と同じ", () => {
+    const { s, c } = opened();
+    const a = applicants(s, c, TODAY)[0];
+    const before = estimate(arena, s, c, TODAY);
+    const d = hireDelta(arena, s, c, TODAY, a);
+    expect(d.cost).toBeGreaterThan(0);
+    expect(hire(s, c, TODAY, a.id)).toBe(true);
+    const after = estimate(arena, s, c, TODAY);
+    expect(d.served).toBeCloseTo(after.served - before.served, 6);
+    expect(d.revenue).toBeCloseTo(after.revenue - before.revenue, 6);
+    expect(d.cost).toBeCloseTo(after.cost - before.cost, 6);
+  });
+
   it("営業所を足す・閉じる。数の上限と資金", () => {
     const { s, c } = opened();
     const far = "c2_27";
@@ -164,9 +179,14 @@ describe("開業と経営（配達の草案 21 章、D4）", () => {
     const cash = c.cash;
     expect(openDepot(arena, s, c, far)).toBe(true);
     expect(c.cash).toBe(cash - DEPOT_OPEN);
-    // 配達員が少ないうちは 2 か所まで
+    // 配達員が少ないうち（個人）は 4 か所まで（25.3 の 62）
+    const free = () => arena.chomes.map((x) => x.name).find((n) => !depotCheck(arena, s, n, c))!;
+    for (let i = 0; i < 2; i++) expect(openDepot(arena, s, c, free())).toBe(true);
+    expect(c.depots).toHaveLength(4);
     expect(depotCheck(arena, s, "c27_2", c)).toMatch(/上限/);
     expect(closeDepot(c, far)).toBe(true);
+    while (c.depots.length > 1) expect(closeDepot(c, c.depots[1])).toBe(true);
+    // 最後の 1 つは閉じない
     expect(closeDepot(c, c.depots[0])).toBe(false);
   });
 

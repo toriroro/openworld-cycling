@@ -14,6 +14,8 @@ import {
   depotCheck,
   dismiss,
   estimate,
+  hireDelta,
+  BALANCE,
   giveCarrier,
   hire,
   KIND_LABELS,
@@ -65,6 +67,7 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = ""
 };
 
 const yen = (n: number) => `${Math.round(n).toLocaleString("ja-JP")} 円`;
+const signedN = (n: number) => `${n >= 0 ? "+" : "−"}${Math.abs(Math.round(n))}`;
 const signed = (n: number) => `${n >= 0 ? "+" : "−"}${Math.abs(Math.round(n)).toLocaleString("ja-JP")} 円`;
 const ha = (m2: number) => `${(m2 / 10000).toFixed(1)} ha`;
 const weekday = (day: number) => WEEKDAYS[day - Math.floor(day / 7) * 7];
@@ -220,7 +223,7 @@ export class CompanyPanel {
     this.note.textContent = [this.closedNote, `段 ${joined ? `アルバイト（所属 ${joined.name}）` : "個人"}`].filter(Boolean).join("\n");
     const names = nameChoices(s, ctx.today);
     if (!this.pickedName || !names.includes(this.pickedName)) this.pickedName = names[0] ?? null;
-    this.item("開業の条件", [`所持金 ${yen(OPEN_MONEY)}（今 ${yen(ctx.money)}）`, `届けた数 ${OPEN_DELIVERED} 件（今 ${ctx.delivered} 件）`, `営業所を開く ${yen(DEPOT_OPEN)}（所持金から。残りが業者の資金）`]);
+    this.item("開業の条件", [`所持金 ${yen(OPEN_MONEY)}（今 ${yen(ctx.money)}）`, `届けた数 ${OPEN_DELIVERED} 件（今 ${ctx.delivered} 件）`, "今いる丁目に営業所を 1 か所開く（開業の時は費用なし）。所持金がすべて業者の資金になる"]);
     const info = ctx.here ? chomeInfo(m.arena, s, ctx.here, null) : null;
     this.item(`今いる丁目 ${ctx.here ?? "配達の範囲の外"}`, info ? [`注文 1 日 約 ${info.base.toFixed(1)} 件（平日）`, info.nearest ? `近いほかの営業所 ${info.nearest.name} ${Math.round(info.nearest.m)} m` : "近いほかの営業所 無し"] : []);
     this.sub("名前");
@@ -312,7 +315,11 @@ export class CompanyPanel {
     const list = applicants(s, c, ctx.today);
     if (!list.length) h("div", "stamp-empty", "今日の応募は無い", this.list);
     for (const a of list) {
-      const act = this.item(`応募  速さ ${a.speed.toFixed(2)} 倍`, [`日給 ${yen(a.wage)}  自前の自転車で 1 日 ${Math.round(VEHICLES.own.cap * a.speed)} 件`]);
+      const d = hireDelta(ctx.market.arena, s, c, ctx.today, a);
+      const act = this.item(`応募  速さ ${a.speed.toFixed(2)} 倍`, [
+        `日給 ${yen(a.wage)}  自前の自転車で 1 日 ${Math.round(VEHICLES.own.cap * a.speed)} 件`,
+        `雇うと今日の見込み: 運ぶ件数 ${signedN(d.served)} 件  売上 ${signed(d.revenue)}  費用 ${signed(d.cost)}  利益 ${signed(d.revenue - d.cost)}`,
+      ]);
       this.button(act, "雇う", () => {
         hire(s, c, ctx.today, a.id);
         this.changed();
@@ -450,7 +457,7 @@ export class CompanyPanel {
     const m = ctx.market;
     for (const d of c.depots) {
       const info = chomeInfo(m.arena, m.state, d, c);
-      const act = this.item(`営業所 ${d}`, [info ? `注文 1 日 約 ${info.base.toFixed(1)} 件（平日）` : "", `1 日 ${yen(6000)}`].filter(Boolean), c.color);
+      const act = this.item(`営業所 ${d}`, [info ? `注文 1 日 約 ${info.base.toFixed(1)} 件（平日）` : "", `1 日 ${yen(BALANCE.depotCost)}`].filter(Boolean), c.color);
       this.button(act, "閉じる", () => {
         closeDepot(c, d);
         this.changed();

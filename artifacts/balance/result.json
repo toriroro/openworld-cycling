@@ -1,0 +1,2133 @@
+{
+  "errors": [],
+  "weeks": 12,
+  "runs": [
+    {
+      "variant": "今",
+      "place": "南5条東3丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 18121,
+          "staff": 2,
+          "served": 40,
+          "lost": 10,
+          "trust": 0.95
+        },
+        {
+          "w": 2,
+          "cash": 30767,
+          "staff": 2,
+          "served": 44,
+          "lost": 3,
+          "trust": 0.95
+        },
+        {
+          "w": 3,
+          "cash": 42124,
+          "staff": 2,
+          "served": 44,
+          "lost": 2,
+          "trust": 0.96
+        },
+        {
+          "w": 4,
+          "cash": 52491,
+          "staff": 2,
+          "served": 43,
+          "lost": 1,
+          "trust": 0.98
+        },
+        {
+          "w": 5,
+          "cash": 60039,
+          "staff": 2,
+          "served": 43,
+          "lost": 0,
+          "trust": 1
+        },
+        {
+          "w": 6,
+          "cash": 65686,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 7,
+          "cash": 68196,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 8,
+          "cash": 65939,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 9,
+          "cash": 58850,
+          "staff": 2,
+          "served": 38,
+          "lost": 0,
+          "trust": 1.11
+        },
+        {
+          "w": 10,
+          "cash": 52597,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.14
+        },
+        {
+          "w": 11,
+          "cash": 46164,
+          "staff": 2,
+          "served": 38,
+          "lost": 0,
+          "trust": 1.17
+        },
+        {
+          "w": 12,
+          "cash": 40511,
+          "staff": 2,
+          "served": 37,
+          "lost": 1,
+          "trust": 1.19
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 162,
+        "list": "49人/営8 41人/営7 27人/営4 15人/営4 13人/営4 13人/営4 3人/営2 1人/営1"
+      }
+    },
+    {
+      "variant": "今",
+      "place": "南7条西2丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 15516,
+          "staff": 2,
+          "served": 40,
+          "lost": 5,
+          "trust": 0.98
+        },
+        {
+          "w": 2,
+          "cash": 23482,
+          "staff": 2,
+          "served": 43,
+          "lost": 3,
+          "trust": 0.99
+        },
+        {
+          "w": 3,
+          "cash": 30191,
+          "staff": 2,
+          "served": 42,
+          "lost": 2,
+          "trust": 1
+        },
+        {
+          "w": 4,
+          "cash": 35386,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.02
+        },
+        {
+          "w": 5,
+          "cash": 39578,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 6,
+          "cash": 43253,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.08
+        },
+        {
+          "w": 7,
+          "cash": 45518,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.11
+        },
+        {
+          "w": 8,
+          "cash": 42950,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.13
+        },
+        {
+          "w": 9,
+          "cash": 37128,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 10,
+          "cash": 31814,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.19
+        },
+        {
+          "w": 11,
+          "cash": 26511,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.22
+        },
+        {
+          "w": 12,
+          "cash": 20895,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.25
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 162,
+        "list": "52人/営8 44人/営7 27人/営4 16人/営4 14人/営4 5人/営2 3人/営2 1人/営1"
+      }
+    },
+    {
+      "variant": "今",
+      "place": "北4条西7丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 18245,
+          "staff": 2,
+          "served": 40,
+          "lost": 10,
+          "trust": 0.94
+        },
+        {
+          "w": 2,
+          "cash": 28014,
+          "staff": 2,
+          "served": 43,
+          "lost": 4,
+          "trust": 0.95
+        },
+        {
+          "w": 3,
+          "cash": 35394,
+          "staff": 2,
+          "served": 43,
+          "lost": 1,
+          "trust": 0.96
+        },
+        {
+          "w": 4,
+          "cash": 42400,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 0.98
+        },
+        {
+          "w": 5,
+          "cash": 49550,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1
+        },
+        {
+          "w": 6,
+          "cash": 55014,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 7,
+          "cash": 53026,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 8,
+          "cash": 48572,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 9,
+          "cash": 44025,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.12
+        },
+        {
+          "w": 10,
+          "cash": 37295,
+          "staff": 2,
+          "served": 36,
+          "lost": 1,
+          "trust": 1.14
+        },
+        {
+          "w": 11,
+          "cash": 29190,
+          "staff": 2,
+          "served": 37,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 12,
+          "cash": 21539,
+          "staff": 2,
+          "served": 37,
+          "lost": 0,
+          "trust": 1.19
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 162,
+        "list": "49人/営8 41人/営7 28人/営4 15人/営4 13人/営4 12人/営4 3人/営2 1人/営1"
+      }
+    },
+    {
+      "variant": "A 資金 3 万",
+      "place": "南5条東3丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 38121,
+          "staff": 2,
+          "served": 40,
+          "lost": 10,
+          "trust": 0.95
+        },
+        {
+          "w": 2,
+          "cash": 50767,
+          "staff": 2,
+          "served": 44,
+          "lost": 3,
+          "trust": 0.95
+        },
+        {
+          "w": 3,
+          "cash": 62124,
+          "staff": 2,
+          "served": 44,
+          "lost": 2,
+          "trust": 0.96
+        },
+        {
+          "w": 4,
+          "cash": 72491,
+          "staff": 2,
+          "served": 43,
+          "lost": 1,
+          "trust": 0.98
+        },
+        {
+          "w": 5,
+          "cash": 80039,
+          "staff": 2,
+          "served": 43,
+          "lost": 0,
+          "trust": 1
+        },
+        {
+          "w": 6,
+          "cash": 85686,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 7,
+          "cash": 88196,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 8,
+          "cash": 85939,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 9,
+          "cash": 78850,
+          "staff": 2,
+          "served": 38,
+          "lost": 0,
+          "trust": 1.11
+        },
+        {
+          "w": 10,
+          "cash": 72597,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.14
+        },
+        {
+          "w": 11,
+          "cash": 66164,
+          "staff": 2,
+          "served": 38,
+          "lost": 0,
+          "trust": 1.17
+        },
+        {
+          "w": 12,
+          "cash": 60511,
+          "staff": 2,
+          "served": 37,
+          "lost": 1,
+          "trust": 1.19
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 162,
+        "list": "49人/営8 41人/営7 27人/営4 15人/営4 13人/営4 13人/営4 3人/営2 1人/営1"
+      }
+    },
+    {
+      "variant": "A 資金 3 万",
+      "place": "南7条西2丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 35516,
+          "staff": 2,
+          "served": 40,
+          "lost": 5,
+          "trust": 0.98
+        },
+        {
+          "w": 2,
+          "cash": 43482,
+          "staff": 2,
+          "served": 43,
+          "lost": 3,
+          "trust": 0.99
+        },
+        {
+          "w": 3,
+          "cash": 50191,
+          "staff": 2,
+          "served": 42,
+          "lost": 2,
+          "trust": 1
+        },
+        {
+          "w": 4,
+          "cash": 55386,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.02
+        },
+        {
+          "w": 5,
+          "cash": 59578,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 6,
+          "cash": 63253,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.08
+        },
+        {
+          "w": 7,
+          "cash": 65518,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.11
+        },
+        {
+          "w": 8,
+          "cash": 62950,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.13
+        },
+        {
+          "w": 9,
+          "cash": 57128,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 10,
+          "cash": 51814,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.19
+        },
+        {
+          "w": 11,
+          "cash": 46511,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.22
+        },
+        {
+          "w": 12,
+          "cash": 40895,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.25
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 162,
+        "list": "52人/営8 44人/営7 27人/営4 16人/営4 14人/営4 5人/営2 3人/営2 1人/営1"
+      }
+    },
+    {
+      "variant": "A 資金 3 万",
+      "place": "北4条西7丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 38245,
+          "staff": 2,
+          "served": 40,
+          "lost": 10,
+          "trust": 0.94
+        },
+        {
+          "w": 2,
+          "cash": 48014,
+          "staff": 2,
+          "served": 43,
+          "lost": 4,
+          "trust": 0.95
+        },
+        {
+          "w": 3,
+          "cash": 55394,
+          "staff": 2,
+          "served": 43,
+          "lost": 1,
+          "trust": 0.96
+        },
+        {
+          "w": 4,
+          "cash": 62400,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 0.98
+        },
+        {
+          "w": 5,
+          "cash": 69550,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1
+        },
+        {
+          "w": 6,
+          "cash": 75014,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 7,
+          "cash": 73026,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 8,
+          "cash": 68572,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 9,
+          "cash": 64025,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.12
+        },
+        {
+          "w": 10,
+          "cash": 57295,
+          "staff": 2,
+          "served": 36,
+          "lost": 1,
+          "trust": 1.14
+        },
+        {
+          "w": 11,
+          "cash": 49190,
+          "staff": 2,
+          "served": 37,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 12,
+          "cash": 41539,
+          "staff": 2,
+          "served": 37,
+          "lost": 0,
+          "trust": 1.19
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 162,
+        "list": "49人/営8 41人/営7 28人/営4 15人/営4 13人/営4 12人/営4 3人/営2 1人/営1"
+      }
+    },
+    {
+      "variant": "B A+近くに NPC の営業所を置かない 600m",
+      "place": "南5条東3丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 38121,
+          "staff": 2,
+          "served": 40,
+          "lost": 10,
+          "trust": 0.95
+        },
+        {
+          "w": 2,
+          "cash": 50767,
+          "staff": 2,
+          "served": 44,
+          "lost": 3,
+          "trust": 0.95
+        },
+        {
+          "w": 3,
+          "cash": 62124,
+          "staff": 2,
+          "served": 44,
+          "lost": 2,
+          "trust": 0.96
+        },
+        {
+          "w": 4,
+          "cash": 72491,
+          "staff": 2,
+          "served": 43,
+          "lost": 1,
+          "trust": 0.98
+        },
+        {
+          "w": 5,
+          "cash": 80039,
+          "staff": 2,
+          "served": 43,
+          "lost": 0,
+          "trust": 1
+        },
+        {
+          "w": 6,
+          "cash": 85686,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 7,
+          "cash": 88196,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 8,
+          "cash": 91432,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 9,
+          "cash": 93002,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.11
+        },
+        {
+          "w": 10,
+          "cash": 92412,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.14
+        },
+        {
+          "w": 11,
+          "cash": 89993,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.17
+        },
+        {
+          "w": 12,
+          "cash": 87053,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.2
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 162,
+        "list": "48人/営8 44人/営7 26人/営4 16人/営4 13人/営4 11人/営4 3人/営2 1人/営1"
+      }
+    },
+    {
+      "variant": "B A+近くに NPC の営業所を置かない 600m",
+      "place": "南7条西2丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 35516,
+          "staff": 2,
+          "served": 40,
+          "lost": 5,
+          "trust": 0.98
+        },
+        {
+          "w": 2,
+          "cash": 43482,
+          "staff": 2,
+          "served": 43,
+          "lost": 3,
+          "trust": 0.99
+        },
+        {
+          "w": 3,
+          "cash": 50191,
+          "staff": 2,
+          "served": 42,
+          "lost": 2,
+          "trust": 1
+        },
+        {
+          "w": 4,
+          "cash": 55386,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.02
+        },
+        {
+          "w": 5,
+          "cash": 59578,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 6,
+          "cash": 63253,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.08
+        },
+        {
+          "w": 7,
+          "cash": 65518,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.11
+        },
+        {
+          "w": 8,
+          "cash": 62950,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.13
+        },
+        {
+          "w": 9,
+          "cash": 57128,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 10,
+          "cash": 51814,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.19
+        },
+        {
+          "w": 11,
+          "cash": 46511,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.22
+        },
+        {
+          "w": 12,
+          "cash": 40895,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.25
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 162,
+        "list": "52人/営8 44人/営7 27人/営4 16人/営4 14人/営4 5人/営2 3人/営2 1人/営1"
+      }
+    },
+    {
+      "variant": "B A+近くに NPC の営業所を置かない 600m",
+      "place": "北4条西7丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 38245,
+          "staff": 2,
+          "served": 40,
+          "lost": 10,
+          "trust": 0.94
+        },
+        {
+          "w": 2,
+          "cash": 48014,
+          "staff": 2,
+          "served": 43,
+          "lost": 4,
+          "trust": 0.95
+        },
+        {
+          "w": 3,
+          "cash": 55394,
+          "staff": 2,
+          "served": 43,
+          "lost": 1,
+          "trust": 0.96
+        },
+        {
+          "w": 4,
+          "cash": 62400,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 0.98
+        },
+        {
+          "w": 5,
+          "cash": 69550,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1
+        },
+        {
+          "w": 6,
+          "cash": 75014,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 7,
+          "cash": 73410,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 8,
+          "cash": 69685,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 9,
+          "cash": 65922,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.12
+        },
+        {
+          "w": 10,
+          "cash": 60300,
+          "staff": 2,
+          "served": 36,
+          "lost": 1,
+          "trust": 1.14
+        },
+        {
+          "w": 11,
+          "cash": 53682,
+          "staff": 2,
+          "served": 37,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 12,
+          "cash": 47535,
+          "staff": 2,
+          "served": 37,
+          "lost": 0,
+          "trust": 1.19
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 163,
+        "list": "49人/営8 41人/営7 28人/営4 15人/営4 13人/営4 13人/営4 3人/営2 1人/営1"
+      }
+    },
+    {
+      "variant": "C B+NPC 1 社 40 人まで・7.5 割で減らす",
+      "place": "南5条東3丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 36388,
+          "staff": 2,
+          "served": 40,
+          "lost": 8,
+          "trust": 0.97
+        },
+        {
+          "w": 2,
+          "cash": 47282,
+          "staff": 2,
+          "served": 43,
+          "lost": 2,
+          "trust": 0.98
+        },
+        {
+          "w": 3,
+          "cash": 58667,
+          "staff": 2,
+          "served": 44,
+          "lost": 2,
+          "trust": 0.99
+        },
+        {
+          "w": 4,
+          "cash": 70388,
+          "staff": 2,
+          "served": 44,
+          "lost": 1,
+          "trust": 1
+        },
+        {
+          "w": 5,
+          "cash": 81258,
+          "staff": 2,
+          "served": 44,
+          "lost": 0,
+          "trust": 1.02
+        },
+        {
+          "w": 6,
+          "cash": 93205,
+          "staff": 2,
+          "served": 44,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 7,
+          "cash": 102250,
+          "staff": 2,
+          "served": 43,
+          "lost": 0,
+          "trust": 1.08
+        },
+        {
+          "w": 8,
+          "cash": 109728,
+          "staff": 2,
+          "served": 43,
+          "lost": 0,
+          "trust": 1.1
+        },
+        {
+          "w": 9,
+          "cash": 114109,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.13
+        },
+        {
+          "w": 10,
+          "cash": 116417,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 11,
+          "cash": 117507,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.19
+        },
+        {
+          "w": 12,
+          "cash": 117246,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.22
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 152,
+        "list": "40人/営8 34人/営6 27人/営4 13人/営4 13人/営4 12人/営4 12人/営4 1人/営1"
+      }
+    },
+    {
+      "variant": "C B+NPC 1 社 40 人まで・7.5 割で減らす",
+      "place": "南7条西2丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 35067,
+          "staff": 2,
+          "served": 40,
+          "lost": 6,
+          "trust": 0.98
+        },
+        {
+          "w": 2,
+          "cash": 43940,
+          "staff": 2,
+          "served": 43,
+          "lost": 2,
+          "trust": 0.99
+        },
+        {
+          "w": 3,
+          "cash": 53050,
+          "staff": 2,
+          "served": 43,
+          "lost": 2,
+          "trust": 1
+        },
+        {
+          "w": 4,
+          "cash": 63891,
+          "staff": 2,
+          "served": 44,
+          "lost": 1,
+          "trust": 1.02
+        },
+        {
+          "w": 5,
+          "cash": 75489,
+          "staff": 2,
+          "served": 44,
+          "lost": 0,
+          "trust": 1.04
+        },
+        {
+          "w": 6,
+          "cash": 87437,
+          "staff": 2,
+          "served": 44,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 7,
+          "cash": 97964,
+          "staff": 2,
+          "served": 44,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 8,
+          "cash": 106235,
+          "staff": 2,
+          "served": 43,
+          "lost": 0,
+          "trust": 1.12
+        },
+        {
+          "w": 9,
+          "cash": 113465,
+          "staff": 2,
+          "served": 43,
+          "lost": 0,
+          "trust": 1.15
+        },
+        {
+          "w": 10,
+          "cash": 118852,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.17
+        },
+        {
+          "w": 11,
+          "cash": 124095,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.2
+        },
+        {
+          "w": 12,
+          "cash": 128677,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.23
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 152,
+        "list": "40人/営8 34人/営6 26人/営4 13人/営4 13人/営4 13人/営4 12人/営4 1人/営1"
+      }
+    },
+    {
+      "variant": "C B+NPC 1 社 40 人まで・7.5 割で減らす",
+      "place": "北4条西7丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 36949,
+          "staff": 2,
+          "served": 40,
+          "lost": 8,
+          "trust": 0.96
+        },
+        {
+          "w": 2,
+          "cash": 46046,
+          "staff": 2,
+          "served": 43,
+          "lost": 2,
+          "trust": 0.97
+        },
+        {
+          "w": 3,
+          "cash": 56126,
+          "staff": 2,
+          "served": 43,
+          "lost": 2,
+          "trust": 0.98
+        },
+        {
+          "w": 4,
+          "cash": 59250,
+          "staff": 2,
+          "served": 41,
+          "lost": 1,
+          "trust": 1
+        },
+        {
+          "w": 5,
+          "cash": 61976,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 6,
+          "cash": 63512,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 7,
+          "cash": 62576,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 8,
+          "cash": 61439,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.11
+        },
+        {
+          "w": 9,
+          "cash": 59691,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.14
+        },
+        {
+          "w": 10,
+          "cash": 56298,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.17
+        },
+        {
+          "w": 11,
+          "cash": 53884,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.2
+        },
+        {
+          "w": 12,
+          "cash": 51499,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.23
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 153,
+        "list": "40人/営8 34人/営6 27人/営4 14人/営4 13人/営4 13人/営4 11人/営4 1人/営1"
+      }
+    },
+    {
+      "variant": "D C+営業所の費用 3,000 円",
+      "place": "南5条東3丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 54975,
+          "staff": 2,
+          "served": 39,
+          "lost": 7,
+          "trust": 0.97
+        },
+        {
+          "w": 2,
+          "cash": 83998,
+          "staff": 2,
+          "served": 43,
+          "lost": 2,
+          "trust": 0.98
+        },
+        {
+          "w": 3,
+          "cash": 113259,
+          "staff": 2,
+          "served": 43,
+          "lost": 1,
+          "trust": 1
+        },
+        {
+          "w": 4,
+          "cash": 143378,
+          "staff": 2,
+          "served": 43,
+          "lost": 1,
+          "trust": 1.02
+        },
+        {
+          "w": 5,
+          "cash": 172657,
+          "staff": 2,
+          "served": 43,
+          "lost": 0,
+          "trust": 1.04
+        },
+        {
+          "w": 6,
+          "cash": 203244,
+          "staff": 2,
+          "served": 43,
+          "lost": 0,
+          "trust": 1.07
+        },
+        {
+          "w": 7,
+          "cash": 231152,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.1
+        },
+        {
+          "w": 8,
+          "cash": 257144,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.13
+        },
+        {
+          "w": 9,
+          "cash": 279811,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 10,
+          "cash": 300659,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.18
+        },
+        {
+          "w": 11,
+          "cash": 319851,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.21
+        },
+        {
+          "w": 12,
+          "cash": 338016,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.24
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 151,
+        "list": "40人/営8 34人/営6 27人/営4 12人/営4 12人/営4 12人/営4 11人/営4 3人/営2"
+      }
+    },
+    {
+      "variant": "D C+営業所の費用 3,000 円",
+      "place": "南7条西2丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 53002,
+          "staff": 2,
+          "served": 39,
+          "lost": 5,
+          "trust": 0.98
+        },
+        {
+          "w": 2,
+          "cash": 78898,
+          "staff": 2,
+          "served": 42,
+          "lost": 2,
+          "trust": 0.99
+        },
+        {
+          "w": 3,
+          "cash": 104665,
+          "staff": 2,
+          "served": 42,
+          "lost": 1,
+          "trust": 1.01
+        },
+        {
+          "w": 4,
+          "cash": 129182,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 5,
+          "cash": 152652,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 6,
+          "cash": 176603,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 7,
+          "cash": 199221,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.12
+        },
+        {
+          "w": 8,
+          "cash": 217135,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.14
+        },
+        {
+          "w": 9,
+          "cash": 232062,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.17
+        },
+        {
+          "w": 10,
+          "cash": 247641,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.2
+        },
+        {
+          "w": 11,
+          "cash": 262887,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.23
+        },
+        {
+          "w": 12,
+          "cash": 277584,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.26
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 151,
+        "list": "40人/営8 40人/営7 27人/営4 14人/営4 12人/営4 10人/営4 5人/営2 3人/営2"
+      }
+    },
+    {
+      "variant": "D C+営業所の費用 3,000 円",
+      "place": "北4条西7丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 57494,
+          "staff": 2,
+          "served": 40,
+          "lost": 8,
+          "trust": 0.96
+        },
+        {
+          "w": 2,
+          "cash": 86670,
+          "staff": 2,
+          "served": 43,
+          "lost": 2,
+          "trust": 0.97
+        },
+        {
+          "w": 3,
+          "cash": 116456,
+          "staff": 2,
+          "served": 43,
+          "lost": 2,
+          "trust": 0.98
+        },
+        {
+          "w": 4,
+          "cash": 139749,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.01
+        },
+        {
+          "w": 5,
+          "cash": 162310,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 6,
+          "cash": 183574,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 7,
+          "cash": 202426,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 8,
+          "cash": 221238,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.12
+        },
+        {
+          "w": 9,
+          "cash": 239168,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.15
+        },
+        {
+          "w": 10,
+          "cash": 255777,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.17
+        },
+        {
+          "w": 11,
+          "cash": 273109,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.2
+        },
+        {
+          "w": 12,
+          "cash": 290553,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.23
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 152,
+        "list": "40人/営8 34人/営6 27人/営4 13人/営4 12人/営4 12人/営4 11人/営4 3人/営2"
+      }
+    },
+    {
+      "variant": "E C+人数の効きを平方根",
+      "place": "南5条東3丁目",
+      "closed": {
+        "day": 34,
+        "reason": "資金がマイナスのまま 1 か月"
+      },
+      "weekly": [
+        {
+          "w": 1,
+          "cash": -5619,
+          "staff": 2,
+          "served": 26,
+          "lost": 1,
+          "trust": 1.02
+        },
+        {
+          "w": 2,
+          "cash": -37319,
+          "staff": 1,
+          "served": 25,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 3,
+          "cash": -57736,
+          "staff": 1,
+          "served": 20,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 4,
+          "cash": -78358,
+          "staff": 1,
+          "served": 20,
+          "lost": 0,
+          "trust": 1.09
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 140,
+        "list": "40人/営8 31人/営4 28人/営5 17人/営4 16人/営4 4人/営2 3人/営2 1人/営1"
+      }
+    },
+    {
+      "variant": "E C+人数の効きを平方根",
+      "place": "南7条西2丁目",
+      "closed": {
+        "day": 34,
+        "reason": "資金がマイナスのまま 1 か月"
+      },
+      "weekly": [
+        {
+          "w": 1,
+          "cash": -4395,
+          "staff": 2,
+          "served": 27,
+          "lost": 0,
+          "trust": 1.02
+        },
+        {
+          "w": 2,
+          "cash": -30183,
+          "staff": 1,
+          "served": 27,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 3,
+          "cash": -47693,
+          "staff": 1,
+          "served": 21,
+          "lost": 1,
+          "trust": 1.06
+        },
+        {
+          "w": 4,
+          "cash": -64046,
+          "staff": 1,
+          "served": 21,
+          "lost": 0,
+          "trust": 1.08
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 136,
+        "list": "40人/営8 34人/営7 32人/営4 19人/営4 4人/営2 3人/営2 3人/営2 1人/営1"
+      }
+    },
+    {
+      "variant": "E C+人数の効きを平方根",
+      "place": "北4条西7丁目",
+      "closed": {
+        "day": 35,
+        "reason": "資金がマイナスのまま 1 か月"
+      },
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 771,
+          "staff": 2,
+          "served": 28,
+          "lost": 1,
+          "trust": 1.02
+        },
+        {
+          "w": 2,
+          "cash": -24480,
+          "staff": 1,
+          "served": 27,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 3,
+          "cash": -41451,
+          "staff": 1,
+          "served": 21,
+          "lost": 1,
+          "trust": 1.06
+        },
+        {
+          "w": 4,
+          "cash": -61808,
+          "staff": 1,
+          "served": 20,
+          "lost": 0,
+          "trust": 1.08
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 140,
+        "list": "40人/営8 32人/営4 29人/営5 16人/営4 16人/営4 4人/営2 2人/営2 1人/営1"
+      }
+    },
+    {
+      "variant": "F D+廃業まで 6 週",
+      "place": "南5条東3丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 54975,
+          "staff": 2,
+          "served": 39,
+          "lost": 7,
+          "trust": 0.97
+        },
+        {
+          "w": 2,
+          "cash": 83998,
+          "staff": 2,
+          "served": 43,
+          "lost": 2,
+          "trust": 0.98
+        },
+        {
+          "w": 3,
+          "cash": 113259,
+          "staff": 2,
+          "served": 43,
+          "lost": 1,
+          "trust": 1
+        },
+        {
+          "w": 4,
+          "cash": 143378,
+          "staff": 2,
+          "served": 43,
+          "lost": 1,
+          "trust": 1.02
+        },
+        {
+          "w": 5,
+          "cash": 172657,
+          "staff": 2,
+          "served": 43,
+          "lost": 0,
+          "trust": 1.04
+        },
+        {
+          "w": 6,
+          "cash": 203244,
+          "staff": 2,
+          "served": 43,
+          "lost": 0,
+          "trust": 1.07
+        },
+        {
+          "w": 7,
+          "cash": 231152,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.1
+        },
+        {
+          "w": 8,
+          "cash": 257144,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.13
+        },
+        {
+          "w": 9,
+          "cash": 279811,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 10,
+          "cash": 300659,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.18
+        },
+        {
+          "w": 11,
+          "cash": 319851,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.21
+        },
+        {
+          "w": 12,
+          "cash": 338016,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.24
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 151,
+        "list": "40人/営8 34人/営6 27人/営4 12人/営4 12人/営4 12人/営4 11人/営4 3人/営2"
+      }
+    },
+    {
+      "variant": "F D+廃業まで 6 週",
+      "place": "南7条西2丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 53002,
+          "staff": 2,
+          "served": 39,
+          "lost": 5,
+          "trust": 0.98
+        },
+        {
+          "w": 2,
+          "cash": 78898,
+          "staff": 2,
+          "served": 42,
+          "lost": 2,
+          "trust": 0.99
+        },
+        {
+          "w": 3,
+          "cash": 104665,
+          "staff": 2,
+          "served": 42,
+          "lost": 1,
+          "trust": 1.01
+        },
+        {
+          "w": 4,
+          "cash": 129182,
+          "staff": 2,
+          "served": 42,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 5,
+          "cash": 152652,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 6,
+          "cash": 176603,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 7,
+          "cash": 199221,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.12
+        },
+        {
+          "w": 8,
+          "cash": 217135,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.14
+        },
+        {
+          "w": 9,
+          "cash": 232062,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.17
+        },
+        {
+          "w": 10,
+          "cash": 247641,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.2
+        },
+        {
+          "w": 11,
+          "cash": 262887,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.23
+        },
+        {
+          "w": 12,
+          "cash": 277584,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.26
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 151,
+        "list": "40人/営8 40人/営7 27人/営4 14人/営4 12人/営4 10人/営4 5人/営2 3人/営2"
+      }
+    },
+    {
+      "variant": "F D+廃業まで 6 週",
+      "place": "北4条西7丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 57494,
+          "staff": 2,
+          "served": 40,
+          "lost": 8,
+          "trust": 0.96
+        },
+        {
+          "w": 2,
+          "cash": 86670,
+          "staff": 2,
+          "served": 43,
+          "lost": 2,
+          "trust": 0.97
+        },
+        {
+          "w": 3,
+          "cash": 116456,
+          "staff": 2,
+          "served": 43,
+          "lost": 2,
+          "trust": 0.98
+        },
+        {
+          "w": 4,
+          "cash": 139749,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.01
+        },
+        {
+          "w": 5,
+          "cash": 162310,
+          "staff": 2,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 6,
+          "cash": 183574,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.06
+        },
+        {
+          "w": 7,
+          "cash": 202426,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 8,
+          "cash": 221238,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.12
+        },
+        {
+          "w": 9,
+          "cash": 239168,
+          "staff": 2,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.15
+        },
+        {
+          "w": 10,
+          "cash": 255777,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.17
+        },
+        {
+          "w": 11,
+          "cash": 273109,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.2
+        },
+        {
+          "w": 12,
+          "cash": 290553,
+          "staff": 2,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.23
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 152,
+        "list": "40人/営8 34人/営6 27人/営4 13人/営4 12人/営4 12人/営4 11人/営4 3人/営2"
+      }
+    }
+  ]
+}

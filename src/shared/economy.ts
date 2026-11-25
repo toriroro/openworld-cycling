@@ -17,16 +17,25 @@ export const WEEK = 7;
 /** 開いた時にまとめて細かく計算する上限（日）。それより前は営業所・配達員を変えずに資金だけ平均で進める（6.5・17.2） */
 export const CATCHUP_FULL = 7;
 
-/** 配達員 1 人が 1 日に運べる件数、日給 (円)、営業所 1 つの 1 日の費用 (円)、営業所からの 1km あたりの費用 (円)、標準の値段 (円)【初期値】 */
+/** 配達員 1 人が 1 日に運べる件数、日給 (円)、営業所 1 つの 1 日の費用 (円。25.3 の 61 で 6,000 → 4,000)、営業所からの 1km あたりの費用 (円)、標準の値段 (円)【初期値】 */
 const PER_STAFF = 22;
 const WAGE = 7000;
-const DEPOT_COST = 6000;
+const DEPOT_COST = 4000;
 const DIST_COST = 30;
 export const BASE_PRICE = 520;
 /** 業者の数の目安と上限（6.7）、廃業の基準（17.1）【初期値】 */
 const TARGET_COMPANIES = 8;
 const MAX_COMPANIES = 12;
 const LOW_SHARE = 0.005;
+
+/**
+ * 釣り合いの数値（草案 24・25 章で見直す物）。既定は D3〜D5 の値。試算（scripts/balance-sim.mjs）はここを書き換えて比べる。
+ * staffRoot: 配達員の数の効き（4 = 4 乗根、2 = 平方根）。npcStaffMax: NPC 業者 1 社の配達員の上限。
+ * npcDepotGap: NPC が営業所を開く時に、ほかの業者の営業所から離す距離 (m)。playerDepotGap: プレイヤーの業者の営業所からは、この距離 (m)。
+ * shrinkUtil: NPC が配達員を減らし始める、運べる件数に対する使った割合。closeDays: 資金のマイナス・シェアの低さが続くと廃業する日数
+ * playerDepotMax: プレイヤーの業者の営業所の上限（個人・中堅・大手。25.3 の 62 で 2・4・8 → 4・6・8）
+ */
+export const BALANCE = { depotCost: DEPOT_COST, staffRoot: 4, npcStaffMax: Infinity, npcDepotGap: 300, playerDepotGap: 300, shrinkUtil: 0.6, closeDays: MONTH, playerDepotMax: [4, 6, 8] };
 
 export type CompanyKind = "large" | "mid" | "solo";
 export type Policy = "cheap" | "fast" | "wide";
@@ -333,7 +342,7 @@ export function allocate(arena: Arena, snaps: Snap[], day: number, seed: number)
       // 配達員の数は 4 乗根で効かせる（大きいほど小回りが利かない。6.7）
       // 近さは距離の 4 乗で落とす（営業所の周りが地元になる）
       const r2 = r * r;
-      const a = s.trust * (1 / (1 + r2 * r2)) * Math.sqrt(Math.sqrt(s.staff)) * pr * pr;
+      const a = s.trust * (1 / (1 + r2 * r2)) * (BALANCE.staffRoot === 2 ? Math.sqrt(s.staff) : Math.sqrt(Math.sqrt(s.staff))) * pr * pr;
       served[c * K + k] = a;
       sum += a;
     }
@@ -364,7 +373,7 @@ export function allocate(arena: Arena, snaps: Snap[], day: number, seed: number)
     let far = 0;
     for (let c = 0; c < C; c++) far += served[c * K + k] * distKm[c * K + k];
     revenue[k] = total[k] * snaps[k].price;
-    cost[k] = (snaps[k].daily ?? snaps[k].staff * WAGE) + snaps[k].depots.length * DEPOT_COST + far * DIST_COST;
+    cost[k] = (snaps[k].daily ?? snaps[k].staff * WAGE) + snaps[k].depots.length * BALANCE.depotCost + far * DIST_COST;
   }
   return { day, ids: snaps.map((s) => s.id), served, revenue, cost, total, lost, demand };
 }
@@ -379,12 +388,14 @@ function snapOf(c: Company, day: number): Snap {
 }
 const active = (s: EconomyState) => s.companies.filter((c) => c.closed === null);
 
-/** 営業所を置く丁目を選ぶ: 注文が多く、自分の営業所から 800m 以上、ほかの業者の営業所から 300m 以上離れた所 */
+/** 営業所を置く丁目を選ぶ: 注文が多く、自分の営業所から 800m 以上、ほかの業者の営業所から BALANCE.npcDepotGap（プレイヤーの業者からは playerDepotGap）以上離れた所 */
 function pickDepot(arena: Arena, s: EconomyState, own: string[], salt: number): string | null {
   const taken = new Set(active(s).flatMap((c) => c.depots));
   const at = (n: string) => arena.chomes[arena.index.get(n) ?? -1];
   const pts = own.map(at).filter(Boolean);
-  const others = [...taken].filter((n) => !own.includes(n)).map(at).filter(Boolean);
+  const mine = new Set(active(s).filter((c) => c.player).flatMap((c) => c.depots));
+  const gapOf = (n: string) => (mine.has(n) ? BALANCE.playerDepotGap : BALANCE.npcDepotGap);
+  const others = [...taken].filter((n) => !own.includes(n)).map((n) => ({ p: at(n), g: gapOf(n) })).filter((o) => o.p);
   let best: string | null = null;
   let bs = -Infinity;
   arena.chomes.forEach((ch, i) => {
@@ -393,7 +404,7 @@ function pickDepot(arena: Arena, s: EconomyState, own: string[], salt: number): 
     for (const p of pts) near = Math.min(near, (p.x - ch.x) * (p.x - ch.x) + (p.z - ch.z) * (p.z - ch.z));
     // 自分の営業所から 800m 以上離す。最初の 1 つはどこでもよい
     if (pts.length && near < 800 * 800) return;
-    for (const o of others) if ((o.x - ch.x) * (o.x - ch.x) + (o.z - ch.z) * (o.z - ch.z) < 300 * 300) return;
+    for (const { p: o, g } of others) if ((o.x - ch.x) * (o.x - ch.x) + (o.z - ch.z) * (o.z - ch.z) < g * g) return;
     const score = ch.base * (0.6 + 0.8 * hashUnit(s.seed ^ 0xd3f, i, salt));
     if (score > bs) {
       bs = score;
@@ -490,9 +501,9 @@ export function stepDay(arena: Arena, s: EconomyState, frozen = false): DayAlloc
           own: Math.round(pd?.sales[c.id] ?? 0),
           ownCount,
           wages: p.wages,
-          depots: c.depots.length * DEPOT_COST,
+          depots: c.depots.length * BALANCE.depotCost,
           vehicles: p.vehicles,
-          dist: Math.round(a.cost[k] - p.wages - p.vehicles - c.depots.length * DEPOT_COST),
+          dist: Math.round(a.cost[k] - p.wages - p.vehicles - c.depots.length * BALANCE.depotCost),
           fsales: Math.round(f?.sales ?? 0),
           fuel: Math.round(f?.fuel ?? 0),
           fee: Math.round(f?.fee ?? 0),
@@ -511,8 +522,8 @@ export function stepDay(arena: Arena, s: EconomyState, frozen = false): DayAlloc
       }
       if (away > 2 * MONTH) c.reason = "経営者が 2 か月来なかった";
     }
-    if (c.negDays >= MONTH) c.reason = "資金がマイナスのまま 1 か月";
-    else if (c.lowDays >= MONTH) c.reason = "シェア 0.5% 未満のまま 1 か月";
+    if (c.negDays >= BALANCE.closeDays) c.reason = `資金がマイナスのまま ${BALANCE.closeDays === MONTH ? "1 か月" : `${BALANCE.closeDays} 日`}`;
+    else if (c.lowDays >= BALANCE.closeDays) c.reason = `シェア 0.5% 未満のまま ${BALANCE.closeDays === MONTH ? "1 か月" : `${BALANCE.closeDays} 日`}`;
     if (c.reason) {
       c.closed = day;
       return;
@@ -521,8 +532,8 @@ export function stepDay(arena: Arena, s: EconomyState, frozen = false): DayAlloc
     const u = (salt: number) => hashUnit(s.seed ^ 0x9c0, hashString(c.id), day, salt);
     // 配達員: 運びきれない・余裕がない時は増やし、暇なら減らす
     // 配達員: 忙しくて儲かっていれば増やし、暇か赤字なら減らす
-    if (util > 0.9 && c.profit > 0 && c.cash > WAGE * 20) c.staff += kindOf(c.staff) === "large" && u(1) < 0.5 ? 2 : 1;
-    else if ((util < 0.6 || c.profit < 0) && c.staff > 1 && u(2) < 0.5) c.staff -= 1;
+    if (util > 0.9 && c.profit > 0 && c.cash > WAGE * 20 && c.staff < BALANCE.npcStaffMax) c.staff += kindOf(c.staff) === "large" && u(1) < 0.5 ? 2 : 1;
+    else if ((util < BALANCE.shrinkUtil || c.profit < 0 || c.staff > BALANCE.npcStaffMax) && c.staff > 1 && u(2) < 0.5) c.staff -= 1;
     // 営業所: 資金に余裕があり忙しければ増やす。資金が尽きたら、2 つ以上あれば 1 つ閉じる
     const kind = kindOf(c.staff);
     const depotCash = kind === "large" ? 1_500_000 : kind === "mid" ? 600_000 : 400_000;
@@ -719,7 +730,8 @@ export const CARRIER_PRICE = 15_000;
 export const CARRIER_FACTOR = 1.15;
 
 export const ownCompany = (s: EconomyState): Company | null => s.companies.find((c) => c.player && c.closed === null && c.id === s.player.company) ?? null;
-export const depotMax = (staff: number) => (kindOf(staff) === "large" ? 8 : kindOf(staff) === "mid" ? 4 : 2);
+/** プレイヤーの業者の営業所の上限（BALANCE.playerDepotMax: 個人・中堅・大手） */
+export const depotMax = (staff: number) => BALANCE.playerDepotMax[kindOf(staff) === "large" ? 2 : kindOf(staff) === "mid" ? 1 : 0];
 /** 土地勘（勤めた日数で 28 日までに +20%） */
 export const skillOf = (c: Crew, day: number) => Math.min(0.2, (Math.max(0, day - c.since) * 0.2) / MONTH);
 
@@ -814,7 +826,7 @@ export function nameChoices(s: EconomyState, day: number): string[] {
   return out;
 }
 
-/** 開業する: 今いる丁目に営業所を開き、所持金を業者の資金にする（21.1 の 32・33） */
+/** 開業する: 今いる丁目に営業所を開き、所持金を業者の資金にする（21.1 の 32・33）。開業の時の営業所は費用を取らない（25.3 の 63） */
 export function openCompany(arena: Arena, s: EconomyState, day: number, chome: string, name: string, money: number): Company | null {
   if (depotCheck(arena, s, chome, null) || !nameChoices(s, day).includes(name)) return null;
   const usedColors = new Set(active(s).map((c) => c.color));
@@ -827,7 +839,7 @@ export function openCompany(arena: Arena, s: EconomyState, day: number, chome: s
     policy: "fast",
     depots: [chome],
     staff: 0,
-    cash: Math.round(money - DEPOT_OPEN),
+    cash: Math.round(money),
     trust: 1,
     price: BASE_PRICE,
     opened: day,
@@ -934,17 +946,25 @@ export function windUp(s: EconomyState, c: Company, day: number, reason = "畳�
   return Math.max(0, Math.round(c.cash));
 }
 
-/** 今日の見込み: 今の形で今日 1 日分を割り振った時の、業者の運ぶ件数・あふれ・売上・費用 */
-export function estimate(arena: Arena, s: EconomyState, c: Company, day: number): { served: number; lost: number; revenue: number; cost: number; demand: number } {
+/** 今日の見込み: 今の形で今日 1 日分を割り振った時の、業者の運ぶ件数・あふれ・売上・費用。alt を渡すと、c をその形に置き換えて見積もる */
+export function estimate(arena: Arena, s: EconomyState, c: Company, day: number, alt?: Company): { served: number; lost: number; revenue: number; cost: number; demand: number } {
   const list = active(s);
   const k = list.indexOf(c);
   const a = allocate(
     arena,
-    list.map((x) => snapOf(x, day)),
+    list.map((x) => snapOf(x === c && alt ? alt : x, day)),
     day,
     s.seed,
   );
   return { served: a.total[k] ?? 0, lost: a.lost[k] ?? 0, revenue: a.revenue[k] ?? 0, cost: a.cost[k] ?? 0, demand: a.demand };
+}
+
+/** 応募の人を雇った時の、今日の見込みの差（運ぶ件数・売上・費用。25.3 の 66） */
+export function hireDelta(arena: Arena, s: EconomyState, c: Company, day: number, a: Crew): { served: number; revenue: number; cost: number } {
+  const now = estimate(arena, s, c, day);
+  const crew = [...(c.crew ?? []), { ...a, no: c.nextNo ?? 1 }];
+  const next = estimate(arena, s, c, day, { ...c, crew, staff: crew.length });
+  return { served: next.served - now.served, revenue: next.revenue - now.revenue, cost: next.cost - now.cost };
 }
 
 /** 丁目の 1 日の注文の量（平日の基本）と、いちばん近いほかの業者の営業所 */

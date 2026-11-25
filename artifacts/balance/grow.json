@@ -1,0 +1,1563 @@
+{
+  "errors": [],
+  "weeks": 16,
+  "runs": [
+    {
+      "variant": "今",
+      "place": "南5条東3丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 48201,
+          "staff": 2,
+          "depots": 1,
+          "served": 38,
+          "lost": 7,
+          "trust": 0.96
+        },
+        {
+          "w": 2,
+          "cash": 70584,
+          "staff": 2,
+          "depots": 1,
+          "served": 41,
+          "lost": 2,
+          "trust": 0.97
+        },
+        {
+          "w": 3,
+          "cash": 78947,
+          "staff": 4,
+          "depots": 2,
+          "served": 62,
+          "lost": 2,
+          "trust": 0.98
+        },
+        {
+          "w": 4,
+          "cash": 88199,
+          "staff": 12,
+          "depots": 6,
+          "served": 160,
+          "lost": 9,
+          "trust": 0.99
+        },
+        {
+          "w": 5,
+          "cash": 210012,
+          "staff": 13,
+          "depots": 6,
+          "served": 252,
+          "lost": 11,
+          "trust": 1
+        },
+        {
+          "w": 6,
+          "cash": 297631,
+          "staff": 14,
+          "depots": 6,
+          "served": 267,
+          "lost": 1,
+          "trust": 1.02
+        },
+        {
+          "w": 7,
+          "cash": 376456,
+          "staff": 14,
+          "depots": 6,
+          "served": 265,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 8,
+          "cash": 450565,
+          "staff": 14,
+          "depots": 6,
+          "served": 264,
+          "lost": 0,
+          "trust": 1.08
+        },
+        {
+          "w": 9,
+          "cash": 514125,
+          "staff": 14,
+          "depots": 6,
+          "served": 261,
+          "lost": 0,
+          "trust": 1.11
+        },
+        {
+          "w": 10,
+          "cash": 571970,
+          "staff": 14,
+          "depots": 6,
+          "served": 259,
+          "lost": 0,
+          "trust": 1.14
+        },
+        {
+          "w": 11,
+          "cash": 623381,
+          "staff": 14,
+          "depots": 6,
+          "served": 257,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 12,
+          "cash": 671359,
+          "staff": 14,
+          "depots": 6,
+          "served": 256,
+          "lost": 0,
+          "trust": 1.19
+        },
+        {
+          "w": 13,
+          "cash": 721831,
+          "staff": 13,
+          "depots": 6,
+          "served": 247,
+          "lost": 0,
+          "trust": 1.22
+        },
+        {
+          "w": 14,
+          "cash": 796295,
+          "staff": 13,
+          "depots": 6,
+          "served": 246,
+          "lost": 0,
+          "trust": 1.25
+        },
+        {
+          "w": 15,
+          "cash": 870147,
+          "staff": 13,
+          "depots": 6,
+          "served": 246,
+          "lost": 0,
+          "trust": 1.28
+        },
+        {
+          "w": 16,
+          "cash": 941782,
+          "staff": 13,
+          "depots": 6,
+          "served": 245,
+          "lost": 0,
+          "trust": 1.3
+        }
+      ],
+      "events": [
+        {
+          "d": 17,
+          "what": "営業所（南1条西4丁目）、配達員 4 人"
+        },
+        {
+          "d": 22,
+          "what": "営業所（北5条西4丁目）、配達員 6 人"
+        },
+        {
+          "d": 24,
+          "what": "営業所（北1条東2丁目）、配達員 8 人"
+        },
+        {
+          "d": 26,
+          "what": "営業所（南5条西10丁目）、配達員 10 人"
+        },
+        {
+          "d": 27,
+          "what": "営業所（大通西14丁目）、配達員 12 人"
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 156,
+        "list": "52人/営8 44人/営8 20人/営4 15人/営4 10人/営4 10人/営4 4人/営2 1人/営2"
+      }
+    },
+    {
+      "variant": "今",
+      "place": "南7条西2丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 42046,
+          "staff": 2,
+          "depots": 1,
+          "served": 37,
+          "lost": 5,
+          "trust": 0.98
+        },
+        {
+          "w": 2,
+          "cash": 57301,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 1,
+          "trust": 0.99
+        },
+        {
+          "w": 3,
+          "cash": 72417,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 1,
+          "trust": 1.01
+        },
+        {
+          "w": 4,
+          "cash": 70764,
+          "staff": 4,
+          "depots": 2,
+          "served": 50,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 5,
+          "cash": 90281,
+          "staff": 6,
+          "depots": 3,
+          "served": 97,
+          "lost": 3,
+          "trust": 1.05
+        },
+        {
+          "w": 6,
+          "cash": 147080,
+          "staff": 13,
+          "depots": 6,
+          "served": 230,
+          "lost": 7,
+          "trust": 1.07
+        },
+        {
+          "w": 7,
+          "cash": 236330,
+          "staff": 14,
+          "depots": 6,
+          "served": 268,
+          "lost": 1,
+          "trust": 1.09
+        },
+        {
+          "w": 8,
+          "cash": 325157,
+          "staff": 14,
+          "depots": 6,
+          "served": 268,
+          "lost": 0,
+          "trust": 1.12
+        },
+        {
+          "w": 9,
+          "cash": 403421,
+          "staff": 14,
+          "depots": 6,
+          "served": 264,
+          "lost": 0,
+          "trust": 1.15
+        },
+        {
+          "w": 10,
+          "cash": 473665,
+          "staff": 14,
+          "depots": 6,
+          "served": 262,
+          "lost": 0,
+          "trust": 1.17
+        },
+        {
+          "w": 11,
+          "cash": 539152,
+          "staff": 14,
+          "depots": 6,
+          "served": 261,
+          "lost": 0,
+          "trust": 1.2
+        },
+        {
+          "w": 12,
+          "cash": 602317,
+          "staff": 14,
+          "depots": 6,
+          "served": 260,
+          "lost": 0,
+          "trust": 1.23
+        },
+        {
+          "w": 13,
+          "cash": 653569,
+          "staff": 14,
+          "depots": 6,
+          "served": 257,
+          "lost": 0,
+          "trust": 1.26
+        },
+        {
+          "w": 14,
+          "cash": 706918,
+          "staff": 14,
+          "depots": 6,
+          "served": 257,
+          "lost": 0,
+          "trust": 1.29
+        },
+        {
+          "w": 15,
+          "cash": 759863,
+          "staff": 14,
+          "depots": 6,
+          "served": 257,
+          "lost": 0,
+          "trust": 1.31
+        },
+        {
+          "w": 16,
+          "cash": 821189,
+          "staff": 13,
+          "depots": 6,
+          "served": 250,
+          "lost": 0,
+          "trust": 1.34
+        }
+      ],
+      "events": [
+        {
+          "d": 26,
+          "what": "営業所（南1条西4丁目）、配達員 4 人"
+        },
+        {
+          "d": 32,
+          "what": "営業所（北5条西4丁目）、配達員 6 人"
+        },
+        {
+          "d": 35,
+          "what": "営業所（北1条東2丁目）、配達員 8 人"
+        },
+        {
+          "d": 36,
+          "what": "営業所（南5条西10丁目）、配達員 10 人"
+        },
+        {
+          "d": 38,
+          "what": "営業所（大通西14丁目）、配達員 12 人"
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 158,
+        "list": "52人/営8 44人/営8 21人/営4 15人/営4 10人/営4 10人/営4 5人/営2 1人/営2"
+      }
+    },
+    {
+      "variant": "今",
+      "place": "北4条西7丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 48758,
+          "staff": 2,
+          "depots": 1,
+          "served": 38,
+          "lost": 10,
+          "trust": 0.94
+        },
+        {
+          "w": 2,
+          "cash": 70872,
+          "staff": 2,
+          "depots": 1,
+          "served": 41,
+          "lost": 3,
+          "trust": 0.94
+        },
+        {
+          "w": 3,
+          "cash": 74704,
+          "staff": 4,
+          "depots": 2,
+          "served": 59,
+          "lost": 1,
+          "trust": 0.96
+        },
+        {
+          "w": 4,
+          "cash": 84753,
+          "staff": 8,
+          "depots": 4,
+          "served": 130,
+          "lost": 2,
+          "trust": 0.98
+        },
+        {
+          "w": 5,
+          "cash": 139443,
+          "staff": 13,
+          "depots": 6,
+          "served": 247,
+          "lost": 4,
+          "trust": 0.99
+        },
+        {
+          "w": 6,
+          "cash": 223179,
+          "staff": 13,
+          "depots": 6,
+          "served": 260,
+          "lost": 0,
+          "trust": 1.02
+        },
+        {
+          "w": 7,
+          "cash": 296702,
+          "staff": 13,
+          "depots": 6,
+          "served": 257,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 8,
+          "cash": 367103,
+          "staff": 13,
+          "depots": 6,
+          "served": 256,
+          "lost": 0,
+          "trust": 1.07
+        },
+        {
+          "w": 9,
+          "cash": 425583,
+          "staff": 13,
+          "depots": 6,
+          "served": 253,
+          "lost": 0,
+          "trust": 1.1
+        },
+        {
+          "w": 10,
+          "cash": 478277,
+          "staff": 13,
+          "depots": 6,
+          "served": 251,
+          "lost": 0,
+          "trust": 1.13
+        },
+        {
+          "w": 11,
+          "cash": 526754,
+          "staff": 13,
+          "depots": 6,
+          "served": 250,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 12,
+          "cash": 598356,
+          "staff": 12,
+          "depots": 6,
+          "served": 246,
+          "lost": 0,
+          "trust": 1.19
+        },
+        {
+          "w": 13,
+          "cash": 666563,
+          "staff": 12,
+          "depots": 6,
+          "served": 238,
+          "lost": 0,
+          "trust": 1.21
+        },
+        {
+          "w": 14,
+          "cash": 737208,
+          "staff": 12,
+          "depots": 6,
+          "served": 239,
+          "lost": 0,
+          "trust": 1.24
+        },
+        {
+          "w": 15,
+          "cash": 806610,
+          "staff": 12,
+          "depots": 6,
+          "served": 238,
+          "lost": 0,
+          "trust": 1.27
+        },
+        {
+          "w": 16,
+          "cash": 873744,
+          "staff": 12,
+          "depots": 6,
+          "served": 238,
+          "lost": 0,
+          "trust": 1.3
+        }
+      ],
+      "events": [
+        {
+          "d": 18,
+          "what": "営業所（南1条西4丁目）、配達員 4 人"
+        },
+        {
+          "d": 22,
+          "what": "営業所（北1条東2丁目）、配達員 6 人"
+        },
+        {
+          "d": 26,
+          "what": "営業所（南5条東3丁目）、配達員 8 人"
+        },
+        {
+          "d": 28,
+          "what": "営業所（南5条西10丁目）、配達員 10 人"
+        },
+        {
+          "d": 29,
+          "what": "営業所（大通西14丁目）、配達員 12 人"
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 158,
+        "list": "52人/営8 44人/営8 21人/営4 15人/営4 11人/営4 10人/営4 4人/営2 1人/営2"
+      }
+    },
+    {
+      "variant": "前（25 章で決める前）",
+      "place": "南5条東3丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 14288,
+          "staff": 2,
+          "depots": 1,
+          "served": 38,
+          "lost": 7,
+          "trust": 0.96
+        },
+        {
+          "w": 2,
+          "cash": 23922,
+          "staff": 2,
+          "depots": 1,
+          "served": 42,
+          "lost": 2,
+          "trust": 0.97
+        },
+        {
+          "w": 3,
+          "cash": 33783,
+          "staff": 2,
+          "depots": 1,
+          "served": 42,
+          "lost": 2,
+          "trust": 0.98
+        },
+        {
+          "w": 4,
+          "cash": 43268,
+          "staff": 2,
+          "depots": 1,
+          "served": 42,
+          "lost": 1,
+          "trust": 1
+        },
+        {
+          "w": 5,
+          "cash": 50501,
+          "staff": 2,
+          "depots": 1,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.02
+        },
+        {
+          "w": 6,
+          "cash": 58293,
+          "staff": 2,
+          "depots": 1,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 7,
+          "cash": 63086,
+          "staff": 2,
+          "depots": 1,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.07
+        },
+        {
+          "w": 8,
+          "cash": 64976,
+          "staff": 2,
+          "depots": 1,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.1
+        },
+        {
+          "w": 9,
+          "cash": 64923,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.13
+        },
+        {
+          "w": 10,
+          "cash": 67491,
+          "staff": 2,
+          "depots": 1,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 11,
+          "cash": 68975,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.19
+        },
+        {
+          "w": 12,
+          "cash": 70201,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.21
+        },
+        {
+          "w": 13,
+          "cash": 60008,
+          "staff": 2,
+          "depots": 1,
+          "served": 33,
+          "lost": 1,
+          "trust": 1.23
+        },
+        {
+          "w": 14,
+          "cash": 49988,
+          "staff": 2,
+          "depots": 1,
+          "served": 34,
+          "lost": 0,
+          "trust": 1.26
+        },
+        {
+          "w": 15,
+          "cash": 39303,
+          "staff": 2,
+          "depots": 1,
+          "served": 34,
+          "lost": 0,
+          "trust": 1.29
+        },
+        {
+          "w": 16,
+          "cash": 26303,
+          "staff": 2,
+          "depots": 1,
+          "served": 34,
+          "lost": 0,
+          "trust": 1.32
+        }
+      ],
+      "events": [],
+      "npc": {
+        "before": 8,
+        "after": 7,
+        "closedDuring": 1,
+        "staff": 166,
+        "list": "54人/営8 47人/営8 23人/営4 16人/営4 11人/営4 10人/営4 5人/営2"
+      }
+    },
+    {
+      "variant": "前（25 章で決める前）",
+      "place": "南7条西2丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 8421,
+          "staff": 2,
+          "depots": 1,
+          "served": 37,
+          "lost": 5,
+          "trust": 0.98
+        },
+        {
+          "w": 2,
+          "cash": 10267,
+          "staff": 2,
+          "depots": 1,
+          "served": 40,
+          "lost": 1,
+          "trust": 0.99
+        },
+        {
+          "w": 3,
+          "cash": 12178,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 1,
+          "trust": 1.01
+        },
+        {
+          "w": 4,
+          "cash": 13369,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.04
+        },
+        {
+          "w": 5,
+          "cash": 12789,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.07
+        },
+        {
+          "w": 6,
+          "cash": 12511,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.09
+        },
+        {
+          "w": 7,
+          "cash": 10952,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.12
+        },
+        {
+          "w": 8,
+          "cash": 7744,
+          "staff": 2,
+          "depots": 1,
+          "served": 38,
+          "lost": 0,
+          "trust": 1.15
+        },
+        {
+          "w": 9,
+          "cash": 4423,
+          "staff": 2,
+          "depots": 1,
+          "served": 38,
+          "lost": 0,
+          "trust": 1.18
+        },
+        {
+          "w": 10,
+          "cash": 3233,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.21
+        },
+        {
+          "w": 11,
+          "cash": 1175,
+          "staff": 2,
+          "depots": 1,
+          "served": 38,
+          "lost": 0,
+          "trust": 1.23
+        },
+        {
+          "w": 12,
+          "cash": -34,
+          "staff": 2,
+          "depots": 1,
+          "served": 38,
+          "lost": 0,
+          "trust": 1.26
+        },
+        {
+          "w": 13,
+          "cash": -8371,
+          "staff": 2,
+          "depots": 1,
+          "served": 37,
+          "lost": 0,
+          "trust": 1.29
+        },
+        {
+          "w": 14,
+          "cash": -16126,
+          "staff": 2,
+          "depots": 1,
+          "served": 37,
+          "lost": 0,
+          "trust": 1.32
+        },
+        {
+          "w": 15,
+          "cash": -23152,
+          "staff": 2,
+          "depots": 1,
+          "served": 37,
+          "lost": 0,
+          "trust": 1.35
+        },
+        {
+          "w": 16,
+          "cash": -36224,
+          "staff": 1,
+          "depots": 1,
+          "served": 27,
+          "lost": 2,
+          "trust": 1.34
+        }
+      ],
+      "events": [],
+      "npc": {
+        "before": 8,
+        "after": 7,
+        "closedDuring": 1,
+        "staff": 165,
+        "list": "54人/営8 47人/営8 23人/営4 16人/営4 11人/営4 10人/営4 4人/営2"
+      }
+    },
+    {
+      "variant": "前（25 章で決める前）",
+      "place": "北4条西7丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 14796,
+          "staff": 2,
+          "depots": 1,
+          "served": 38,
+          "lost": 10,
+          "trust": 0.94
+        },
+        {
+          "w": 2,
+          "cash": 23375,
+          "staff": 2,
+          "depots": 1,
+          "served": 41,
+          "lost": 3,
+          "trust": 0.94
+        },
+        {
+          "w": 3,
+          "cash": 31006,
+          "staff": 2,
+          "depots": 1,
+          "served": 41,
+          "lost": 2,
+          "trust": 0.96
+        },
+        {
+          "w": 4,
+          "cash": 38669,
+          "staff": 2,
+          "depots": 1,
+          "served": 41,
+          "lost": 0,
+          "trust": 0.97
+        },
+        {
+          "w": 5,
+          "cash": 46362,
+          "staff": 2,
+          "depots": 1,
+          "served": 41,
+          "lost": 0,
+          "trust": 1
+        },
+        {
+          "w": 6,
+          "cash": 52591,
+          "staff": 2,
+          "depots": 1,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.02
+        },
+        {
+          "w": 7,
+          "cash": 56538,
+          "staff": 2,
+          "depots": 1,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 8,
+          "cash": 62772,
+          "staff": 2,
+          "depots": 1,
+          "served": 41,
+          "lost": 0,
+          "trust": 1.08
+        },
+        {
+          "w": 9,
+          "cash": 67228,
+          "staff": 2,
+          "depots": 1,
+          "served": 40,
+          "lost": 0,
+          "trust": 1.11
+        },
+        {
+          "w": 10,
+          "cash": 64195,
+          "staff": 2,
+          "depots": 1,
+          "served": 38,
+          "lost": 0,
+          "trust": 1.13
+        },
+        {
+          "w": 11,
+          "cash": 60730,
+          "staff": 2,
+          "depots": 1,
+          "served": 38,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 12,
+          "cash": 59962,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.19
+        },
+        {
+          "w": 13,
+          "cash": 59708,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.22
+        },
+        {
+          "w": 14,
+          "cash": 59518,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.25
+        },
+        {
+          "w": 15,
+          "cash": 59835,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.27
+        },
+        {
+          "w": 16,
+          "cash": 61683,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 0,
+          "trust": 1.3
+        }
+      ],
+      "events": [],
+      "npc": {
+        "before": 8,
+        "after": 7,
+        "closedDuring": 1,
+        "staff": 164,
+        "list": "54人/営8 46人/営8 23人/営4 16人/営4 11人/営4 10人/営4 4人/営2"
+      }
+    },
+    {
+      "variant": "M 資金 3 万+営業所の費用 4,000 円+個人 4 か所まで",
+      "place": "南5条東3丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 48201,
+          "staff": 2,
+          "depots": 1,
+          "served": 38,
+          "lost": 7,
+          "trust": 0.96
+        },
+        {
+          "w": 2,
+          "cash": 70584,
+          "staff": 2,
+          "depots": 1,
+          "served": 41,
+          "lost": 2,
+          "trust": 0.97
+        },
+        {
+          "w": 3,
+          "cash": 78947,
+          "staff": 4,
+          "depots": 2,
+          "served": 62,
+          "lost": 2,
+          "trust": 0.98
+        },
+        {
+          "w": 4,
+          "cash": 88199,
+          "staff": 12,
+          "depots": 6,
+          "served": 160,
+          "lost": 9,
+          "trust": 0.99
+        },
+        {
+          "w": 5,
+          "cash": 210012,
+          "staff": 13,
+          "depots": 6,
+          "served": 252,
+          "lost": 11,
+          "trust": 1
+        },
+        {
+          "w": 6,
+          "cash": 297631,
+          "staff": 14,
+          "depots": 6,
+          "served": 267,
+          "lost": 1,
+          "trust": 1.02
+        },
+        {
+          "w": 7,
+          "cash": 376456,
+          "staff": 14,
+          "depots": 6,
+          "served": 265,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 8,
+          "cash": 450565,
+          "staff": 14,
+          "depots": 6,
+          "served": 264,
+          "lost": 0,
+          "trust": 1.08
+        },
+        {
+          "w": 9,
+          "cash": 514125,
+          "staff": 14,
+          "depots": 6,
+          "served": 261,
+          "lost": 0,
+          "trust": 1.11
+        },
+        {
+          "w": 10,
+          "cash": 571970,
+          "staff": 14,
+          "depots": 6,
+          "served": 259,
+          "lost": 0,
+          "trust": 1.14
+        },
+        {
+          "w": 11,
+          "cash": 623381,
+          "staff": 14,
+          "depots": 6,
+          "served": 257,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 12,
+          "cash": 671359,
+          "staff": 14,
+          "depots": 6,
+          "served": 256,
+          "lost": 0,
+          "trust": 1.19
+        },
+        {
+          "w": 13,
+          "cash": 721831,
+          "staff": 13,
+          "depots": 6,
+          "served": 247,
+          "lost": 0,
+          "trust": 1.22
+        },
+        {
+          "w": 14,
+          "cash": 796295,
+          "staff": 13,
+          "depots": 6,
+          "served": 246,
+          "lost": 0,
+          "trust": 1.25
+        },
+        {
+          "w": 15,
+          "cash": 870147,
+          "staff": 13,
+          "depots": 6,
+          "served": 246,
+          "lost": 0,
+          "trust": 1.28
+        },
+        {
+          "w": 16,
+          "cash": 941782,
+          "staff": 13,
+          "depots": 6,
+          "served": 245,
+          "lost": 0,
+          "trust": 1.3
+        }
+      ],
+      "events": [
+        {
+          "d": 17,
+          "what": "営業所（南1条西4丁目）、配達員 4 人"
+        },
+        {
+          "d": 22,
+          "what": "営業所（北5条西4丁目）、配達員 6 人"
+        },
+        {
+          "d": 24,
+          "what": "営業所（北1条東2丁目）、配達員 8 人"
+        },
+        {
+          "d": 26,
+          "what": "営業所（南5条西10丁目）、配達員 10 人"
+        },
+        {
+          "d": 27,
+          "what": "営業所（大通西14丁目）、配達員 12 人"
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 156,
+        "list": "52人/営8 44人/営8 20人/営4 15人/営4 10人/営4 10人/営4 4人/営2 1人/営2"
+      }
+    },
+    {
+      "variant": "M 資金 3 万+営業所の費用 4,000 円+個人 4 か所まで",
+      "place": "南7条西2丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 42046,
+          "staff": 2,
+          "depots": 1,
+          "served": 37,
+          "lost": 5,
+          "trust": 0.98
+        },
+        {
+          "w": 2,
+          "cash": 57301,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 1,
+          "trust": 0.99
+        },
+        {
+          "w": 3,
+          "cash": 72417,
+          "staff": 2,
+          "depots": 1,
+          "served": 39,
+          "lost": 1,
+          "trust": 1.01
+        },
+        {
+          "w": 4,
+          "cash": 70764,
+          "staff": 4,
+          "depots": 2,
+          "served": 50,
+          "lost": 0,
+          "trust": 1.03
+        },
+        {
+          "w": 5,
+          "cash": 90281,
+          "staff": 6,
+          "depots": 3,
+          "served": 97,
+          "lost": 3,
+          "trust": 1.05
+        },
+        {
+          "w": 6,
+          "cash": 147080,
+          "staff": 13,
+          "depots": 6,
+          "served": 230,
+          "lost": 7,
+          "trust": 1.07
+        },
+        {
+          "w": 7,
+          "cash": 236330,
+          "staff": 14,
+          "depots": 6,
+          "served": 268,
+          "lost": 1,
+          "trust": 1.09
+        },
+        {
+          "w": 8,
+          "cash": 325157,
+          "staff": 14,
+          "depots": 6,
+          "served": 268,
+          "lost": 0,
+          "trust": 1.12
+        },
+        {
+          "w": 9,
+          "cash": 403421,
+          "staff": 14,
+          "depots": 6,
+          "served": 264,
+          "lost": 0,
+          "trust": 1.15
+        },
+        {
+          "w": 10,
+          "cash": 473665,
+          "staff": 14,
+          "depots": 6,
+          "served": 262,
+          "lost": 0,
+          "trust": 1.17
+        },
+        {
+          "w": 11,
+          "cash": 539152,
+          "staff": 14,
+          "depots": 6,
+          "served": 261,
+          "lost": 0,
+          "trust": 1.2
+        },
+        {
+          "w": 12,
+          "cash": 602317,
+          "staff": 14,
+          "depots": 6,
+          "served": 260,
+          "lost": 0,
+          "trust": 1.23
+        },
+        {
+          "w": 13,
+          "cash": 653569,
+          "staff": 14,
+          "depots": 6,
+          "served": 257,
+          "lost": 0,
+          "trust": 1.26
+        },
+        {
+          "w": 14,
+          "cash": 706918,
+          "staff": 14,
+          "depots": 6,
+          "served": 257,
+          "lost": 0,
+          "trust": 1.29
+        },
+        {
+          "w": 15,
+          "cash": 759863,
+          "staff": 14,
+          "depots": 6,
+          "served": 257,
+          "lost": 0,
+          "trust": 1.31
+        },
+        {
+          "w": 16,
+          "cash": 821189,
+          "staff": 13,
+          "depots": 6,
+          "served": 250,
+          "lost": 0,
+          "trust": 1.34
+        }
+      ],
+      "events": [
+        {
+          "d": 26,
+          "what": "営業所（南1条西4丁目）、配達員 4 人"
+        },
+        {
+          "d": 32,
+          "what": "営業所（北5条西4丁目）、配達員 6 人"
+        },
+        {
+          "d": 35,
+          "what": "営業所（北1条東2丁目）、配達員 8 人"
+        },
+        {
+          "d": 36,
+          "what": "営業所（南5条西10丁目）、配達員 10 人"
+        },
+        {
+          "d": 38,
+          "what": "営業所（大通西14丁目）、配達員 12 人"
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 158,
+        "list": "52人/営8 44人/営8 21人/営4 15人/営4 10人/営4 10人/営4 5人/営2 1人/営2"
+      }
+    },
+    {
+      "variant": "M 資金 3 万+営業所の費用 4,000 円+個人 4 か所まで",
+      "place": "北4条西7丁目",
+      "closed": null,
+      "weekly": [
+        {
+          "w": 1,
+          "cash": 48758,
+          "staff": 2,
+          "depots": 1,
+          "served": 38,
+          "lost": 10,
+          "trust": 0.94
+        },
+        {
+          "w": 2,
+          "cash": 70872,
+          "staff": 2,
+          "depots": 1,
+          "served": 41,
+          "lost": 3,
+          "trust": 0.94
+        },
+        {
+          "w": 3,
+          "cash": 74704,
+          "staff": 4,
+          "depots": 2,
+          "served": 59,
+          "lost": 1,
+          "trust": 0.96
+        },
+        {
+          "w": 4,
+          "cash": 84753,
+          "staff": 8,
+          "depots": 4,
+          "served": 130,
+          "lost": 2,
+          "trust": 0.98
+        },
+        {
+          "w": 5,
+          "cash": 139443,
+          "staff": 13,
+          "depots": 6,
+          "served": 247,
+          "lost": 4,
+          "trust": 0.99
+        },
+        {
+          "w": 6,
+          "cash": 223179,
+          "staff": 13,
+          "depots": 6,
+          "served": 260,
+          "lost": 0,
+          "trust": 1.02
+        },
+        {
+          "w": 7,
+          "cash": 296702,
+          "staff": 13,
+          "depots": 6,
+          "served": 257,
+          "lost": 0,
+          "trust": 1.05
+        },
+        {
+          "w": 8,
+          "cash": 367103,
+          "staff": 13,
+          "depots": 6,
+          "served": 256,
+          "lost": 0,
+          "trust": 1.07
+        },
+        {
+          "w": 9,
+          "cash": 425583,
+          "staff": 13,
+          "depots": 6,
+          "served": 253,
+          "lost": 0,
+          "trust": 1.1
+        },
+        {
+          "w": 10,
+          "cash": 478277,
+          "staff": 13,
+          "depots": 6,
+          "served": 251,
+          "lost": 0,
+          "trust": 1.13
+        },
+        {
+          "w": 11,
+          "cash": 526754,
+          "staff": 13,
+          "depots": 6,
+          "served": 250,
+          "lost": 0,
+          "trust": 1.16
+        },
+        {
+          "w": 12,
+          "cash": 598356,
+          "staff": 12,
+          "depots": 6,
+          "served": 246,
+          "lost": 0,
+          "trust": 1.19
+        },
+        {
+          "w": 13,
+          "cash": 666563,
+          "staff": 12,
+          "depots": 6,
+          "served": 238,
+          "lost": 0,
+          "trust": 1.21
+        },
+        {
+          "w": 14,
+          "cash": 737208,
+          "staff": 12,
+          "depots": 6,
+          "served": 239,
+          "lost": 0,
+          "trust": 1.24
+        },
+        {
+          "w": 15,
+          "cash": 806610,
+          "staff": 12,
+          "depots": 6,
+          "served": 238,
+          "lost": 0,
+          "trust": 1.27
+        },
+        {
+          "w": 16,
+          "cash": 873744,
+          "staff": 12,
+          "depots": 6,
+          "served": 238,
+          "lost": 0,
+          "trust": 1.3
+        }
+      ],
+      "events": [
+        {
+          "d": 18,
+          "what": "営業所（南1条西4丁目）、配達員 4 人"
+        },
+        {
+          "d": 22,
+          "what": "営業所（北1条東2丁目）、配達員 6 人"
+        },
+        {
+          "d": 26,
+          "what": "営業所（南5条東3丁目）、配達員 8 人"
+        },
+        {
+          "d": 28,
+          "what": "営業所（南5条西10丁目）、配達員 10 人"
+        },
+        {
+          "d": 29,
+          "what": "営業所（大通西14丁目）、配達員 12 人"
+        }
+      ],
+      "npc": {
+        "before": 8,
+        "after": 8,
+        "closedDuring": 0,
+        "staff": 158,
+        "list": "52人/営8 44人/営8 21人/営4 15人/営4 11人/営4 10人/営4 4人/営2 1人/営2"
+      }
+    }
+  ]
+}
