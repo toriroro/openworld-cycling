@@ -61,7 +61,9 @@ export interface GameMapLayer {
   /** 住所（丁目の名前を拡大した時に描く。配達の草案 13 章） */
   addresses?: AddressBook;
   /** 配達の行き先の印（配達の草案 3.3 の案内）。kind があれば受け取り・届け先の色の目立つ印（26 章） */
-  marks?: () => { x: number; z: number; name: string; kind?: "pickup" | "dropoff"; active?: boolean }[];
+  marks?: () => { x: number; z: number; name: string; kind?: "pickup" | "dropoff"; active?: boolean; id?: number }[];
+  /** 受け取り・届け先の印を押した時（id は marks の id）。押した所が印でなければ onTap（配達の草案 27 章） */
+  onMark?: (id: number) => void;
   /** 行き先までの経路の線（世界座標 x, z の交互の並び。配達の草案 26 章） */
   route?: () => number[] | null;
   /** 縄張り: 丁目ごとに持ち主の業者の色を塗った画像と、それが覆う世界の範囲（配達の草案 18 章） */
@@ -309,11 +311,17 @@ export class WorldMap {
     );
   }
 
+  /** 受け取り・届け先の印の押せる所（画面の点。描く時に覚える） */
+  private markHits: { id: number; x0: number; y0: number; x1: number; y1: number }[] = [];
+
   /** 画面の点に最も近い道路を選ぶ（10px 以内） */
   private pick(px: number, py: number) {
     const p = this.toWorld(px, py);
     if (this.opts.game) {
-      this.opts.game.onTap(p.x, p.z);
+      // 受け取り・届け先の印（針・札・縁の三角）を押したら、その行き先へ
+      const hit = this.opts.game.onMark ? [...this.markHits].reverse().find((h) => px >= h.x0 && px <= h.x1 && py >= h.y0 && py <= h.y1) : undefined;
+      if (hit) this.opts.game.onMark!(hit.id);
+      else this.opts.game.onTap(p.x, p.z);
       this.dirty = true;
       return;
     }
@@ -889,6 +897,7 @@ export class WorldMap {
     // 配達の行き先の印。受け取り・届け先は色の付いた大きな針と名前の札。画面の外なら縁に向きの印
     const pulse = (performance.now() % 1400) / 1400;
     const all = this.opts.game?.marks?.() ?? [];
+    this.markHits = [];
     for (const m of [...all].sort((a, b) => Number(!!a.active) - Number(!!b.active))) {
       const [sx, sy] = toScreen(m.x, m.z);
       if (!m.kind) {
@@ -925,6 +934,7 @@ export class WorldMap {
         ctx.lineWidth = 2;
         ctx.strokeStyle = "#ffffff";
         ctx.stroke();
+        if (m.id !== undefined) this.markHits.push({ id: m.id, x0: ex - 22, y0: ey - 22, x1: ex + 22, y1: ey + 22 });
         continue;
       }
       // 広がる輪
@@ -968,6 +978,11 @@ export class WorldMap {
       ctx.fillRect(bx, by, 4, 22);
       ctx.fillStyle = "#ffffff";
       ctx.fillText(text, bx + 9, by + 16);
+      if (m.id !== undefined) {
+        // 針と札（指で押しやすいよう少し広く）
+        this.markHits.push({ id: m.id, x0: sx - rad - 10, y0: sy - hgt - 10, x1: sx + rad + 10, y1: sy + 8 });
+        this.markHits.push({ id: m.id, x0: bx - 4, y0: by - 6, x1: bx + tw + 18, y1: by + 28 });
+      }
     }
 
     // 印（起点候補の 15km 円）

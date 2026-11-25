@@ -10,6 +10,7 @@ import { equilibriumSpeed } from "../src/sim/bicycle.ts";
 import { RoadNetwork } from "../src/sim/road-network.ts";
 import { isTurn, planPath, planRoute, TURN_COST } from "../src/sim/route-plan.ts";
 import { Traffic, type Vehicle } from "../src/sim/traffic/traffic.ts";
+import { junctionCorners, junctionShape } from "../src/sim/junction-shape.ts";
 
 describe("受け渡しの円", () => {
   const spot = { x: 0, z: 0, dx: 1, dz: 0, width: 10 };
@@ -130,6 +131,94 @@ describe("曲がる回数の少ない経路", () => {
     let len = 0;
     for (let i = 2; i < path.length; i += 2) len += Math.hypot(path[i] - path[i - 2], path[i + 1] - path[i - 1]);
     expect(len).toBeCloseTo(plan.length, 0);
+  });
+});
+
+describe("交差点の角（住所の看板を立てる所）", () => {
+  it("十字路では 4 つの角が、それぞれ斜めの外向きに、歩道の上に出る", () => {
+    const net = grid(3);
+    const j = [...net.junctions.values()].find((x) => x.id === "j1_1")!;
+    const cs = junctionCorners(junctionShape(net, j));
+    expect(cs.length).toBe(4);
+    const quads = new Set(cs.map((c) => `${Math.sign(c.x - 120)},${Math.sign(c.z - 120)}`));
+    expect(quads.size).toBe(4);
+    for (const c of cs) {
+      expect(Math.abs(Math.abs(c.bx) - Math.SQRT1_2)).toBeLessThan(0.05);
+      expect(Math.abs(Math.abs(c.bz) - Math.SQRT1_2)).toBeLessThan(0.05);
+      // 幅 8m の道の外（中心から各軸 4m より外）
+      expect(Math.abs(c.x - 120)).toBeGreaterThan(4);
+      expect(Math.abs(c.z - 120)).toBeGreaterThan(4);
+    }
+    // 3 本の T 字路では 2 つ（まっすぐな側は角が無い）
+    const t = [...net.junctions.values()].find((x) => x.id === "j1_0")!;
+    expect(junctionCorners(junctionShape(net, t)).length).toBe(2);
+  });
+});
+
+describe("走っている時の U ターン", () => {
+  it("接続点を曲がっている途中で頼んでも、止まったままにならず、曲がり終えてから回る", () => {
+    const net = grid(30);
+    const power = new ManualPower();
+    power.pace = 2;
+    const ride = new Ride(net, { road: "h0_3", s: 1, dir: 1 }, power);
+    ride.assist = PACE_ASSIST[2];
+    ride.cruise = PACE_SPEED[2] / 3.6;
+    // 接続点を通る線（区画ごとに道路が分かれる）に 4m/s ほどで入った所で頼む（すぐ 3m/s より遅くなり、線の途中で止まりやすい）
+    for (let i = 0; i < 120 * 60; i++) {
+      ride.step();
+      if (ride.speed > 4 && ride.turn && ride.turn.d < 1) break;
+      if (ride.speed > 6.5) power.pace = 0;
+    }
+    expect(ride.turn).not.toBeNull();
+    const d0 = ride.pose();
+    ride.uTurn();
+    power.pace = 2;
+    let done = -1;
+    for (let k = 0; k < 120 * 20; k++) {
+      ride.step();
+      if (!ride.uTurnPending && done < 0) done = k;
+    }
+    expect(done).toBeGreaterThan(0);
+    const p = ride.pose();
+    expect(p.dx * d0.dx + p.dz * d0.dz).toBeLessThan(-0.9);
+    expect(ride.speed).toBeGreaterThan(5);
+  });
+
+  it("減速してから道の反対側の車線へ回り、逆向きに走り出す。位置は跳ばない", () => {
+    const net = grid(30);
+    const power = new ManualPower();
+    power.pace = 2;
+    const ride = new Ride(net, { road: "h0_3", s: 1, dir: 1 }, power);
+    ride.assist = PACE_ASSIST[2];
+    ride.cruise = PACE_SPEED[2] / 3.6;
+    for (let i = 0; i < 120 * 20; i++) ride.step();
+    expect(ride.speed * 3.6).toBeGreaterThan(35);
+    const before = ride.pose();
+    expect(ride.uTurn()).toBe(true);
+    let prev = before;
+    let maxJump = 0;
+    let minSpeed = Infinity;
+    let turned = false;
+    for (let i = 0; i < 120 * 15; i++) {
+      ride.step();
+      const p = ride.pose();
+      maxJump = Math.max(maxJump, Math.hypot(p.x - prev.x, p.z - prev.z));
+      if (ride.turn && ride.turn.junction === "") {
+        turned = true;
+        minSpeed = Math.min(minSpeed, ride.speed);
+      }
+      prev = p;
+    }
+    expect(turned).toBe(true);
+    // 回り始める時は 3m/s 以下
+    expect(minSpeed).toBeLessThanOrEqual(3.01);
+    // 1 歩で動く量は速さ × 1/120 秒ほど（14m/s でも 0.12m）
+    expect(maxJump).toBeLessThan(0.3);
+    const after = ride.pose();
+    // 逆向きに、また速く走っている
+    expect(after.dx * before.dx + after.dz * before.dz).toBeLessThan(-0.9);
+    expect(ride.speed * 3.6).toBeGreaterThan(30);
+    expect(ride.uTurnPending).toBe(false);
   });
 });
 

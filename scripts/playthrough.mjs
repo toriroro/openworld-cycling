@@ -1,6 +1,6 @@
 // 一人用を通しで試す（配達の草案 24 章）。人の手の代わりに、ふつうのプレイヤーらしい決め方で進めて、段ごとにかかる時間とお金を測る。
 //
-// A. アルバイト: 北海道の世界をはじめから。案内は「経路を自動で引く」、ペースは「ふつう」。配達アプリの知らせを受けて、実際に走って届ける。
+// A. アルバイト: 北海道の世界をはじめから。案内は「経路を自動で引く」、ペースは「ふつう」。配達アプリの一覧の注文を受けて、実際に走って届ける。
 //    体力が 3 割を切ったら近くの喫茶店で食事。時計は 6 倍（走った時間は世界の中の秒で数えるので、等倍で遊んだ時の時間になる）。
 // B. 経営: 開業の条件（所持金・届けた数）に届いたことにして開業し、世界の日を 1 日ずつ進める（描かずに経済の計算だけ。画面のコードと同じモジュール）。
 //    毎日: あふれた注文が多ければ応募から速い人を雇う、余裕があれば電動自転車、人が増えたら営業所を足す、中堅になったら長距離の便を 1 本。
@@ -54,16 +54,19 @@ if (PART.includes("A")) {
   const wall0 = Date.now();
   while (deliveries.length < N && Date.now() - wall0 < 50 * 60_000) {
     const before = await st();
-    // 知らせを待つ（来なければ 5 分（壁の時計）で打ち切り）
-    const got = await page.waitForSelector(".offer-card:not(.hidden)", { timeout: 300000 }).catch(() => null);
+    // 配達アプリの一覧（配達の草案 27 章）に注文が届くのを待ち、いちばん新しい物を受ける（来なければ 5 分（壁の時計）で打ち切り）
+    const got = await page.waitForFunction(() => window.__dev.game.feed.items.length > 0, null, { timeout: 300000, polling: 250 }).catch(() => null);
     if (!got) break;
-    const offer = await g(() => document.querySelector(".offer-card").innerText);
-    const blocked = await g(() => document.querySelector(".offer-card .delivery-primary").disabled);
-    if (blocked) {
-      await page.locator(".offer-card").getByRole("button", { name: "見送る" }).click();
+    const offer = await g(() => {
+      const o = window.__dev.game.feed.items[0].order;
+      return `${o.kind} / 受け取り ${o.pickup.name} / 届け先 ${o.dropoff.name} / ${o.reward} 円`;
+    });
+    await g(() => window.__dev.game.acceptFromPhone(window.__dev.game.feed.items[0].order.no));
+    if (!(await g(() => window.__dev.game.deliveries.length > 0))) {
+      // 受けられない注文（装備）。消えるまで待たずに次を待つ
+      await page.waitForTimeout(2000);
       continue;
     }
-    await page.locator(".offer-card").getByRole("button", { name: "受ける", exact: true }).click();
     const accepted = await st();
     const done = await page.waitForFunction(() => window.__dev.game.deliveryPanel.isOpen && window.__dev.game.deliveries.length === 0, null, { timeout: 15 * 60_000, polling: 500 }).catch(() => null);
     if (!done) {

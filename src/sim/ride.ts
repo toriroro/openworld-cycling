@@ -77,6 +77,12 @@ interface TurnPlan {
   offOut: number;
 }
 
+/** 走っている時の U ターン: 回り始める速さ (m/s) と、回り終える所までの先の距離 (m)【初期値】（配達の草案 27 章） */
+const UTURN_SPEED = 3;
+/** U ターンを待つ間、接続点を曲がり終えるまで漕ぐ出力 (W) */
+const UTURN_CRAWL_W = 60;
+const UTURN_AHEAD = 2;
+
 /** ペースの速さまで前へ押す力 (N) と、弱め始める速さの差 (m/s)【初期値】（配達の草案 26 章）。平らな道で 0→36km/h が約 10 秒 */
 export const CRUISE_FORCE = 110;
 const CRUISE_TAPER = 1.5;
@@ -212,14 +218,53 @@ export class Ride {
     }
   }
 
-  /** 停止中の U ターン */
+  /** 走っている時に頼まれた U ターン（減速してから回る） */
+  uTurnPending = false;
+
+  /**
+   * U ターン。止まっていればその場で向きを変える。走っていれば UTURN_SPEED まで減速してから、
+   * 道の反対側の車線へ小さく回る（配達の草案 27 章）。接続点を曲がっている途中は、曲がり終えてから
+   */
   uTurn(): boolean {
-    if (this.speed > 0.5 || this.turn) return false;
-    this.pos.dir = (-this.pos.dir) as 1 | -1;
+    if (!this.road) return false;
+    if (this.speed <= 0.5 && !this.turn) {
+      this.pos.dir = (-this.pos.dir) as 1 | -1;
+      this.upcoming = null;
+      this.uTurns++;
+      this.uTurnPending = false;
+      if (this.goal) this.replan();
+      return true;
+    }
+    this.uTurnPending = true;
+    return true;
+  }
+
+  /** 道の反対側の車線へ回る線を引いて、その線を走り始める */
+  private startUTurnArc() {
+    const road = this.road!;
+    const dir = this.pos.dir;
+    const s2 = Math.max(0, Math.min(road.length, this.pos.s + dir * UTURN_AHEAD));
+    const a = sampleRoad(road, this.pos.s);
+    const dx = a.dx * dir;
+    const dz = a.dz * dir;
+    const p0 = { x: a.x - dz * this.offset, y: a.y, z: a.z + dx * this.offset };
+    const b = sampleRoad(road, s2);
+    const ex = -b.dx * dir;
+    const ez = -b.dz * dir;
+    const hw = road.width / 2;
+    this.laneShift = 0;
+    const offOut = Math.max(-hw + 0.5, Math.min(hw - 0.5, -road.width / 4));
+    const p1 = { x: b.x - ez * offOut, y: b.y, z: b.z + ex * offOut };
+    const pts = cornerCurve(p0, dx, dz, p1, ex, ez, 12);
+    const acc = [0];
+    for (let i = 1; i < pts.length; i++) acc.push(acc[i - 1] + Math.sqrt((pts[i].x - pts[i - 1].x) ** 2 + (pts[i].z - pts[i - 1].z) ** 2));
+    this.pos = { road: road.id, s: s2, dir: (-dir) as 1 | -1 };
+    this.offset = offOut;
+    this.turn = { junction: "", pts, acc, d0: [dx, dz], d1: [ex, ez], length: acc[acc.length - 1], d: 0, to: { ...this.pos } };
     this.upcoming = null;
     this.uTurns++;
+    this.uTurnPending = false;
     if (this.goal) this.replan();
-    return true;
   }
 
   /**
@@ -228,6 +273,7 @@ export class Ride {
    */
   private propulsionWatts(): number {
     const w = this.watts * this.assist;
+    if (this.uTurnPending) return this.watts;
     if (this.cruise <= 0 || this.watts <= 0 || this.speed >= this.cruise) return w;
     const k = Math.min(1, (this.cruise - this.speed) / CRUISE_TAPER);
     const climb = this.bike.mass * 9.80665 * Math.max(0, this.grade);
@@ -256,8 +302,12 @@ export class Ride {
     const edge = this.adventureEdge();
     const limit = edge < Infinity ? Math.min(this.curveLimit, Math.sqrt(2 * ADVENTURE_DECEL * Math.max(0, edge - EDGE_MARGIN))) : this.curveLimit;
     this.autoBrake = this.speed > limit ? Math.min(1, (this.speed - limit) * 0.6 + 0.15) : 0;
-    this.brake = Math.max(brake, this.autoBrake);
-    this.watts = this.autoBrake > 0 ? 0 : watts;
+    // U ターンを頼まれていたら UTURN_SPEED まで減速する。それより遅くても接続点を曲がっている途中なら、
+    // 止まって動けなくならないよう、曲がり終えるまで軽く漕いで進む（ブラウザで、交差点の中で止まったまま回らなかった）
+    const pend = this.uTurnPending;
+    const slowEnough = pend && this.speed <= UTURN_SPEED;
+    this.brake = Math.max(brake, this.autoBrake, pend && !slowEnough ? 1 : 0);
+    this.watts = this.autoBrake > 0 || (pend && !slowEnough) ? 0 : slowEnough ? (this.turn ? UTURN_CRAWL_W : 0) : watts;
     const r = integrateSpeed(this.speed, this.grade, this.brake, this.propulsionWatts(), dt, this.bike);
     let dist = r.distance;
     this.speed = r.speed;
@@ -267,6 +317,7 @@ export class Ride {
     }
     this.blocked = edge < Infinity && edge - EDGE_MARGIN < 0.05;
     this.advance(dist);
+    if (this.uTurnPending && !this.turn && this.speed <= UTURN_SPEED && this.road) this.startUTurnArc();
     this.time += dt;
     // 冒険の距離は、未走行の 10m の区切りに入った時に 1 区切り分を使う
     if (dist > 0 && this.ridden.mark(this.pos.road, this.pos.s) && this.adventure) this.adventure.spend(RIDDEN_BIN);

@@ -3,6 +3,7 @@
 
 import type { Poi, Road } from "../shared/world/types.ts";
 import type { RiddenLog } from "../sim/ridden.ts";
+import { platform } from "../platform/index.ts";
 import { drawLandmark, ROUTE_COLOR, TARGET_COLORS } from "./world-map.ts";
 
 const RIDDEN = "#ff8a1f";
@@ -29,23 +30,85 @@ export interface MinimapInput {
   route?: number[] | null;
 }
 
+/** 小地図の半径 (m) の段（配達の草案 27 章）。＋で近く、－で遠く */
+export const MINIMAP_RANGES = [200, 350, 700, 1200, 2000] as const;
+const RANGE_KEY = "minimap-range";
+
 export class Minimap {
+  /** 小地図と＋－のボタンを入れる枠（置き場所は CSS の .minimap-wrap） */
+  readonly wrap: HTMLDivElement;
   readonly root: HTMLButtonElement;
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  private rangeEl: HTMLElement;
+  private zoomIn: HTMLButtonElement;
+  private zoomOut: HTMLButtonElement;
+  private rangeTimer = 0;
   /** 半径に入れる距離 (m) */
   radiusM = 700;
 
   constructor(parent: HTMLElement, onTap: () => void) {
+    this.wrap = document.createElement("div");
+    this.wrap.className = "minimap-wrap";
     this.root = document.createElement("button");
     this.root.type = "button";
     this.root.className = "minimap";
     this.root.setAttribute("aria-label", "地図を開く");
     this.canvas = document.createElement("canvas");
     this.root.appendChild(this.canvas);
-    parent.appendChild(this.root);
+    this.wrap.appendChild(this.root);
+    const zoom = document.createElement("div");
+    zoom.className = "minimap-zoom";
+    const btn = (text: string, label: string, step: number) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn minimap-zoom-btn";
+      b.textContent = text;
+      b.setAttribute("aria-label", label);
+      b.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.step(step);
+      });
+      zoom.appendChild(b);
+      return b;
+    };
+    this.zoomIn = btn("＋", "小地図を近く", -1);
+    this.zoomOut = btn("－", "小地図を遠く", 1);
+    this.wrap.appendChild(zoom);
+    this.rangeEl = document.createElement("div");
+    this.rangeEl.className = "minimap-range hidden";
+    this.wrap.appendChild(this.rangeEl);
+    parent.appendChild(this.wrap);
     this.ctx = this.canvas.getContext("2d")!;
     this.root.addEventListener("click", onTap);
+    this.updateButtons();
+    void platform.storage.load(RANGE_KEY).then((t) => {
+      const v = Number(t);
+      if (t && (MINIMAP_RANGES as readonly number[]).includes(v)) {
+        this.radiusM = v;
+        this.updateButtons();
+      }
+    });
+  }
+
+  /** 半径を 1 段変える（-1 で近く、1 で遠く）。端末に覚える */
+  step(dir: number) {
+    const i = Math.max(0, MINIMAP_RANGES.findIndex((r) => r >= this.radiusM));
+    const next = MINIMAP_RANGES[Math.max(0, Math.min(MINIMAP_RANGES.length - 1, i + dir))];
+    this.radiusM = next;
+    this.updateButtons();
+    void platform.storage.save(RANGE_KEY, String(next));
+    // 変えた時だけ、半径を少しの間出す
+    this.rangeEl.textContent = next >= 1000 ? `半径 ${next / 1000} km` : `半径 ${next} m`;
+    this.rangeEl.classList.remove("hidden");
+    clearTimeout(this.rangeTimer);
+    this.rangeTimer = window.setTimeout(() => this.rangeEl.classList.add("hidden"), 1500);
+  }
+
+  private updateButtons() {
+    this.zoomIn.disabled = this.radiusM <= MINIMAP_RANGES[0];
+    this.zoomOut.disabled = this.radiusM >= MINIMAP_RANGES[MINIMAP_RANGES.length - 1];
   }
 
   draw(m: MinimapInput) {

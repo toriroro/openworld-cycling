@@ -16,6 +16,11 @@ export interface HudState {
   climb: number;
   time: number;
   roadName: string;
+  /** 今いる丁目・その丁目を持つ業者（配達の草案 27 章）。無ければ道の名前を大きく出す */
+  address?: string | null;
+  owner?: string | null;
+  /** 進む向き（北から時計回りの度） */
+  heading?: number;
   elevation: number;
   autoBrake: boolean;
   upcoming: Upcoming | null;
@@ -94,6 +99,11 @@ export class Hud {
   private pedalBtn!: HTMLButtonElement;
   private uturnBtn: HTMLButtonElement;
   private roadEl: HTMLElement;
+  private needle!: HTMLElement;
+  private whereMain!: HTMLElement;
+  private whereDir!: HTMLElement;
+  private whereSub!: HTMLElement;
+  private headingShown = NaN;
   private paceBar: HTMLElement;
   private paceRow: HTMLElement;
   private gauges: Record<"legs" | "energy", { root: HTMLElement; fill: HTMLElement; value: HTMLElement }> = {} as never;
@@ -134,7 +144,16 @@ export class Hud {
       if (unit) h("span", "stat-unit", unit, box);
       this.stats[key] = v;
     }
+    // 今いる所（配達の草案 27 章）: 方位磁針（上が進む向き、赤い印が北）、丁目と進む方角、2 行目に道の名前・標高など
     this.roadEl = h("div", "road-name", "", this.root);
+    const comp = h("div", "where-compass", "", this.roadEl);
+    this.needle = h("div", "where-needle", "", comp);
+    h("span", "where-n", "北", this.needle);
+    const txt = h("div", "where-text", "", this.roadEl);
+    const main = h("div", "where-main", "", txt);
+    this.whereMain = h("span", "where-place", "", main);
+    this.whereDir = h("span", "where-dir", "", main);
+    this.whereSub = h("div", "where-sub", "", txt);
 
     // 下中央: ペース（配達の草案 14.1）と、その下に脚・体力の棒（14.2）
     this.paceBar = h("div", "pace-bar hidden", "", this.root);
@@ -403,7 +422,18 @@ export class Hud {
     this.stats.adventure.parentElement!.classList.toggle("hidden", st.adventure == null);
     if (st.adventure != null) this.stats.adventure.textContent = (st.adventure / 1000).toFixed(1);
     const sky = st.hour !== undefined ? `  ${st.weekday ? `${st.weekday} ` : ""}${fmtHour(st.hour)}${st.weather ? ` ${st.weather}` : ""}` : "";
-    this.roadEl.textContent = `${st.roadName}  標高 ${Math.round(st.elevation)} m${sky}${st.goalDistance != null ? `  ${st.goalName ?? "行き先"}まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}${st.trainerNote ? `  ${st.trainerNote}` : ""}${st.adventureNote ? `  ${st.adventureNote}` : ""}`;
+    const main = st.address ?? st.roadName;
+    if (this.whereMain.textContent !== main) this.whereMain.textContent = main;
+    const hd = st.heading ?? 0;
+    const dirText = `${COMPASS_8[Math.round(hd / 45) % 8]}へ`;
+    if (this.whereDir.textContent !== dirText) this.whereDir.textContent = dirText;
+    // 上が進む向きなので、北は −heading の向き（1° 以上変わった時だけ動かす）
+    if (!(Math.abs(hd - this.headingShown) < 1)) {
+      this.headingShown = hd;
+      this.needle.style.transform = `rotate(${-hd}deg)`;
+    }
+    const sub = `${st.owner ? `${st.owner}  ` : ""}${st.address && st.roadName ? st.roadName + "  " : ""}標高 ${Math.round(st.elevation)} m${sky}${st.goalDistance != null ? `  ${st.goalName ?? "行き先"}まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}${st.trainerNote ? `  ${st.trainerNote}` : ""}${st.adventureNote ? `  ${st.adventureNote}` : ""}`;
+    if (this.whereSub.textContent !== sub) this.whereSub.textContent = sub;
     this.pauseEl.classList.toggle("hidden", !st.paused);
     this.pedalBtn.classList.toggle("hidden", !!st.onTrainer);
     this.uturnBtn.classList.toggle("hidden", !st.canUTurn);
@@ -472,6 +502,9 @@ export class Hud {
   /** 候補を押した時の番号（Game が取り出す） */
   chosen: number | null = null;
 }
+
+/** 8 方位（北から時計回り） */
+const COMPASS_8 = ["北", "北東", "東", "南東", "南", "南西", "西", "北西"] as const;
 
 function fmtHour(hh: number) {
   const total = Math.floor(hh * 60 + 1e-6) % (24 * 60);

@@ -210,7 +210,10 @@ export function cornerCurve(p0: Vec3, d0x: number, d0z: number, p1: Vec3, d1x: n
   let c1: [number, number];
   let c2: [number, number];
   let ok = false;
-  if (Math.abs(den) > 1e-3) {
+  // ほぼ同じ向き（なす角 25° 未満）なら、向きの交わる点は遠くて線が出口を行き過ぎて戻る（道幅の変わる所で U ターンのように見えた。
+  // 配達の草案 27 章）。その時は交わる点を使わず、弦の 1/3 ずつの S 字にする
+  const nearlyStraight = d0x * d1x + d0z * d1z > 0.9;
+  if (Math.abs(den) > 1e-3 && !nearlyStraight) {
     const alpha = (cx * d1z - cz * d1x) / den;
     const beta = (cx * d0z - cz * d0x) / den;
     if (alpha > 0 && beta > 0 && alpha < chord * 3 && beta < chord * 3) {
@@ -254,4 +257,27 @@ export function turnPath(shape: JunctionShape, fromArm: ArmShape, toArm: ArmShap
   void shape;
   const len = Math.sqrt((p1.x - p0.x) ** 2 + (p1.z - p0.z) ** 2);
   return cornerCurve(p0, dinx, dinz, p1, doutx, doutz, Math.max(4, Math.ceil(len / 1.5)));
+}
+
+/**
+ * 接続点の角（隣り合う腕の間の歩道の角。配達の草案 27 章の住所の看板を立てる所）。
+ * 路肩の曲線の中ほどから外へ out m の点と、中心から角へ向かう水平の単位ベクトル (bx, bz)。腕の間が 30°〜170° の角だけ
+ */
+export function junctionCorners(shape: JunctionShape, out = 2): { x: number; y: number; z: number; bx: number; bz: number }[] {
+  const res: { x: number; y: number; z: number; bx: number; bz: number }[] = [];
+  const lo = (30 * Math.PI) / 180;
+  const hi = (170 * Math.PI) / 180;
+  shape.edges.forEach((edge, i) => {
+    const g = shape.gaps[i];
+    if (!(g >= lo && g < hi) || edge.length === 0) return;
+    const m = edge[Math.floor(edge.length / 2)];
+    let bx = m.x - shape.center.x;
+    let bz = m.z - shape.center.z;
+    const l = Math.sqrt(bx * bx + bz * bz);
+    if (l < 1e-6) return;
+    bx /= l;
+    bz /= l;
+    res.push({ x: m.x + bx * out, y: m.y, z: m.z + bz * out, bx, bz });
+  });
+  return res;
 }

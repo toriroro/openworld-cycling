@@ -1,0 +1,107 @@
+{
+  "errors": [],
+  "guideOptions": [
+    "map:経路は自分で選ぶ（選択）",
+    "route:経路を自動で引く"
+  ],
+  "minimap": {
+    "start": 700,
+    "afterNear2": 200,
+    "nearDisabledAtMin": true,
+    "afterFar3": 1200
+  },
+  "where": {
+    "text": "北 | 南1条西3丁目 | 東へ | ハスカップ便 標高 21 m 11:00 晴れ",
+    "signs": {
+      "signs": 24,
+      "textures": 6
+    }
+  },
+  "phone": {
+    "listed": true,
+    "items": [
+      "600 円 / 出前",
+      "440 円 / 出前",
+      "530 円 / 出前"
+    ],
+    "oldest": {
+      "no": 1,
+      "lifeS": 102
+    },
+    "expired": true,
+    "accepted": {
+      "before": 0,
+      "after": 1,
+      "pickup": "ラーメン（北4東1）",
+      "stillListed": false
+    },
+    "blockedText": "持てるのは 1 件まで"
+  },
+  "afterAccept": {
+    "goal": false,
+    "guide": "map"
+  },
+  "afterPinTap": {
+    "goal": true,
+    "plan": true,
+    "pace": 2,
+    "info": "受け取りのラーメン（北4東1）へ経路を引いた"
+  },
+  "afterPickup": {
+    "phase": "dropoff",
+    "goal": true
+  },
+  "uTurn": {
+    "speedBefore": 30,
+    "speedAfter": 34,
+    "headingDot": -1,
+    "uTurns": 1,
+    "pending": false,
+    "minSpeed": 10
+  },
+  "landscape": {
+    ".ride-info": [
+      10,
+      110,
+      331,
+      199
+    ],
+    ".road-name": [
+      10,
+      268,
+      221,
+      313
+    ],
+    ".phone": [
+      476,
+      86,
+      702,
+      276
+    ],
+    ".delivery-strip": [
+      10,
+      205,
+      188,
+      263
+    ],
+    ".minimap-wrap": [
+      752,
+      62,
+      864,
+      174
+    ],
+    ".branch": [
+      321,
+      10,
+      553,
+      81
+    ],
+    ".pace-bar": [
+      289,
+      285,
+      585,
+      358
+    ]
+  },
+  "minimapAfterReload": 1200
+}
