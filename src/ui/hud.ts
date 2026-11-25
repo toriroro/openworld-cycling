@@ -99,6 +99,8 @@ export class Hud {
   private pedalBtn!: HTMLButtonElement;
   private uturnBtn: HTMLButtonElement;
   private roadEl: HTMLElement;
+  private statusEl: HTMLButtonElement;
+  private statusSpeed: HTMLElement;
   private needle!: HTMLElement;
   private whereMain!: HTMLElement;
   private whereDir!: HTMLElement;
@@ -137,6 +139,8 @@ export class Hud {
       ["cadence", "ケイデンス", "rpm"],
       ["heart", "心拍", "bpm"],
       ["adventure", "冒険の残り", "km"],
+      ["elev", "標高", "m"],
+      ["clock", "時刻", ""],
     ] as const) {
       const box = h("div", `stat stat-${key}`, "", info);
       h("span", "stat-label", label, box);
@@ -155,7 +159,17 @@ export class Hud {
     this.whereDir = h("span", "where-dir", "", main);
     this.whereSub = h("div", "where-sub", "", txt);
 
-    // 下中央: ペース（配達の草案 14.1）と、その下に脚・体力の棒（14.2）
+    // 走りの要点（配達の草案 27.6）: 速さと、脚・体力の細い棒。押すと詳しい数字（ride-info）を開く・閉じる
+    this.statusEl = h("button", "ride-status", "", this.root);
+    this.statusEl.type = "button";
+    this.statusEl.setAttribute("aria-label", "走りの数字を開く");
+    const sp = h("span", "status-speed", "", this.statusEl);
+    this.statusSpeed = h("span", "status-value", "0", sp);
+    h("span", "status-unit", "km/h", sp);
+    this.statusEl.addEventListener("click", () => this.root.classList.toggle("show-details"));
+    info.addEventListener("click", () => this.root.classList.remove("show-details"));
+
+    // 下中央: ペース（配達の草案 14.1）。脚・体力の棒（14.2）は走りの要点に
     this.paceBar = h("div", "pace-bar hidden", "", this.root);
     this.paceRow = h("div", "pace-row", "", this.paceBar);
     PACE_LABELS.forEach((label, i) => {
@@ -163,7 +177,7 @@ export class Hud {
       b.type = "button";
       this.input.bindTap(b, `pace-${i}` as Action);
     });
-    const gauges = h("div", "pace-gauges", "", this.paceBar);
+    const gauges = h("div", "pace-gauges", "", this.statusEl);
     for (const [key, label] of [
       ["legs", "脚"],
       ["energy", "体力"],
@@ -337,6 +351,11 @@ export class Hud {
     addEventListener("touchstart", () => showTouch(true), { once: true, passive: true });
   }
 
+  /** メニューの最後（キーの説明の後）に要素を足す（データの出典など） */
+  addMenuFooter(el: HTMLElement) {
+    this.menu.appendChild(el);
+  }
+
   /** メニューに選択の行を足す（キーの説明の前） */
   addSelect<T extends string>(label: string, options: [T, string][], value: T, onChange: (v: T) => void): HTMLSelectElement {
     const r = h("label", "menu-row");
@@ -395,6 +414,11 @@ export class Hud {
 
   update(st: HudState) {
     this.stats.speed.textContent = (st.speed * 3.6).toFixed(1);
+    const kmh = String(Math.round(st.speed * 3.6));
+    if (this.statusSpeed.textContent !== kmh) this.statusSpeed.textContent = kmh;
+    this.stats.elev.textContent = String(Math.round(st.elevation));
+    this.stats.clock.parentElement!.classList.toggle("hidden", st.hour === undefined);
+    if (st.hour !== undefined) this.stats.clock.textContent = `${st.weekday ? `${st.weekday} ` : ""}${fmtHour(st.hour)}${st.weather ? ` ${st.weather}` : ""}`;
     this.stats.watts.textContent = String(Math.round(st.watts));
     this.stats.grade.textContent = (st.grade * 100).toFixed(1);
     this.stats.dist.textContent = (st.odometer / 1000).toFixed(2);
@@ -421,7 +445,6 @@ export class Hud {
     if (st.pace != null) [...this.paceRow.children].forEach((el, i) => el.classList.toggle("selected", i === st.pace));
     this.stats.adventure.parentElement!.classList.toggle("hidden", st.adventure == null);
     if (st.adventure != null) this.stats.adventure.textContent = (st.adventure / 1000).toFixed(1);
-    const sky = st.hour !== undefined ? `  ${st.weekday ? `${st.weekday} ` : ""}${fmtHour(st.hour)}${st.weather ? ` ${st.weather}` : ""}` : "";
     const main = st.address ?? st.roadName;
     if (this.whereMain.textContent !== main) this.whereMain.textContent = main;
     const hd = st.heading ?? 0;
@@ -432,10 +455,12 @@ export class Hud {
       this.headingShown = hd;
       this.needle.style.transform = `rotate(${-hd}deg)`;
     }
-    const sub = `${st.owner ? `${st.owner}  ` : ""}${st.address && st.roadName ? st.roadName + "  " : ""}標高 ${Math.round(st.elevation)} m${sky}${st.goalDistance != null ? `  ${st.goalName ?? "行き先"}まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}${st.trainerNote ? `  ${st.trainerNote}` : ""}${st.adventureNote ? `  ${st.adventureNote}` : ""}`;
+    // 2 行目は道の名前・持ち主の業者・行き先までと、知らせだけ（標高・時刻・天候は詳しい数字の方へ。配達の草案 27.6）
+    const sub = `${st.address && st.roadName ? st.roadName : ""}${st.owner ? `  ${st.owner}` : ""}${st.goalDistance != null ? `  ${st.goalName ?? "行き先"}まで ${(st.goalDistance / 1000).toFixed(1)} km` : ""}${st.watching ? "  眺める" : ""}${st.autoBrake ? "  自動減速" : ""}${st.trainerNote ? `  ${st.trainerNote}` : ""}${st.adventureNote ? `  ${st.adventureNote}` : ""}`;
     if (this.whereSub.textContent !== sub) this.whereSub.textContent = sub;
     this.pauseEl.classList.toggle("hidden", !st.paused);
-    this.pedalBtn.classList.toggle("hidden", !!st.onTrainer);
+    // ペースで漕ぐ間は「漕ぐ」を出さない（タッチの操作を減らす。配達の草案 27.6）
+    this.pedalBtn.classList.toggle("hidden", !!st.onTrainer || st.pace != null);
     this.uturnBtn.classList.toggle("hidden", !st.canUTurn);
     this.updateBranch(st.upcoming);
   }

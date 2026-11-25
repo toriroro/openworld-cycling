@@ -1470,3 +1470,252 @@ html, body {
     max-width: min(46vw, 400px);
   }
 }
+
+/* ===== 画面の整理（配達の草案 27.6）=====
+   走りの数字は「速さと脚・体力」の小さな札だけにし、押すと詳しい数字を開く。出典は走る画面に出さない（起動画面・世界地図・メニュー）。
+   タッチ端末は、下の列を「左へ・ペース・右へ」にまとめ、上の列を「メニュー・今いる所・U ターン」にする。ここから下が後の決まりで、前の置き方を上書きする */
+.ride-status {
+  position: fixed;
+  left: calc(var(--safe-l) + 10px);
+  top: calc(var(--safe-t) + 62px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(14, 18, 24, 0.6);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.status-speed {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.status-value {
+  min-width: 1.6em;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.status-unit {
+  font-size: 11px;
+  color: #b8bec6;
+}
+.ride-status .pace-gauges {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 104px;
+  padding: 0;
+  background: none;
+}
+.ride-status .gauge {
+  gap: 4px;
+  font-size: 10px;
+}
+.ride-status .gauge-label {
+  min-width: 2.2em;
+}
+.ride-status .gauge-track {
+  height: 5px;
+}
+.ride-status .gauge-value {
+  min-width: 2.6em;
+}
+/* 詳しい数字は、走りの要点を押した時だけ */
+.hud-root:not(.show-details) .ride-info {
+  display: none;
+}
+.hud-root .ride-info {
+  top: calc(var(--safe-t) + 108px);
+  bottom: auto;
+  background: rgba(14, 18, 24, 0.92);
+  pointer-events: auto;
+  z-index: 5;
+}
+
+/* ---- タッチ端末: 共通 ---- */
+.hud-root.has-touch .touch-btn.lane {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+}
+.hud-root.has-touch .lane-arrow {
+  font-size: 18px;
+}
+.hud-root.has-touch .lane-label {
+  font-size: 11px;
+}
+.hud-root.has-touch .pace-bar {
+  left: 50%;
+  bottom: calc(var(--safe-b) + 10px);
+  transform: translateX(-50%);
+}
+.hud-root.has-touch .pace-row {
+  gap: 3px;
+}
+.hud-root.has-touch .pace-btn {
+  width: 50px;
+  min-width: 0;
+  min-height: 54px;
+  padding: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+/* ブレーキは「左へ」の上（縦）・「右へ」の左（横）の小さな丸 */
+.hud-root.has-touch .touch-btn.brake {
+  position: fixed;
+  width: 54px;
+  height: 54px;
+  min-width: 0;
+  padding: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.hud-root.has-touch .delivery-strip {
+  padding: 5px 10px;
+  border-radius: 10px;
+  max-width: min(52vw, 260px);
+}
+.hud-root.has-touch .delivery-target {
+  font-size: 14px;
+}
+.hud-root.has-touch .delivery-strip > * {
+  font-size: 12px;
+}
+.hud-root.has-touch .delivery-strip > .delivery-target {
+  font-size: 14px;
+}
+.hud-root.has-touch .road-name {
+  padding: 3px 9px 3px 4px;
+}
+.hud-root.has-touch .where-compass {
+  width: 30px;
+  height: 30px;
+}
+.hud-root.has-touch .where-n {
+  top: 9px;
+}
+.hud-root.has-touch .where-place {
+  font-size: 15px;
+}
+
+/* ---- タッチ端末の縦画面 ---- */
+@media (orientation: portrait) {
+  .hud-root.has-touch .road-name {
+    top: calc(var(--safe-t) + 8px);
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: calc(100vw - var(--safe-l) - var(--safe-r) - 200px);
+  }
+  .hud-root.has-touch .ride-status {
+    top: calc(var(--safe-t) + 62px);
+  }
+  .hud-root.has-touch .ride-info {
+    top: calc(var(--safe-t) + 108px);
+    left: calc(var(--safe-l) + 10px);
+    right: calc(var(--safe-r) + 10px);
+  }
+  .hud-root.has-touch .branch {
+    top: calc(var(--safe-t) + 108px);
+  }
+  .hud-root.has-touch .touch-btn.brake {
+    left: calc(var(--safe-l) + 10px);
+    bottom: calc(var(--safe-b) + 74px);
+  }
+  .hud-root.has-touch .minimap-wrap {
+    top: auto;
+    right: calc(var(--safe-r) + 10px);
+    bottom: calc(var(--safe-b) + 74px);
+    width: 100px;
+    height: 100px;
+  }
+  .hud-root.has-touch .delivery-strip,
+  .hud-root.has-touch .offer-card {
+    top: auto;
+    left: calc(var(--safe-l) + 10px);
+    bottom: calc(var(--safe-b) + 184px);
+  }
+  /* 配達の帯は、開いた配達アプリの画面（幅 190px）の左に収める */
+  .hud-root.has-touch .delivery-strip {
+    max-width: calc(100vw - var(--safe-l) - var(--safe-r) - 220px);
+  }
+  .hud-root.has-touch .phone {
+    top: auto;
+    right: calc(var(--safe-r) + 10px);
+    bottom: calc(var(--safe-b) + 184px);
+    width: 190px;
+  }
+  .hud-root.has-touch .phone.folded {
+    width: auto;
+  }
+  .hud-root.has-touch .phone-list {
+    max-height: calc(100vh - var(--safe-t) - var(--safe-b) - 184px - 220px);
+  }
+}
+
+/* ---- タッチ端末の横画面 ---- */
+@media (orientation: landscape) {
+  .hud-root.has-touch .road-name {
+    top: calc(var(--safe-t) + 8px);
+    bottom: auto;
+    left: calc(var(--safe-l) + 100px);
+    right: auto;
+    transform: none;
+    max-width: calc(100vw - var(--safe-l) - var(--safe-r) - 210px);
+  }
+  .hud-root.has-touch .ride-status {
+    top: calc(var(--safe-t) + 58px);
+  }
+  .hud-root.has-touch .ride-info {
+    top: calc(var(--safe-t) + 102px);
+    left: calc(var(--safe-l) + 10px);
+  }
+  .hud-root.has-touch .delivery-strip {
+    top: calc(var(--safe-t) + 102px);
+    left: calc(var(--safe-l) + 10px);
+    bottom: auto;
+  }
+  .hud-root.has-touch .offer-card {
+    top: calc(var(--safe-t) + 58px);
+    bottom: auto;
+  }
+  .hud-root.has-touch .branch {
+    top: calc(var(--safe-t) + 58px);
+  }
+  .hud-root.has-touch .minimap-wrap {
+    top: calc(var(--safe-t) + 58px);
+    bottom: auto;
+    right: calc(var(--safe-r) + 10px);
+    width: 92px;
+    height: 92px;
+  }
+  .hud-root.has-touch .phone {
+    top: calc(var(--safe-t) + 158px);
+    right: calc(var(--safe-r) + 10px);
+    width: 230px;
+  }
+  .hud-root.has-touch .phone.folded {
+    width: auto;
+  }
+  /* 開いた時は小地図の上に重ねて、上から使える高さを取る */
+  .hud-root.has-touch .phone:not(.folded) {
+    top: calc(var(--safe-t) + 58px);
+    z-index: 6;
+  }
+  .hud-root.has-touch .phone-list {
+    max-height: calc(100vh - var(--safe-t) - var(--safe-b) - 58px - 130px);
+  }
+  .hud-root.has-touch .touch-btn.brake {
+    right: calc(var(--safe-r) + 72px);
+    bottom: calc(var(--safe-b) + 10px);
+  }
+}

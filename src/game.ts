@@ -325,12 +325,13 @@ export class Game {
     this.anchor = { ...start };
     this.title = new TitleScreen(view.world);
     // 出典（北海道の世界は走っている間も見える所に出す。北海道の草案 3.1・3.2）
-    if (view.world.attribution.length) document.body.appendChild(creditLine(view.world, "ride-credit"));
     this.traffic = new Traffic(roads.net, (Date.now() & 0x7fffffff) | 1, (x, z) => view.heights.height(x, z));
     this.traffic.options = view.quality === "light" ? TRAFFIC_LIGHT : TRAFFIC_STANDARD;
     const st = this.settings;
     const settings: Settings = { power: this.manual.setting, sway: st.sway, quality: view.quality, clock: st.clock, hour: st.hour, weather: st.weather, camera: this.camera };
     this.hud = new Hud(this.input, settings);
+    // データの出典は、走っている画面には出さず、起動画面・世界地図・メニューに出す（北海道の草案 3.1 で起動画面・メニューのどれでもよい。配達の草案 27.6）
+    if (view.world.attribution.length) this.hud.addMenuFooter(creditLine(view.world, "menu-credit"));
     this.hud.onSettings = (s) => this.applySettings(s, true);
     // 小地図と世界地図（モック仕様 7.4）
     this.minimap = new Minimap(this.hud.root, () => this.toggleMap());
