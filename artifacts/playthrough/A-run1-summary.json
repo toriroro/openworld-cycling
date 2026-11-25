@@ -1,0 +1,19 @@
+{
+  "errors": [],
+  "A": {
+    "n": 5,
+    "hours": 0.48,
+    "net": 2910,
+    "perHour": 6004,
+    "avgReward": 582,
+    "avgRideMin": 5.8,
+    "avgWaitS": 3,
+    "late": 0,
+    "km": 12.5,
+    "foodSpent": 0,
+    "toOpen": {
+      "deliveries": 50,
+      "hours": 4.8
+    }
+  }
+}

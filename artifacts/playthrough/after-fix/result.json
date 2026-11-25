@@ -1,0 +1,171 @@
+{
+  "errors": [
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ],
+  "A": {
+    "deliveries": [
+      {
+        "wait": 9,
+        "ride": 459,
+        "reward": 580,
+        "late": false,
+        "km": 3.4,
+        "energyUsed": 6.2,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / ラーメン（北3東2） 直線 0.8 km"
+      },
+      {
+        "wait": 1,
+        "ride": 240,
+        "reward": 390,
+        "late": false,
+        "km": 1.5,
+        "energyUsed": 3.2,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / ラーメン（南9西7） 直線 0.5 km"
+      },
+      {
+        "wait": 1,
+        "ride": 501,
+        "reward": 550,
+        "late": false,
+        "km": 3.9,
+        "energyUsed": 6.7,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / ラーメン（南10西7） 直線 0.7 km"
+      },
+      {
+        "wait": 1,
+        "ride": 274,
+        "reward": 450,
+        "late": false,
+        "km": 2,
+        "energyUsed": 3.7,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / そば処（南5西14） 直線 0.5 km"
+      },
+      {
+        "wait": 1,
+        "ride": 276,
+        "reward": 470,
+        "late": false,
+        "km": 1.9,
+        "energyUsed": 3.7,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / 焼肉（南1西12） 直線 0.4 km"
+      },
+      {
+        "wait": 0,
+        "ride": 262,
+        "reward": 470,
+        "late": false,
+        "km": 2.1,
+        "energyUsed": 3.6,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / そば処（南3西8） 直線 0.7 km"
+      },
+      {
+        "wait": 0,
+        "ride": 355,
+        "reward": 480,
+        "late": false,
+        "km": 2.5,
+        "energyUsed": 4.7,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / ラーメン（南5西13） 直線 0.5 km"
+      },
+      {
+        "wait": 1,
+        "ride": 431,
+        "reward": 570,
+        "late": false,
+        "km": 3.1,
+        "energyUsed": 5.8,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / 焼肉（南1西12） 直線 0.6 km"
+      },
+      {
+        "wait": 1,
+        "ride": 321,
+        "reward": 540,
+        "late": false,
+        "km": 2.5,
+        "energyUsed": 4.4,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / ラーメン（南12西7） 直線 0.7 km"
+      },
+      {
+        "wait": 0,
+        "ride": 285,
+        "reward": 460,
+        "late": false,
+        "km": 2.3,
+        "energyUsed": 3.9,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / 寿司（南8西14） 直線 0.6 km"
+      },
+      {
+        "wait": 1,
+        "ride": 340,
+        "reward": 450,
+        "late": false,
+        "km": 2.4,
+        "energyUsed": 4.5,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / 焼肉（南5西4） 直線 0.7 km"
+      },
+      {
+        "wait": 1,
+        "ride": 311,
+        "reward": 550,
+        "late": false,
+        "km": 2.5,
+        "energyUsed": 4.2,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / そば処（南1西13） 直線 0.5 km"
+      },
+      {
+        "wait": 0,
+        "ride": 446,
+        "reward": 540,
+        "late": false,
+        "km": 3.4,
+        "energyUsed": 6,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / ラーメン（北5西13） 直線 0.6 km"
+      },
+      {
+        "wait": 1,
+        "ride": 322,
+        "reward": 470,
+        "late": false,
+        "km": 2.2,
+        "energyUsed": 4.3,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / ラーメン（北10西1） 直線 0.4 km"
+      }
+    ],
+    "meals": [],
+    "stops": [
+      {
+        "after": 2,
+        "at": "中島公園"
+      },
+      {
+        "after": 4,
+        "at": "大通公園"
+      },
+      {
+        "after": 11,
+        "at": "大通公園"
+      },
+      {
+        "after": 12,
+        "at": "北海道大学"
+      }
+    ],
+    "summary": {
+      "n": 14,
+      "hours": 1.35,
+      "net": 6970,
+      "perHour": 5179,
+      "avgReward": 498,
+      "avgRideMin": 5.7,
+      "avgWaitS": 1,
+      "late": 0,
+      "km": 35.6,
+      "foodSpent": 0,
+      "toOpen": {
+        "deliveries": 59,
+        "hours": 5.6
+      }
+    },
+    "wallMin": 13.47
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "errors": [],
+  "A": {
+    "deliveries": [
+      {
+        "wait": 11,
+        "ride": 228,
+        "reward": 360,
+        "late": false,
+        "km": 1.6,
+        "energyUsed": 3,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / ラーメン（南3東2） 直線 0.6 km"
+      },
+      {
+        "wait": 1,
+        "ride": 217,
+        "reward": 350,
+        "late": false,
+        "km": 1.5,
+        "energyUsed": 2.9,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / そば処（南2東2） 直線 0.5 km"
+      },
+      {
+        "wait": 1,
+        "ride": 325,
+        "reward": 530,
+        "late": false,
+        "km": 2.3,
+        "energyUsed": 4.2,
+        "offer": "配達アプリ / 25 秒 / 内容 / 出前 / 受け取り / ラーメン（南1西4） 直線 0.3 km"
+      }
+    ],
+    "meals": [],
+    "stops": [
+      {
+        "after": 2,
+        "at": "大通公園"
+      }
+    ],
+    "summary": {
+      "n": 3,
+      "hours": 1.72,
+      "net": 1240,
+      "perHour": 722,
+      "avgReward": 413,
+      "avgRideMin": 4.3,
+      "avgWaitS": 4,
+      "late": 0,
+      "km": 7.9,
+      "foodSpent": 0,
+      "toOpen": {
+        "deliveries": 71,
+        "hours": 40.2
+      }
+    },
+    "wallMin": 17.19
+  },
+  "stuck": {
+    "offer": "配達アプリ\n25 秒\n内容\n出前\n受け取り\nそば処（北10東6） 直線 0.7 km\n届け先\n北11条西7丁目 直線 1.6 km\n期限\n12:50\n報酬\n570 円\n受ける\n見送る",
+    "state": {
+      "t": 6190.374999951992,
+      "money": 2240,
+      "delivered": 3,
+      "onTime": 3,
+      "energy": 0.8534682638825333,
+      "legs": 1,
+      "odo": 7860.511708408283
+    },
+    "goal": null
+  }
+}

@@ -267,3 +267,17 @@ export function errandsNear(roads: Iterable<Road>, x: number, z: number, r: numb
   out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;
 }
+
+/**
+ * 丁目ごとの止まる所（chomeSpot）をまとめて求める。面した走れる道の無い丁目（大学の構内など）は入れない。
+ * 注文の届け先はこの中から選ぶ（通しの試しで、届けられない注文が出た。配達の草案 24.4）。
+ * roads は丁目の周りを含む道路の全部（読み込んだ所だけだと、遠い丁目が「無い」になる）
+ */
+export function chomeSpots(roads: Road[], at: (x: number, z: number) => { name: string } | null, chomes: { name: string; x: number; z: number }[]): Map<string, RoadSpot> {
+  const out = new Map<string, RoadSpot>();
+  for (const c of chomes) {
+    const s = chomeSpot(roads, at, c);
+    if (s) out.set(c.name, s);
+  }
+  return out;
+}

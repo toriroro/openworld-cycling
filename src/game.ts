@@ -46,7 +46,7 @@ import { JOURNEY_MAX_S, JourneySim } from "./sim/journey.ts";
 import { JourneyPanel } from "./ui/journey-panel.ts";
 import { AddressBook, type AddressPoint, D0_STREET_BOX } from "./shared/world/address.ts";
 import { CARRIER_COST, carryLimit, Delivery, type DeliveryOrder, type DeliveryResult, type Gear, GEAR_LABELS, gearBlocks, makeOrder, orderSeed, type Place, REGULAR_AFTER } from "./shared/delivery.ts";
-import { chomeSpot, MEAL_SIGNS } from "./shared/work-places.ts";
+import { chomeSpot, chomeSpots, MEAL_SIGNS, type RoadSpot } from "./shared/work-places.ts";
 import { Arena, type EconomyState, openCompany, ownCompany, windUp } from "./shared/economy.ts";
 import { Market } from "./sim/market.ts";
 import { type FreightDest, truckState } from "./shared/freight.ts";
@@ -223,6 +223,8 @@ export class Game {
   addresses: AddressBook | null = null;
   /** 配達の注文を出す丁目と、配達を受けられる範囲（世界座標） */
   private deliveryArea: { x0: number; z0: number; x1: number; z1: number; points: AddressPoint[] } | null = null;
+  /** 配達の範囲の丁目ごとの止まる所（道路の全部から。面した走れる道の無い丁目は無い。配達の草案 24.4） */
+  private spots: Map<string, RoadSpot> | null = null;
   /** 出している注文（受ける前）と、受けている配達 */
   private offer: DeliveryOrder | null = null;
   /** 受けている注文（先頭が向かっている注文。リアキャリアで 2 件まで。配達の草案 22.6 の 49） */
@@ -1248,13 +1250,17 @@ export class Game {
         if (!list) return;
         this.addresses = new AddressBook(list);
         const m = DELIVERY_MARGIN;
-        this.deliveryArea = {
-          x0: a.x,
-          z0: a.z,
-          x1: b.x,
-          z1: b.z,
-          points: list.filter((p) => p.jo !== undefined && p.x > a.x + m && p.x < b.x - m && p.z > a.z + m && p.z < b.z - m),
-        };
+        let points = list.filter((p) => p.jo !== undefined && p.x > a.x + m && p.x < b.x - m && p.z > a.z + m && p.z < b.z - m);
+        // 面した走れる道の無い丁目（北大の構内など）は、注文の届け先にしない。道路は全部を持っている北海道の世界から引く
+        const local = this.view.world.local;
+        const book = this.addresses;
+        if (local) {
+          const pad = 400;
+          const spots = chomeSpots(local.roadsInRect({ x0: Math.min(a.x, b.x) - pad, z0: Math.min(a.z, b.z) - pad, x1: Math.max(a.x, b.x) + pad, z1: Math.max(a.z, b.z) + pad }), (x, z) => book.at(x, z), points);
+          this.spots = spots;
+          points = points.filter((p) => spots.has(p.name));
+        }
+        this.deliveryArea = { x0: a.x, z0: a.z, x1: b.x, z1: b.z, points };
         const area = this.deliveryArea;
         this.buildMarket(list, a, b);
         this.streetWork = new StreetWork(this.roads.net, this.view.world.local?.buildings ?? null, this.addresses, (x, z) => x > area.x0 + m && x < area.x1 - m && z > area.z0 + m && z < area.z1 - m);
@@ -1444,7 +1450,12 @@ export class Game {
     if (!this.arriving || ride.speed > 0.3) return;
     this.arriving = false;
     this.stopAtGoal = false;
+    const before = this.delivery;
+    const phase = before?.phase;
     this.checkDelivery();
+    // 経路の終わりに着いたのに受け取り・受け渡しが進まなかった（止まる所の無い丁目。配達の草案 24.4）。黙って止まらず、そう出す
+    if (before && this.delivery === before && before.phase === phase && this.deliveryGuide === "route")
+      this.deliveryNote = { text: `ここでは${phase === "pickup" ? "受け取れない" : "渡せない"}。${before.target.name}に面した道で止まる`, until: performance.now() + 8000 };
     // 次の行き先が無ければ止まったままにする
     if (!ride.goal) this.setPace(0);
   }
@@ -1853,7 +1864,8 @@ export class Game {
     }
     // 丁目は、道の脇がその丁目になる所へ引く（店・家・人は止まる所そのもの）
     const book = this.addresses;
-    const spot = (!p.kind || p.kind === "chome") && book ? chomeSpot(this.roads.net.roads.values(), (x, z) => book.at(x, z), p) : null;
+    const chome = !p.kind || p.kind === "chome";
+    const spot = chome && book ? (this.spots?.get(p.name) ?? chomeSpot(this.roads.net.roads.values(), (x, z) => book.at(x, z), p)) : null;
     ride.setGoal(spot?.x ?? p.x, spot?.z ?? p.z);
     if (this.manual.pace === 0) this.setPace(2);
   }

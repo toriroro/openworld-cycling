@@ -1,0 +1,356 @@
+{
+  "errors": [],
+  "B": {
+    "open": {
+      "chome": "南5条東3丁目",
+      "name": "流氷急便",
+      "cash": -158000
+    },
+    "weekly": [
+      {
+        "week": 1,
+        "cash": -26000,
+        "staff": 0,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 0,
+        "rankArea": 9,
+        "rankSales": 9,
+        "companies": 9,
+        "contracts": []
+      },
+      {
+        "week": 2,
+        "cash": -68000,
+        "staff": 0,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 0,
+        "rankArea": 9,
+        "rankSales": 9,
+        "companies": 9,
+        "contracts": []
+      },
+      {
+        "week": 3,
+        "cash": -110000,
+        "staff": 0,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 0,
+        "rankArea": 9,
+        "rankSales": 9,
+        "companies": 9,
+        "contracts": []
+      },
+      {
+        "week": 4,
+        "cash": -152000,
+        "staff": 0,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 0,
+        "rankArea": 9,
+        "rankSales": 9,
+        "companies": 9,
+        "contracts": []
+      }
+    ],
+    "events": [
+      {
+        "d": 28,
+        "what": "廃業（シェア 0.5% 未満のまま 1 か月）"
+      }
+    ],
+    "log": [
+      {
+        "d": 0,
+        "cash": 10000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 1,
+        "cash": 4000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 2,
+        "cash": -2000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 3,
+        "cash": -8000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 4,
+        "cash": -14000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 5,
+        "cash": -20000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 6,
+        "cash": -26000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 7,
+        "cash": -32000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 8,
+        "cash": -38000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 9,
+        "cash": -44000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 10,
+        "cash": -50000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 11,
+        "cash": -56000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 12,
+        "cash": -62000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 13,
+        "cash": -68000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 14,
+        "cash": -74000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 15,
+        "cash": -80000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 16,
+        "cash": -86000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 17,
+        "cash": -92000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 18,
+        "cash": -98000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 19,
+        "cash": -104000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 20,
+        "cash": -110000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 21,
+        "cash": -116000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 22,
+        "cash": -122000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 23,
+        "cash": -128000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 24,
+        "cash": -134000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 25,
+        "cash": -140000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 26,
+        "cash": -146000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 27,
+        "cash": -152000,
+        "staff": 0,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      }
+    ]
+  }
+}

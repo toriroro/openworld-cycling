@@ -1,0 +1,1151 @@
+{
+  "errors": [],
+  "B": {
+    "open": {
+      "chome": "南5条東3丁目",
+      "name": "流氷急便",
+      "cash": -77631
+    },
+    "weekly": [
+      {
+        "week": 1,
+        "cash": 35912,
+        "staff": 3,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 193320,
+        "rankArea": 9,
+        "rankSales": 8,
+        "companies": 9,
+        "contracts": [],
+        "others": [
+          "はまなす便 41 人 営業所 6",
+          "ハスカップ便 35 人 営業所 4",
+          "シマエナガ便 19 人 営業所 3",
+          "ななかまど急便 18 人 営業所 4",
+          "きたきつね急送 11 人 営業所 2",
+          "えぞまつ運輸 10 人 営業所 2",
+          "えぞりす運輸 10 人 営業所 2",
+          "流氷急便（自分） 3 人 営業所 1",
+          "しらかば便 1 人 営業所 1"
+        ]
+      },
+      {
+        "week": 2,
+        "cash": 80548,
+        "staff": 3,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 231968,
+        "rankArea": 9,
+        "rankSales": 8,
+        "companies": 9,
+        "contracts": [],
+        "others": [
+          "はまなす便 43 人 営業所 6",
+          "ハスカップ便 32 人 営業所 4",
+          "シマエナガ便 24 人 営業所 4",
+          "ななかまど急便 23 人 営業所 4",
+          "きたきつね急送 11 人 営業所 2",
+          "えぞりす運輸 10 人 営業所 2",
+          "えぞまつ運輸 9 人 営業所 2",
+          "流氷急便（自分） 3 人 営業所 1",
+          "しらかば便 1 人 営業所 1"
+        ]
+      },
+      {
+        "week": 3,
+        "cash": 84158,
+        "staff": 3,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 185494,
+        "rankArea": 9,
+        "rankSales": 8,
+        "companies": 9,
+        "contracts": [],
+        "others": [
+          "はまなす便 47 人 営業所 7",
+          "ハスカップ便 30 人 営業所 4",
+          "シマエナガ便 29 人 営業所 6",
+          "ななかまど急便 28 人 営業所 5",
+          "きたきつね急送 10 人 営業所 2",
+          "えぞまつ運輸 9 人 営業所 2",
+          "えぞりす運輸 7 人 営業所 2",
+          "流氷急便（自分） 3 人 営業所 1",
+          "しらかば便 1 人 営業所 1"
+        ]
+      },
+      {
+        "week": 4,
+        "cash": 75785,
+        "staff": 3,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 2,
+        "ha": 5.1,
+        "salesWeek": 177392,
+        "rankArea": 8,
+        "rankSales": 8,
+        "companies": 9,
+        "contracts": [],
+        "others": [
+          "はまなす便 47 人 営業所 8",
+          "シマエナガ便 38 人 営業所 8",
+          "ななかまど急便 33 人 営業所 6",
+          "ハスカップ便 26 人 営業所 4",
+          "きたきつね急送 9 人 営業所 2",
+          "えぞまつ運輸 7 人 営業所 2",
+          "えぞりす運輸 6 人 営業所 2",
+          "流氷急便（自分） 3 人 営業所 1",
+          "しらかば便 1 人 営業所 1"
+        ]
+      },
+      {
+        "week": 5,
+        "cash": 60573,
+        "staff": 3,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 172962,
+        "rankArea": 9,
+        "rankSales": 8,
+        "companies": 9,
+        "contracts": [],
+        "others": [
+          "はまなす便 45 人 営業所 8",
+          "シマエナガ便 44 人 営業所 8",
+          "ななかまど急便 34 人 営業所 6",
+          "ハスカップ便 21 人 営業所 4",
+          "えぞまつ運輸 8 人 営業所 4",
+          "えぞりす運輸 5 人 営業所 2",
+          "きたきつね急送 5 人 営業所 2",
+          "流氷急便（自分） 3 人 営業所 1",
+          "しらかば便 1 人 営業所 1"
+        ]
+      },
+      {
+        "week": 6,
+        "cash": 42505,
+        "staff": 3,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 167810,
+        "rankArea": 9,
+        "rankSales": 8,
+        "companies": 9,
+        "contracts": [],
+        "others": [
+          "シマエナガ便 47 人 営業所 8",
+          "はまなす便 42 人 営業所 8",
+          "ななかまど急便 32 人 営業所 6",
+          "ハスカップ便 17 人 営業所 4",
+          "えぞまつ運輸 12 人 営業所 4",
+          "えぞりす運輸 6 人 営業所 2",
+          "きたきつね急送 5 人 営業所 2",
+          "流氷急便（自分） 3 人 営業所 1",
+          "しらかば便 1 人 営業所 1"
+        ]
+      },
+      {
+        "week": 7,
+        "cash": 21405,
+        "staff": 3,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 169115,
+        "rankArea": 9,
+        "rankSales": 8,
+        "companies": 9,
+        "contracts": [],
+        "others": [
+          "シマエナガ便 50 人 営業所 8",
+          "はまなす便 41 人 営業所 8",
+          "ななかまど急便 32 人 営業所 6",
+          "ハスカップ便 16 人 営業所 4",
+          "えぞまつ運輸 14 人 営業所 4",
+          "えぞりす運輸 5 人 営業所 2",
+          "きたきつね急送 4 人 営業所 2",
+          "流氷急便（自分） 3 人 営業所 1",
+          "しらかば便 1 人 営業所 1"
+        ]
+      },
+      {
+        "week": 8,
+        "cash": -13618,
+        "staff": 2,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 141582,
+        "rankArea": 9,
+        "rankSales": 8,
+        "companies": 9,
+        "contracts": [],
+        "others": [
+          "シマエナガ便 50 人 営業所 8",
+          "はまなす便 39 人 営業所 8",
+          "ななかまど急便 35 人 営業所 8",
+          "ハスカップ便 16 人 営業所 4",
+          "えぞまつ運輸 14 人 営業所 4",
+          "えぞりす運輸 6 人 営業所 2",
+          "きたきつね急送 4 人 営業所 2",
+          "流氷急便（自分） 2 人 営業所 1",
+          "しらかば便 1 人 営業所 1"
+        ]
+      },
+      {
+        "week": 9,
+        "cash": -32134,
+        "staff": 2,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 120011,
+        "rankArea": 9,
+        "rankSales": 8,
+        "companies": 9,
+        "contracts": [],
+        "others": [
+          "シマエナガ便 48 人 営業所 8",
+          "ななかまど急便 37 人 営業所 8",
+          "はまなす便 36 人 営業所 8",
+          "ハスカップ便 15 人 営業所 4",
+          "えぞまつ運輸 14 人 営業所 4",
+          "えぞりす運輸 3 人 営業所 2",
+          "きたきつね急送 3 人 営業所 2",
+          "流氷急便（自分） 2 人 営業所 1",
+          "しらかば便 1 人 営業所 1"
+        ]
+      },
+      {
+        "week": 10,
+        "cash": -50706,
+        "staff": 2,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 120531,
+        "rankArea": 9,
+        "rankSales": 8,
+        "companies": 9,
+        "contracts": [],
+        "others": [
+          "シマエナガ便 46 人 営業所 8",
+          "ななかまど急便 40 人 営業所 8",
+          "はまなす便 36 人 営業所 8",
+          "ハスカップ便 14 人 営業所 4",
+          "えぞまつ運輸 13 人 営業所 4",
+          "えぞりす運輸 5 人 営業所 2",
+          "きたきつね急送 4 人 営業所 2",
+          "流氷急便（自分） 2 人 営業所 1",
+          "しらかば便 1 人 営業所 1"
+        ]
+      },
+      {
+        "week": 11,
+        "cash": -69898,
+        "staff": 2,
+        "kind": "solo",
+        "depots": 1,
+        "chomes": 0,
+        "ha": 0,
+        "salesWeek": 119522,
+        "rankArea": 9,
+        "rankSales": 8,
+        "companies": 9,
+        "contracts": [],
+        "others": [
+          "シマエナガ便 48 人 営業所 8",
+          "ななかまど急便 44 人 営業所 8",
+          "はまなす便 37 人 営業所 8",
+          "ハスカップ便 14 人 営業所 4",
+          "えぞまつ運輸 13 人 営業所 4",
+          "えぞりす運輸 4 人 営業所 2",
+          "きたきつね急送 2 人 営業所 2",
+          "流氷急便（自分） 2 人 営業所 1",
+          "しらかば便 1 人 営業所 1"
+        ]
+      }
+    ],
+    "events": [
+      {
+        "d": 0,
+        "what": "雇う（速さ 1.19・日給 9100）"
+      },
+      {
+        "d": 1,
+        "what": "雇う（速さ 1.03・日給 7600）"
+      },
+      {
+        "d": 2,
+        "what": "雇う（速さ 1.09・日給 8200）"
+      },
+      {
+        "d": 19,
+        "what": "辞めてもらう（日給 9100）"
+      },
+      {
+        "d": 20,
+        "what": "雇う（速さ 1.18・日給 8800）"
+      },
+      {
+        "d": 26,
+        "what": "辞めてもらう（日給 8800）"
+      },
+      {
+        "d": 27,
+        "what": "雇う（速さ 1.22・日給 9300）"
+      },
+      {
+        "d": 33,
+        "what": "辞めてもらう（日給 9300）"
+      },
+      {
+        "d": 34,
+        "what": "雇う（速さ 1.14・日給 8700）"
+      },
+      {
+        "d": 40,
+        "what": "辞めてもらう（日給 8700）"
+      },
+      {
+        "d": 41,
+        "what": "雇う（速さ 1.24・日給 9400）"
+      },
+      {
+        "d": 47,
+        "what": "辞めてもらう（日給 9400）"
+      },
+      {
+        "d": 48,
+        "what": "雇う（速さ 1.17・日給 8800）"
+      },
+      {
+        "d": 53,
+        "what": "辞めてもらう（日給 8800）"
+      },
+      {
+        "d": 80,
+        "what": "廃業（資金がマイナスのまま 1 か月）"
+      }
+    ],
+    "log": [
+      {
+        "d": 0,
+        "cash": 10000,
+        "staff": 1,
+        "depots": 1,
+        "served": 0,
+        "lost": 0,
+        "revenue": 0,
+        "cost": 6000
+      },
+      {
+        "d": 1,
+        "cash": 8290,
+        "staff": 2,
+        "depots": 1,
+        "served": 26,
+        "lost": 58,
+        "revenue": 13712,
+        "cost": 15306
+      },
+      {
+        "d": 2,
+        "cash": 10565,
+        "staff": 3,
+        "depots": 1,
+        "served": 49,
+        "lost": 47,
+        "revenue": 25678,
+        "cost": 23243
+      },
+      {
+        "d": 3,
+        "cash": 16755,
+        "staff": 3,
+        "depots": 1,
+        "served": 74,
+        "lost": 9,
+        "revenue": 38418,
+        "cost": 32268
+      },
+      {
+        "d": 4,
+        "cash": 22905,
+        "staff": 3,
+        "depots": 1,
+        "served": 74,
+        "lost": 7,
+        "revenue": 38688,
+        "cost": 32332
+      },
+      {
+        "d": 5,
+        "cash": 29261,
+        "staff": 3,
+        "depots": 1,
+        "served": 75,
+        "lost": 7,
+        "revenue": 38958,
+        "cost": 32307
+      },
+      {
+        "d": 6,
+        "cash": 35912,
+        "staff": 3,
+        "depots": 1,
+        "served": 75,
+        "lost": 4,
+        "revenue": 39229,
+        "cost": 32412
+      },
+      {
+        "d": 7,
+        "cash": 42729,
+        "staff": 3,
+        "depots": 1,
+        "served": 76,
+        "lost": 4,
+        "revenue": 39499,
+        "cost": 32414
+      },
+      {
+        "d": 8,
+        "cash": 49814,
+        "staff": 3,
+        "depots": 1,
+        "served": 76,
+        "lost": 23,
+        "revenue": 39770,
+        "cost": 32074
+      },
+      {
+        "d": 9,
+        "cash": 57510,
+        "staff": 3,
+        "depots": 1,
+        "served": 77,
+        "lost": 20,
+        "revenue": 40040,
+        "cost": 32120
+      },
+      {
+        "d": 10,
+        "cash": 65430,
+        "staff": 3,
+        "depots": 1,
+        "served": 77,
+        "lost": 0,
+        "revenue": 39883,
+        "cost": 32597
+      },
+      {
+        "d": 11,
+        "cash": 72716,
+        "staff": 3,
+        "depots": 1,
+        "served": 77,
+        "lost": 0,
+        "revenue": 40122,
+        "cost": 32615
+      },
+      {
+        "d": 12,
+        "cash": 80223,
+        "staff": 3,
+        "depots": 1,
+        "served": 63,
+        "lost": 0,
+        "revenue": 32654,
+        "cost": 32329
+      },
+      {
+        "d": 13,
+        "cash": 80548,
+        "staff": 3,
+        "depots": 1,
+        "served": 66,
+        "lost": 0,
+        "revenue": 34199,
+        "cost": 32362
+      },
+      {
+        "d": 14,
+        "cash": 82386,
+        "staff": 3,
+        "depots": 1,
+        "served": 57,
+        "lost": 0,
+        "revenue": 29783,
+        "cost": 32121
+      },
+      {
+        "d": 15,
+        "cash": 80048,
+        "staff": 3,
+        "depots": 1,
+        "served": 71,
+        "lost": 0,
+        "revenue": 36838,
+        "cost": 32431
+      },
+      {
+        "d": 16,
+        "cash": 84454,
+        "staff": 3,
+        "depots": 1,
+        "served": 69,
+        "lost": 0,
+        "revenue": 36043,
+        "cost": 32347
+      },
+      {
+        "d": 17,
+        "cash": 88150,
+        "staff": 3,
+        "depots": 1,
+        "served": 54,
+        "lost": 0,
+        "revenue": 28262,
+        "cost": 32009
+      },
+      {
+        "d": 18,
+        "cash": 84403,
+        "staff": 3,
+        "depots": 1,
+        "served": 55,
+        "lost": 0,
+        "revenue": 28578,
+        "cost": 32013
+      },
+      {
+        "d": 19,
+        "cash": 80969,
+        "staff": 2,
+        "depots": 1,
+        "served": 55,
+        "lost": 0,
+        "revenue": 28415,
+        "cost": 31999
+      },
+      {
+        "d": 20,
+        "cash": 84158,
+        "staff": 3,
+        "depots": 1,
+        "served": 48,
+        "lost": 0,
+        "revenue": 25122,
+        "cost": 22782
+      },
+      {
+        "d": 21,
+        "cash": 79948,
+        "staff": 3,
+        "depots": 1,
+        "served": 53,
+        "lost": 0,
+        "revenue": 27765,
+        "cost": 31673
+      },
+      {
+        "d": 22,
+        "cash": 76040,
+        "staff": 3,
+        "depots": 1,
+        "served": 67,
+        "lost": 0,
+        "revenue": 34631,
+        "cost": 31947
+      },
+      {
+        "d": 23,
+        "cash": 78725,
+        "staff": 3,
+        "depots": 1,
+        "served": 67,
+        "lost": 0,
+        "revenue": 34736,
+        "cost": 31917
+      },
+      {
+        "d": 24,
+        "cash": 81544,
+        "staff": 3,
+        "depots": 1,
+        "served": 53,
+        "lost": 0,
+        "revenue": 27372,
+        "cost": 31632
+      },
+      {
+        "d": 25,
+        "cash": 77284,
+        "staff": 3,
+        "depots": 1,
+        "served": 53,
+        "lost": 0,
+        "revenue": 27382,
+        "cost": 31639
+      },
+      {
+        "d": 26,
+        "cash": 73027,
+        "staff": 2,
+        "depots": 1,
+        "served": 54,
+        "lost": 0,
+        "revenue": 27884,
+        "cost": 31641
+      },
+      {
+        "d": 27,
+        "cash": 75785,
+        "staff": 3,
+        "depots": 1,
+        "served": 49,
+        "lost": 0,
+        "revenue": 25369,
+        "cost": 22755
+      },
+      {
+        "d": 28,
+        "cash": 71373,
+        "staff": 3,
+        "depots": 1,
+        "served": 52,
+        "lost": 0,
+        "revenue": 27232,
+        "cost": 32119
+      },
+      {
+        "d": 29,
+        "cash": 66485,
+        "staff": 3,
+        "depots": 1,
+        "served": 66,
+        "lost": 0,
+        "revenue": 34080,
+        "cost": 32384
+      },
+      {
+        "d": 30,
+        "cash": 68181,
+        "staff": 3,
+        "depots": 1,
+        "served": 67,
+        "lost": 0,
+        "revenue": 35016,
+        "cost": 32403
+      },
+      {
+        "d": 31,
+        "cash": 70794,
+        "staff": 3,
+        "depots": 1,
+        "served": 51,
+        "lost": 0,
+        "revenue": 26379,
+        "cost": 32080
+      },
+      {
+        "d": 32,
+        "cash": 65093,
+        "staff": 3,
+        "depots": 1,
+        "served": 50,
+        "lost": 0,
+        "revenue": 26186,
+        "cost": 32078
+      },
+      {
+        "d": 33,
+        "cash": 59201,
+        "staff": 2,
+        "depots": 1,
+        "served": 51,
+        "lost": 0,
+        "revenue": 26324,
+        "cost": 32085
+      },
+      {
+        "d": 34,
+        "cash": 60573,
+        "staff": 3,
+        "depots": 1,
+        "served": 46,
+        "lost": 0,
+        "revenue": 23901,
+        "cost": 22687
+      },
+      {
+        "d": 35,
+        "cash": 55239,
+        "staff": 3,
+        "depots": 1,
+        "served": 51,
+        "lost": 0,
+        "revenue": 26308,
+        "cost": 31486
+      },
+      {
+        "d": 36,
+        "cash": 50061,
+        "staff": 3,
+        "depots": 1,
+        "served": 62,
+        "lost": 0,
+        "revenue": 32022,
+        "cost": 31709
+      },
+      {
+        "d": 37,
+        "cash": 50373,
+        "staff": 3,
+        "depots": 1,
+        "served": 63,
+        "lost": 0,
+        "revenue": 32744,
+        "cost": 31719
+      },
+      {
+        "d": 38,
+        "cash": 51398,
+        "staff": 3,
+        "depots": 1,
+        "served": 50,
+        "lost": 0,
+        "revenue": 25976,
+        "cost": 31465
+      },
+      {
+        "d": 39,
+        "cash": 45909,
+        "staff": 3,
+        "depots": 1,
+        "served": 51,
+        "lost": 0,
+        "revenue": 26548,
+        "cost": 31481
+      },
+      {
+        "d": 40,
+        "cash": 40976,
+        "staff": 2,
+        "depots": 1,
+        "served": 51,
+        "lost": 0,
+        "revenue": 26476,
+        "cost": 31470
+      },
+      {
+        "d": 41,
+        "cash": 42505,
+        "staff": 3,
+        "depots": 1,
+        "served": 46,
+        "lost": 0,
+        "revenue": 23763,
+        "cost": 22679
+      },
+      {
+        "d": 42,
+        "cash": 36330,
+        "staff": 3,
+        "depots": 1,
+        "served": 52,
+        "lost": 0,
+        "revenue": 26823,
+        "cost": 32187
+      },
+      {
+        "d": 43,
+        "cash": 30966,
+        "staff": 3,
+        "depots": 1,
+        "served": 63,
+        "lost": 0,
+        "revenue": 32937,
+        "cost": 32423
+      },
+      {
+        "d": 44,
+        "cash": 31480,
+        "staff": 3,
+        "depots": 1,
+        "served": 64,
+        "lost": 0,
+        "revenue": 33157,
+        "cost": 32421
+      },
+      {
+        "d": 45,
+        "cash": 32215,
+        "staff": 3,
+        "depots": 1,
+        "served": 50,
+        "lost": 0,
+        "revenue": 25846,
+        "cost": 32155
+      },
+      {
+        "d": 46,
+        "cash": 25906,
+        "staff": 3,
+        "depots": 1,
+        "served": 51,
+        "lost": 0,
+        "revenue": 26403,
+        "cost": 32173
+      },
+      {
+        "d": 47,
+        "cash": 20135,
+        "staff": 2,
+        "depots": 1,
+        "served": 50,
+        "lost": 0,
+        "revenue": 26193,
+        "cost": 32165
+      },
+      {
+        "d": 48,
+        "cash": 21405,
+        "staff": 3,
+        "depots": 1,
+        "served": 46,
+        "lost": 0,
+        "revenue": 23732,
+        "cost": 22671
+      },
+      {
+        "d": 49,
+        "cash": 15805,
+        "staff": 3,
+        "depots": 1,
+        "served": 51,
+        "lost": 0,
+        "revenue": 26278,
+        "cost": 31564
+      },
+      {
+        "d": 50,
+        "cash": 10520,
+        "staff": 3,
+        "depots": 1,
+        "served": 63,
+        "lost": 0,
+        "revenue": 32550,
+        "cost": 31805
+      },
+      {
+        "d": 51,
+        "cash": 11265,
+        "staff": 3,
+        "depots": 1,
+        "served": 48,
+        "lost": 0,
+        "revenue": 25047,
+        "cost": 31471
+      },
+      {
+        "d": 52,
+        "cash": 4841,
+        "staff": 3,
+        "depots": 1,
+        "served": 39,
+        "lost": 0,
+        "revenue": 20505,
+        "cost": 31306
+      },
+      {
+        "d": 53,
+        "cash": -5961,
+        "staff": 2,
+        "depots": 1,
+        "served": 39,
+        "lost": 0,
+        "revenue": 20426,
+        "cost": 31292
+      },
+      {
+        "d": 54,
+        "cash": -9751,
+        "staff": 2,
+        "depots": 1,
+        "served": 36,
+        "lost": 0,
+        "revenue": 18562,
+        "cost": 22429
+      },
+      {
+        "d": 55,
+        "cash": -13618,
+        "staff": 2,
+        "depots": 1,
+        "served": 36,
+        "lost": 0,
+        "revenue": 18791,
+        "cost": 22434
+      },
+      {
+        "d": 56,
+        "cash": -17260,
+        "staff": 2,
+        "depots": 1,
+        "served": 35,
+        "lost": 0,
+        "revenue": 18417,
+        "cost": 22427
+      },
+      {
+        "d": 57,
+        "cash": -21270,
+        "staff": 2,
+        "depots": 1,
+        "served": 44,
+        "lost": 0,
+        "revenue": 23005,
+        "cost": 22583
+      },
+      {
+        "d": 58,
+        "cash": -20848,
+        "staff": 2,
+        "depots": 1,
+        "served": 45,
+        "lost": 0,
+        "revenue": 23434,
+        "cost": 22593
+      },
+      {
+        "d": 59,
+        "cash": -20007,
+        "staff": 2,
+        "depots": 1,
+        "served": 35,
+        "lost": 0,
+        "revenue": 18169,
+        "cost": 22421
+      },
+      {
+        "d": 60,
+        "cash": -24259,
+        "staff": 2,
+        "depots": 1,
+        "served": 36,
+        "lost": 0,
+        "revenue": 18527,
+        "cost": 22430
+      },
+      {
+        "d": 61,
+        "cash": -28162,
+        "staff": 2,
+        "depots": 1,
+        "served": 35,
+        "lost": 0,
+        "revenue": 18459,
+        "cost": 22430
+      },
+      {
+        "d": 62,
+        "cash": -32134,
+        "staff": 2,
+        "depots": 1,
+        "served": 35,
+        "lost": 0,
+        "revenue": 18213,
+        "cost": 22428
+      },
+      {
+        "d": 63,
+        "cash": -36349,
+        "staff": 2,
+        "depots": 1,
+        "served": 36,
+        "lost": 0,
+        "revenue": 18592,
+        "cost": 22435
+      },
+      {
+        "d": 64,
+        "cash": -40191,
+        "staff": 2,
+        "depots": 1,
+        "served": 44,
+        "lost": 0,
+        "revenue": 22909,
+        "cost": 22584
+      },
+      {
+        "d": 65,
+        "cash": -39866,
+        "staff": 2,
+        "depots": 1,
+        "served": 45,
+        "lost": 0,
+        "revenue": 23366,
+        "cost": 22592
+      },
+      {
+        "d": 66,
+        "cash": -39092,
+        "staff": 2,
+        "depots": 1,
+        "served": 35,
+        "lost": 0,
+        "revenue": 18427,
+        "cost": 22422
+      },
+      {
+        "d": 67,
+        "cash": -43087,
+        "staff": 2,
+        "depots": 1,
+        "served": 36,
+        "lost": 0,
+        "revenue": 18555,
+        "cost": 22431
+      },
+      {
+        "d": 68,
+        "cash": -46962,
+        "staff": 2,
+        "depots": 1,
+        "served": 36,
+        "lost": 0,
+        "revenue": 18681,
+        "cost": 22425
+      },
+      {
+        "d": 69,
+        "cash": -50706,
+        "staff": 2,
+        "depots": 1,
+        "served": 36,
+        "lost": 0,
+        "revenue": 18552,
+        "cost": 22427
+      },
+      {
+        "d": 70,
+        "cash": -54582,
+        "staff": 2,
+        "depots": 1,
+        "served": 36,
+        "lost": 0,
+        "revenue": 18974,
+        "cost": 22436
+      },
+      {
+        "d": 71,
+        "cash": -58045,
+        "staff": 2,
+        "depots": 1,
+        "served": 45,
+        "lost": 0,
+        "revenue": 23200,
+        "cost": 22583
+      },
+      {
+        "d": 72,
+        "cash": -57428,
+        "staff": 2,
+        "depots": 1,
+        "served": 44,
+        "lost": 0,
+        "revenue": 22839,
+        "cost": 22574
+      },
+      {
+        "d": 73,
+        "cash": -57162,
+        "staff": 2,
+        "depots": 1,
+        "served": 35,
+        "lost": 0,
+        "revenue": 18378,
+        "cost": 22421
+      },
+      {
+        "d": 74,
+        "cash": -61206,
+        "staff": 2,
+        "depots": 1,
+        "served": 34,
+        "lost": 0,
+        "revenue": 17913,
+        "cost": 22412
+      },
+      {
+        "d": 75,
+        "cash": -65705,
+        "staff": 2,
+        "depots": 1,
+        "served": 35,
+        "lost": 0,
+        "revenue": 18219,
+        "cost": 22411
+      },
+      {
+        "d": 76,
+        "cash": -69898,
+        "staff": 2,
+        "depots": 1,
+        "served": 35,
+        "lost": 0,
+        "revenue": 18007,
+        "cost": 22412
+      },
+      {
+        "d": 77,
+        "cash": -74303,
+        "staff": 2,
+        "depots": 1,
+        "served": 35,
+        "lost": 0,
+        "revenue": 18354,
+        "cost": 22420
+      },
+      {
+        "d": 78,
+        "cash": -78369,
+        "staff": 2,
+        "depots": 1,
+        "served": 44,
+        "lost": 0,
+        "revenue": 23019,
+        "cost": 22581
+      },
+      {
+        "d": 79,
+        "cash": -77930,
+        "staff": 2,
+        "depots": 1,
+        "served": 44,
+        "lost": 0,
+        "revenue": 22870,
+        "cost": 22570
+      }
+    ]
+  }
+}

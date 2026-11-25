@@ -4,7 +4,7 @@ import { carryLimit, Delivery, errandOrder, gearBlocks, HANDOVER_S, KIND_DROP_RA
 import { AddressBook, type AddressPoint } from "../src/shared/world/address.ts";
 import { BUILDING_REC, BUILDING_STYLES, type HokkaidoBuildings } from "../src/shared/world/hokkaido.ts";
 import type { Road } from "../src/shared/world/types.ts";
-import { chomeSpot, ERRAND_WINDOW, errandsNear, FLAG_WINDOW, houseFlag, housesNear, MEAL_SIGNS, roadSpot, SHOP_SIGNS, shopsNear, signOf } from "../src/shared/work-places.ts";
+import { chomeSpot, chomeSpots, ERRAND_WINDOW, errandsNear, FLAG_WINDOW, houseFlag, housesNear, MEAL_SIGNS, roadSpot, SHOP_SIGNS, shopsNear, signOf } from "../src/shared/work-places.ts";
 import { walkersNear } from "../src/sim/pedestrians.ts";
 
 /** 東西の道を 120m おきに南北へ並べた格子（各 2,000m、2m ごとの点、幅 8m） */
@@ -92,6 +92,24 @@ describe("町の仕事の出どころ（配達の草案 16 章）", () => {
     expect(Math.abs(s.x)).toBeLessThanOrEqual(2);
     expect(roadSpot(roads, 0, 50, 200)!.z).toBe(0);
     expect(chomeSpot(roads, (x, z) => book.at(x, z, 400), pts[1])!.z).toBe(0);
+  });
+
+  it("面した走れる道の無い丁目（構内など）は、止まる所の一覧に入らない（配達の草案 24.4）", () => {
+    // z = 0 と z = 120 の道を抜くと、その間の丁目（z = 60）は道に面さない
+    const campus = streets().filter((r) => r.id !== "r0" && r.id !== "r1");
+    const pts = chome();
+    const book = new AddressBook(pts);
+    const spots = chomeSpots(campus, (x, z) => book.at(x, z, 400), pts);
+    expect(spots.has("c0_0")).toBe(false);
+    expect(spots.has("c3_0")).toBe(false);
+    // 隣の列は道に面している。止まる所の脇はその丁目
+    for (const name of ["c0_-1", "c0_1", "c3_2"]) {
+      const s = spots.get(name)!;
+      expect(s).toBeDefined();
+      expect([book.at(s.x, s.z + 9, 400)?.name, book.at(s.x, s.z - 9, 400)?.name]).toContain(name);
+    }
+    // 道を抜かなければ全部ある
+    expect(chomeSpots(streets(), (x, z) => book.at(x, z, 400), pts).size).toBe(pts.length);
   });
 
   it("頼み事の人は道と時刻で決まり、窓が変わると入れ替わる", () => {
