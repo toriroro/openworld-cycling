@@ -1258,7 +1258,8 @@ html, body {
   text-align: left;
 }
 
-/* 配達アプリの画面（配達の草案 27 章）: 右上のスマートフォンのような枠。注文が上から並び、残りの時間の帯が縮む */
+/* 配達アプリの画面（配達の草案 27・31 章）: スマートフォンの形。黒い縁の中に明るいアプリの画面、上に時刻と印、下にホームバー。
+   注文は白いカードで上から並び、残りの時間の帯が縮む */
 .phone {
   position: fixed;
   right: calc(var(--safe-r) + 10px);
@@ -1266,27 +1267,104 @@ html, body {
   width: 280px;
   display: flex;
   flex-direction: column;
-  padding: 6px 6px 8px;
-  border-radius: 22px;
-  border: 2px solid #3a414b;
-  background: rgba(10, 13, 18, 0.9);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
-  color: var(--ink);
+  padding: 5px;
+  border-radius: 30px;
+  background: linear-gradient(145deg, #3b4049, #15181d 45%, #2a2e35);
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  color: #15181d;
   z-index: 4;
 }
-.phone-notch {
-  align-self: center;
-  width: 46px;
+.phone-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 7px 6px;
+  border-radius: 25px;
+  background: #f3f4f6;
+  overflow: hidden;
+}
+.phone-status {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #15181d;
+  font-variant-numeric: tabular-nums;
+}
+.phone-island {
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  width: 54px;
+  height: 14px;
+  margin-left: -27px;
+  border-radius: 8px;
+  background: #0b0d10;
+}
+.phone-icons {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.phone-signal {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 8px;
+}
+.phone-signal i {
+  width: 2px;
+  background: #15181d;
+  border-radius: 1px;
+}
+.phone-signal i:nth-child(1) {
+  height: 3px;
+}
+.phone-signal i:nth-child(2) {
   height: 5px;
-  margin-bottom: 4px;
-  border-radius: 3px;
-  background: #2a3039;
+}
+.phone-signal i:nth-child(3) {
+  height: 6.5px;
+}
+.phone-signal i:nth-child(4) {
+  height: 8px;
+}
+.phone-battery {
+  position: relative;
+  width: 16px;
+  height: 8px;
+  border: 1.3px solid #15181d;
+  border-radius: 2.5px;
+  box-sizing: border-box;
+}
+.phone-battery::before {
+  content: "";
+  position: absolute;
+  inset: 1px 3px 1px 1px;
+  border-radius: 1px;
+  background: #15181d;
+}
+.phone-battery::after {
+  content: "";
+  position: absolute;
+  right: -3px;
+  top: 1.5px;
+  width: 1.5px;
+  height: 3px;
+  border-radius: 0 1px 1px 0;
+  background: #15181d;
 }
 .phone-head {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 4px 8px 6px;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 4px 7px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -1294,17 +1372,45 @@ html, body {
   text-align: left;
   cursor: pointer;
 }
+/* アプリのアイコン（自転車の車輪 2 つ） */
+.phone-app-icon {
+  position: relative;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(160deg, #2fd17a, #0e9f55);
+}
+.phone-app-icon::before,
+.phone-app-icon::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  width: 7px;
+  height: 7px;
+  border: 1.6px solid #fff;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.phone-app-icon::before {
+  left: 3px;
+}
+.phone-app-icon::after {
+  right: 3px;
+}
 .phone-title {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 .phone-count {
   padding: 0 7px;
   border-radius: 9px;
-  background: #ff4fa3;
+  background: #ff3b7f;
   color: #fff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
+  line-height: 17px;
 }
 .phone-count:empty {
   display: none;
@@ -1312,7 +1418,7 @@ html, body {
 .phone-state {
   margin-left: auto;
   font-size: 11px;
-  color: #aab2bc;
+  color: #6b7280;
 }
 .phone-list {
   display: flex;
@@ -1323,26 +1429,51 @@ html, body {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
+  scrollbar-width: none;
 }
-.phone.folded {
-  width: auto;
-  padding: 4px 6px;
-  border-radius: 16px;
-}
-.phone.folded .phone-list,
-.phone.folded .phone-notch {
+.phone-list::-webkit-scrollbar {
   display: none;
 }
+.phone-home {
+  align-self: center;
+  width: 38%;
+  height: 4px;
+  margin-top: 7px;
+  border-radius: 2px;
+  background: #15181d;
+  opacity: 0.85;
+}
+/* 畳んだ時: 通知の帯（アイコン・見出し・件数） */
+.phone.folded {
+  width: auto;
+  padding: 3px;
+  border-radius: 20px;
+}
+.phone.folded .phone-screen {
+  padding: 0 4px;
+  border-radius: 17px;
+  background: rgba(243, 244, 246, 0.96);
+}
+.phone.folded .phone-list,
+.phone.folded .phone-status,
+.phone.folded .phone-home {
+  display: none;
+}
+.phone.folded .phone-head {
+  padding: 5px 6px;
+}
 .phone-empty {
-  padding: 10px 8px;
+  padding: 14px 8px;
   font-size: 12px;
-  color: #aab2bc;
+  color: #6b7280;
+  text-align: center;
 }
 .phone-item {
   flex: none;
-  padding: 7px 9px 8px;
-  border-radius: 12px;
-  background: #1d232c;
+  padding: 8px 10px 9px;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 20, 30, 0.12);
   cursor: pointer;
   transition:
     opacity 0.4s,
@@ -1362,8 +1493,16 @@ html, body {
   transform: translateX(30px);
 }
 .phone-item.open {
-  background: #26303c;
-  outline: 2px solid #ffd34d;
+  box-shadow:
+    0 0 0 2px #12b866,
+    0 2px 6px rgba(15, 20, 30, 0.18);
+}
+/* 目の前の頼み事・家からの発送 */
+.phone-item.here {
+  background: #fff7e6;
+  box-shadow:
+    0 0 0 1.5px #ff9a3c,
+    0 1px 3px rgba(15, 20, 30, 0.12);
 }
 .phone-top {
   display: flex;
@@ -1371,51 +1510,58 @@ html, body {
   gap: 6px;
 }
 .phone-reward {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
+  color: #0b0d10;
 }
 .phone-kind {
-  font-size: 11px;
-  color: #c8ced6;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: #eef0f3;
+  font-size: 10.5px;
+  color: #4b5563;
+  line-height: 16px;
 }
 .phone-remain {
   margin-left: auto;
   font-size: 11px;
-  color: #aab2bc;
+  color: #6b7280;
   font-variant-numeric: tabular-nums;
 }
 .phone-item.soon .phone-remain {
-  color: #ff8a7a;
+  color: #e5484d;
+  font-weight: 700;
 }
 .phone-line {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.5;
+  color: #1f2937;
 }
 .phone-limit {
-  color: #aab2bc;
+  color: #6b7280;
 }
 .phone-track {
   height: 3px;
-  margin-top: 5px;
+  margin-top: 6px;
   border-radius: 2px;
-  background: #2b333d;
+  background: #e5e7eb;
   overflow: hidden;
 }
 .phone-bar {
   height: 100%;
-  background: #35e08a;
+  background: #12b866;
   transform-origin: left;
   transition: transform 0.25s linear;
 }
 .phone-item.soon .phone-bar {
-  background: #ff8a7a;
+  background: #e5484d;
 }
 .phone-act {
   display: none;
-  margin-top: 7px;
+  margin-top: 8px;
 }
 .phone-item.open .phone-act {
   display: block;
@@ -1423,11 +1569,19 @@ html, body {
 .btn.phone-ok {
   width: 100%;
   min-height: 38px;
+  border-radius: 12px;
+  background: #12b866;
+  color: #fff;
+  font-weight: 800;
+}
+.btn.phone-ok:disabled {
+  background: #c9ced6;
+  color: #f3f4f6;
 }
 .phone-why {
   margin-top: 4px;
   font-size: 11px;
-  color: #ff8a7a;
+  color: #e5484d;
 }
 .phone-why:empty {
   display: none;
@@ -1659,7 +1813,8 @@ html, body {
     width: auto;
   }
   .hud-root.has-touch .phone-list {
-    max-height: calc(100vh - var(--safe-t) - var(--safe-b) - 184px - 220px);
+    /* 下のタブの分（約 42px）を引く（配達の草案 32 章） */
+    max-height: calc(100vh - var(--safe-t) - var(--safe-b) - 184px - 312px);
   }
 }
 
@@ -1713,7 +1868,8 @@ html, body {
     z-index: 6;
   }
   .hud-root.has-touch .phone-list {
-    max-height: calc(100vh - var(--safe-t) - var(--safe-b) - 58px - 130px);
+    /* 上の時刻の帯とホームバーの分（約 34px）を引く（配達の草案 31 章） */
+    max-height: calc(100vh - var(--safe-t) - var(--safe-b) - 58px - 208px);
   }
   .hud-root.has-touch .touch-btn.brake {
     right: calc(var(--safe-r) + 72px);
@@ -1926,4 +2082,411 @@ html, body {
 .pace-btn.capped {
   box-shadow: inset 0 0 0 2px #ff8a4e;
   color: #ffb08a;
+}
+
+/* 画面の部品（配達の草案 32 章。src/ui/widgets.ts）: 数字の札・棒・小さな札・棒グラフ。暗い画面用 */
+.w-section {
+  margin: 8px 0 12px;
+}
+.w-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 2px 6px;
+}
+.w-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e9edf2;
+}
+.w-section-right {
+  margin-left: auto;
+  font-size: 11px;
+  color: #aab2bc;
+}
+.w-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.w-kpi {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  min-width: 0;
+}
+.w-kpi-label {
+  font-size: 11px;
+  color: #aab2bc;
+}
+.w-kpi-value {
+  font-size: 19px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.w-kpi-sub {
+  font-size: 11px;
+  color: #aab2bc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.w-kpi.tone-good .w-kpi-value {
+  color: #5fe3a0;
+}
+.w-kpi.tone-bad .w-kpi-value {
+  color: #ff8a7a;
+}
+.w-kpi.tone-accent .w-kpi-value {
+  color: #ffd34d;
+}
+.w-meter {
+  display: grid;
+  grid-template-columns: 6.2em 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  font-size: 12px;
+}
+.w-meter-label {
+  color: #c8ced6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.w-meter-track {
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.w-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: #5fe3a0;
+}
+.w-meter.tone-warn .w-meter-fill {
+  background: #ffd34d;
+}
+.w-meter.tone-bad .w-meter-fill {
+  background: #ff6b5e;
+}
+.w-meter.tone-accent .w-meter-fill {
+  background: #6cb8ff;
+}
+.w-meter-value {
+  font-variant-numeric: tabular-nums;
+  color: #e9edf2;
+  white-space: nowrap;
+}
+.w-chip {
+  display: inline-block;
+  margin: 0 4px 4px 0;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #dfe3e8;
+}
+.w-chip.tone-good {
+  background: rgba(95, 227, 160, 0.18);
+  color: #7ff0b6;
+}
+.w-chip.tone-bad {
+  background: rgba(255, 107, 94, 0.18);
+  color: #ffa69c;
+}
+.w-chip.tone-warn {
+  background: rgba(255, 211, 77, 0.18);
+  color: #ffe08a;
+}
+.w-chip.tone-accent {
+  background: rgba(108, 184, 255, 0.2);
+  color: #9fd0ff;
+}
+.w-line {
+  display: flex;
+  gap: 8px;
+  padding: 3px 2px;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.w-line-label {
+  color: #aab2bc;
+}
+.w-line-value {
+  margin-left: auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.w-line.tone-good .w-line-value {
+  color: #5fe3a0;
+}
+.w-line.tone-bad .w-line-value {
+  color: #ff8a7a;
+}
+.w-bars {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 4px;
+  height: 118px;
+  padding: 4px 2px 0;
+}
+.w-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+.w-bar-value {
+  font-size: 9.5px;
+  color: #aab2bc;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.w-bar-area {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.w-bar-area.has-neg {
+  align-items: stretch;
+}
+.w-bar {
+  width: 70%;
+  border-radius: 3px 3px 0 0;
+  background: #5fe3a0;
+}
+.w-bar-area.has-neg .w-bar.pos {
+  position: absolute;
+  bottom: 50%;
+  left: 15%;
+}
+.w-bar-area.has-neg .w-bar.neg {
+  position: absolute;
+  top: 50%;
+  left: 15%;
+  border-radius: 0 0 3px 3px;
+  background: #ff6b5e;
+}
+.w-bar-area.has-neg::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+}
+.w-bar-label {
+  font-size: 10px;
+  color: #c8ced6;
+}
+.w-card {
+  padding: 9px 11px;
+  margin-bottom: 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.w-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.w-card-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+.w-card-right {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.w-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.w-card-actions .btn {
+  min-height: 36px;
+  font-size: 13px;
+}
+.w-note {
+  font-size: 11px;
+  color: #aab2bc;
+  margin: 2px 0;
+}
+.w-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #ffd34d;
+  color: #111;
+}
+/* マイページ（配達の草案 32 章） */
+.my-page-body {
+  padding: 4px 12px 14px;
+}
+.my-stage {
+  margin: 2px 0 10px;
+}
+.my-chips {
+  margin-top: 6px;
+}
+.my-late {
+  color: #ff8a7a;
+}
+
+/* 配達アプリの下のタブ（配達の草案 32 章）: 注文・配達中・記録 */
+.phone-tabs {
+  display: flex;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid #e3e6ea;
+}
+.phone-tab {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 34px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: #8a93a0;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.phone-tab.selected {
+  color: #0e9f55;
+  font-weight: 700;
+}
+.phone-tab-icon {
+  width: 16px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1.6px solid currentColor;
+  box-sizing: border-box;
+}
+.phone-tab.tab-active .phone-tab-icon {
+  border-radius: 50%;
+}
+.phone-tab.tab-record .phone-tab-icon {
+  border-width: 0 0 1.6px 1.6px;
+  border-radius: 0;
+}
+.phone-tab[data-badge]:not([data-badge=""])::after {
+  content: attr(data-badge);
+  position: absolute;
+  top: 0;
+  left: 58%;
+  min-width: 14px;
+  padding: 0 4px;
+  border-radius: 7px;
+  background: #ff3b7f;
+  color: #fff;
+  font-size: 9.5px;
+  line-height: 14px;
+  font-weight: 700;
+}
+.phone.folded .phone-tabs {
+  display: none;
+}
+.phone-active.heading {
+  box-shadow:
+    0 0 0 2px #12b866,
+    0 1px 3px rgba(15, 20, 30, 0.12);
+}
+.phone-remain.late {
+  color: #e5484d;
+  font-weight: 700;
+}
+.btn.phone-go {
+  margin-top: 7px;
+  min-height: 34px;
+}
+.phone-kpis {
+  margin-bottom: 6px;
+}
+.phone-kpis .w-kpi {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 20, 30, 0.12);
+}
+.phone-kpis .w-kpi-label,
+.phone-kpis .w-kpi-sub {
+  color: #6b7280;
+}
+.phone-kpis .w-kpi-value {
+  font-size: 15px;
+  color: #0b0d10;
+}
+.phone-record .w-line {
+  border-bottom-color: #eef0f3;
+}
+.phone-record .w-line-label {
+  color: #6b7280;
+}
+.phone-record .w-line-value {
+  color: #15181d;
+}
+.phone .w-chip.tone-warn {
+  background: #fff1cc;
+  color: #9a6a00;
+}
+.phone .w-chip.tone-good {
+  background: #d8f5e6;
+  color: #0b7a43;
+}
+
+/* 経営の画面（配達の草案 32 章） */
+.company-kpis {
+  margin: 4px 0 8px;
+}
+.company-card .w-card-right.tone-good {
+  color: #5fe3a0;
+}
+.company-card .w-card-right.tone-bad {
+  color: #ff8a7a;
+}
+.company-card .w-card-right.tone-accent {
+  color: #ffd34d;
+}
+.company-chips {
+  margin: 2px 0 2px;
+}
+.company-meta {
+  line-height: 1.5;
+}
+.company .stamp-list {
+  padding: 4px 12px 14px;
+}
+.company .w-meter {
+  margin: 2px 0;
+}
+.phone-active .phone-top {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.phone-active .phone-reward,
+.phone-active .w-chip,
+.phone-active .phone-remain {
+  white-space: nowrap;
+}
+.phone-active .w-chip {
+  margin: 0;
 }

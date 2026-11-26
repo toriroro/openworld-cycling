@@ -19,6 +19,7 @@ import { HandoffView } from "./handoff-marks.ts";
 import { AddressSignView } from "./address-signs.ts";
 import { RestStopView } from "./rest-stops.ts";
 import { NpcRiderView } from "./npc-riders.ts";
+import { CutWallView } from "./cut-walls.ts";
 import { RealBuildings } from "./real-buildings.ts";
 import { RealStreets } from "./real-streets.ts";
 import { RealPoles } from "./real-poles.ts";
@@ -71,6 +72,8 @@ export class WorldView {
   readonly restStops = new RestStopView();
   /** 近くの NPC の配達員を人の形で（配達の草案 30 章） */
   readonly npcRiders = new NpcRiderView();
+  /** 掘割の擁壁とアンダーパスの天井（北海道の世界。配達の草案 31 章） */
+  readonly cutWalls = new CutWallView();
   private pruneT = 0;
   quality: Quality = "standard";
   /** 描画の原点（世界座標、REBASE_UNIT の倍数） */
@@ -197,7 +200,7 @@ export class WorldView {
           this.realBuildings.refresh();
         }
       });
-    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group, this.districts.group, this.trafficView.group, this.pedestrians.group, this.handoff.group, this.addressSigns.group, this.restStops.group, this.npcRiders.group);
+    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group, this.districts.group, this.trafficView.group, this.pedestrians.group, this.handoff.group, this.addressSigns.group, this.restStops.group, this.npcRiders.group, this.cutWalls.group);
     this.setQuality(matchMedia("(pointer: coarse)").matches ? "light" : "standard");
   }
 
@@ -217,6 +220,7 @@ export class WorldView {
     this.trafficView?.setQuality(light);
     this.pedestrians?.setQuality(light);
     this.restStops?.setQuality(light);
+    this.cutWalls?.setQuality(light);
     this.realBuildings?.setQuality(light);
     this.realStreets?.setQuality(light);
     this.realPoles?.setQuality(light);

@@ -75,6 +75,8 @@ export interface WorkSave {
   gear: "bag" | "carrier";
   /** 自転車の傷み（配達の草案 29 章）。前の保存には無い（整備したてとして読む） */
   bike?: BikeCare;
+  /** 世界の今日の数（マイページ・配達アプリの記録。配達の草案 32 章）。日が変わると 0 から */
+  day?: { day: number; delivered: number; earned: number; onTime: number };
 }
 
 /** 仕事を始めた時の所持金 (円)【初期値】（最初から喫茶店で食べられるように） */
@@ -86,6 +88,12 @@ function sanitizeCounts(value: unknown): Record<string, number> {
   for (const [k, v] of Object.entries(rec(value))) if (k.length <= 24 && typeof v === "number" && Number.isFinite(v) && v >= 1) out.push([k, Math.min(1e6, Math.round(v))]);
   out.sort((a, b) => b[1] - a[1]);
   return Object.fromEntries(out.slice(0, 2000));
+}
+
+function sanitizeDay(v: unknown): WorkSave["day"] {
+  const d = rec(v);
+  if (typeof d.day !== "number") return undefined;
+  return { day: Math.round(num(d.day, 0, -1e9, 1e9)), delivered: Math.round(num(d.delivered, 0, 0, 1e6)), earned: Math.round(num(d.earned, 0, -1e9, 1e9)), onTime: Math.round(num(d.onTime, 0, 0, 1e6)) };
 }
 
 export function sanitizeWork(value: unknown): WorkSave {
@@ -103,6 +111,7 @@ export function sanitizeWork(value: unknown): WorkSave {
     economy: w.economy ? sanitizeEconomy(w.economy) : null,
     gear: w.gear === "carrier" ? "carrier" : "bag",
     bike: careFromJSON(w.bike),
+    day: sanitizeDay(w.day),
   };
 }
 

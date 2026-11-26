@@ -15,10 +15,12 @@ export interface AddressSign {
 }
 
 const SLOTS = 48;
-const POLE_H = 3.4;
+const POLE_H = 2.7;
 /** 板の大きさ (m)。走りながら読めるよう、実物より大きめ【初期値】 */
 const PLATE_W = 1.6;
 const PLATE_H = 0.6;
+/** 板の厚み (m) */
+const PLATE_T = 0.03;
 /** 字の画像を覚えておく数 */
 const CACHE = 160;
 
@@ -67,15 +69,22 @@ export class AddressSignView {
     this.poles.frustumCulled = false;
     this.poles.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.group.add(this.poles);
-    // 板は両面: 表と、裏返した表（裏から見ても字が正しく読める）
+    // 板は柱の頭の上に載せる（柱が板の字にかぶらない）。厚みのある枠の両面に字を貼る:
+    // 表と、裏返した表（裏から見ても字が左から右へ読める）。前は板を柱の横に付けていて、裏から見ると柱が字にかぶった（2026-11-26）
     const plateGeo = new THREE.PlaneGeometry(PLATE_W, PLATE_H);
+    plateGeo.translate(0, 0, PLATE_T / 2 + 0.002);
     const backGeo = new THREE.PlaneGeometry(PLATE_W, PLATE_H);
+    backGeo.translate(0, 0, PLATE_T / 2 + 0.002);
     backGeo.rotateY(Math.PI);
+    const frameGeo = new THREE.BoxGeometry(PLATE_W + 0.06, PLATE_H + 0.06, PLATE_T);
+    const frameMat = new THREE.MeshStandardMaterial({ color: "#d8dde2", roughness: 0.5, metalness: 0.4 });
     for (let i = 0; i < SLOTS; i++) {
       const front = new THREE.Mesh(plateGeo);
       const back = new THREE.Mesh(backGeo);
+      const frame = new THREE.Mesh(frameGeo, frameMat);
+      frame.userData.frame = true;
       const g = new THREE.Group();
-      g.add(front, back);
+      g.add(frame, front, back);
       g.visible = false;
       this.group.add(g);
       this.plates.push(g);
@@ -115,12 +124,12 @@ export class AddressSignView {
       this.p.set(s.x - originX, s.y, s.z - originZ);
       this.m.compose(this.p, this.q.identity(), this.one);
       this.poles.setMatrixAt(i, this.m);
-      // 板: 柱の上の方、交差点の中心の側へ少し出す。表は中心を向く
+      // 板: 柱の頭の上。表は交差点の中心を向く
       const yaw = Math.atan2(s.nx, s.nz);
-      g.position.set(s.x - originX + s.nx * 0.06, s.y + POLE_H - PLATE_H / 2 - 0.05, s.z - originZ + s.nz * 0.06);
+      g.position.set(s.x - originX, s.y + POLE_H + PLATE_H / 2 + 0.03, s.z - originZ);
       g.quaternion.setFromAxisAngle(this.up, yaw);
       const mat = this.material(s.label);
-      for (const c of g.children as THREE.Mesh[]) c.material = mat;
+      for (const c of g.children as THREE.Mesh[]) if (!c.userData.frame) c.material = mat;
       g.visible = true;
     }
     this.poles.count = n;

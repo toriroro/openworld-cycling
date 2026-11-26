@@ -1,9 +1,28 @@
-// 配達アプリの画面（配達の草案 27 章）: 右上に置くスマートフォンのような枠。届いた注文が上から並び、それぞれの残りの時間の帯が縮んで、
+// 配達アプリの画面（配達の草案 27・31 章）: スマートフォンの形（黒い縁・上の時刻と電波・電池の印・明るいアプリの画面・下のホームバー）。届いた注文が上から並び、それぞれの残りの時間の帯が縮んで、
 // 期限が来ると薄くなって消える。押すと開いて「受ける」。見出しを押すと畳む（畳んだ時は件数だけ）。sim の状態は読むだけ。
 
 import { platform } from "../platform/index.ts";
 import { type DeliveryOrder, ORDER_KIND_LABELS, ORDER_SOURCE_LABELS } from "../shared/delivery.ts";
 import { fmtDuration } from "./delivery-panel.ts";
+import { chip, el, kpi, kpis, line, yen } from "./widgets.ts";
+
+/** アプリの下のタブ（配達の草案 32 章）: 注文（届いた物の一覧）・配達中（持っている注文）・記録（今日と合わせての数） */
+export type PhoneTab = "orders" | "active" | "record";
+const PHONE_TABS: [PhoneTab, string][] = [
+  ["orders", "注文"],
+  ["active", "配達中"],
+  ["record", "記録"],
+];
+
+/** 配達中・記録のタブの中身（src/game.ts が集める） */
+export interface PhoneInfo {
+  active: { no: number; phase: "pickup" | "dropoff"; target: string; reward: number; remaining: number; limit: number; heading: boolean }[];
+  carry: number;
+  today: { weekday: string; delivered: number; earned: number; onTime: number };
+  total: { delivered: number; onTime: number; regulars: number };
+  money: number;
+  company: string | null;
+}
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = "", parent?: HTMLElement) => {
   const e = document.createElement(tag);
@@ -43,24 +62,54 @@ export class OrderPhone {
   private head: HTMLButtonElement;
   private count: HTMLElement;
   private state: HTMLElement;
+  private clock: HTMLElement;
   private list: HTMLElement;
   private empty: HTMLElement;
   private rows = new Map<number, Row>();
   private selected: number | null = null;
   open = true;
+  tab: PhoneTab = "orders";
+  private pane: HTMLElement;
+  private tabBtns = new Map<PhoneTab, HTMLButtonElement>();
+  private paneKey = "";
   onAccept: (no: number) => void = () => {};
+  /** 配達中のタブで「向かう」を押した（注文の番号） */
+  onFocus: (no: number) => void = () => {};
 
   constructor(parent: HTMLElement) {
     this.root = h("div", "phone hidden", "", parent);
-    h("div", "phone-notch", "", this.root);
-    this.head = h("button", "phone-head", "", this.root);
+    const screen = h("div", "phone-screen", "", this.root);
+    // 上の帯: 世界の時刻・カメラの穴・電波と電池の印（印は飾り）
+    const status = h("div", "phone-status", "", screen);
+    this.clock = h("span", "phone-clock", "", status);
+    h("span", "phone-island", "", status);
+    const icons = h("span", "phone-icons", "", status);
+    const signal = h("span", "phone-signal", "", icons);
+    for (let i = 0; i < 4; i++) h("i", "", "", signal);
+    h("span", "phone-battery", "", icons);
+    this.head = h("button", "phone-head", "", screen);
     this.head.type = "button";
+    this.head.setAttribute("aria-label", "配達アプリを開く・畳む");
+    h("span", "phone-app-icon", "", this.head);
     h("span", "phone-title", "配達アプリ", this.head);
     this.count = h("span", "phone-count", "", this.head);
     this.state = h("span", "phone-state", "", this.head);
     this.head.addEventListener("click", () => this.setOpen(!this.open));
-    this.list = h("div", "phone-list", "", this.root);
+    this.list = h("div", "phone-list", "", screen);
     this.empty = h("div", "phone-empty", "", this.list);
+    // 配達中・記録のタブの中身（一覧と同じ所に、どちらかを出す）
+    this.pane = h("div", "phone-list phone-pane hidden", "", screen);
+    const bar = h("div", "phone-tabs", "", screen);
+    for (const [k, label] of PHONE_TABS) {
+      const b = h("button", `phone-tab tab-${k}`, "", bar);
+      b.type = "button";
+      h("span", "phone-tab-icon", "", b);
+      h("span", "phone-tab-label", label, b);
+      b.addEventListener("click", () => this.setTab(k));
+      this.tabBtns.set(k, b);
+    }
+    h("div", "phone-home", "", screen);
+    this.setTab("orders");
     // 既定は大きな画面で開き、スマホの大きさでは畳む。端末に覚える
     this.setOpen(innerWidth >= 700 && innerHeight >= 500, false);
     void platform.storage.load(OPEN_KEY).then((t) => {
@@ -72,6 +121,68 @@ export class OrderPhone {
     this.open = on;
     this.root.classList.toggle("folded", !on);
     if (remember) void platform.storage.save(OPEN_KEY, on ? "1" : "0");
+  }
+
+  /** タブを選ぶ */
+  setTab(t: PhoneTab) {
+    this.tab = t;
+    for (const [k, b] of this.tabBtns) b.classList.toggle("selected", k === t);
+    this.list.classList.toggle("hidden", t !== "orders");
+    this.pane.classList.toggle("hidden", t === "orders");
+    this.paneKey = "";
+    if (t !== "orders" && this.lastInfo) this.setInfo(this.lastInfo);
+  }
+
+  private lastInfo: PhoneInfo | null = null;
+
+  /** 配達中・記録のタブの中身。選んでいるタブで、中身が変わった時だけ描き直す */
+  setInfo(info: PhoneInfo) {
+    this.lastInfo = info;
+    const ab = this.tabBtns.get("active")!;
+    const n = info.active.length;
+    ab.dataset.badge = n ? String(n) : "";
+    if (this.tab === "orders" || !this.open) return;
+    const key = this.tab === "active" ? JSON.stringify(info.active.map((a) => [a.no, a.phase, a.heading, Math.floor(a.remaining)])) : JSON.stringify([info.today, info.total, Math.round(info.money)]);
+    if (key === this.paneKey) return;
+    this.paneKey = key;
+    const p = this.pane;
+    const top = p.scrollTop;
+    p.replaceChildren();
+    if (this.tab === "active") {
+      if (!n) el("div", "phone-empty", `持っている注文は無い（同時に ${info.carry} 件まで）`, p);
+      for (const a of info.active) {
+        const card = el("div", `phone-item phone-active${a.heading ? " heading" : ""}`, "", p);
+        const top = el("div", "phone-top", "", card);
+        el("span", "phone-reward", yen(a.reward), top);
+        chip(top, a.phase === "pickup" ? "受け取り" : "届け先", a.phase === "pickup" ? "warn" : "good");
+        const left = el("span", "phone-remain", `残り ${fmtDuration(a.remaining)}`, top);
+        if (a.remaining < 60) left.classList.add("late");
+        el("div", "phone-line", a.target, card);
+        const track = el("div", "phone-track", "", card);
+        el("div", "phone-bar", "", track).style.transform = `scaleX(${Math.max(0, Math.min(1, a.remaining / Math.max(1, a.limit)))})`;
+        if (!a.heading) {
+          const go = el("button", "btn delivery-primary phone-ok phone-go", "こちらへ向かう", card);
+          go.type = "button";
+          go.addEventListener("click", () => this.onFocus(a.no));
+        } else el("div", "phone-line phone-limit", "向かっている", card);
+      }
+    } else {
+      const k = kpis(p);
+      k.classList.add("phone-kpis");
+      kpi(k, `今日（${info.today.weekday}）`, yen(info.today.earned), `${info.today.delivered} 件`);
+      kpi(k, "所持金", yen(info.money), info.company ?? "");
+      const box = el("div", "phone-item phone-record", "", p);
+      line(box, "今日 届けた", `${info.today.delivered} 件（期限内 ${info.today.onTime} 件）`);
+      line(box, "合わせて 届けた", `${info.total.delivered} 件`);
+      line(box, "期限内", info.total.delivered ? `${Math.round((info.total.onTime / info.total.delivered) * 100)}%` : "−");
+      line(box, "常連の店", `${info.total.regulars} 店`);
+    }
+    p.scrollTop = top;
+  }
+
+  /** 上の帯の時刻（世界の時計。「11:24」） */
+  setClock(text: string) {
+    if (this.clock.textContent !== text) this.clock.textContent = text;
   }
 
   show(on: boolean) {

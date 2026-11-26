@@ -35,13 +35,14 @@ export interface RestItem {
 
 /**
  * 品書き【初期値】。アルバイトで 1 時間に約 5,000〜6,000 円、体力は「ふつう」で約 2 時間もつ（配達の草案 14.2・24.1）。
- * 自販機は安く少しだけ・待たない。牛丼は早くて安い。定食は高くて多く戻るが時間がかかる
+ * 自販機は 100 円でそこそこ戻り・待たない（脚は戻らない）。牛丼は早くて安い。定食は高くて多く戻るが時間がかかる。店は脚も全部戻る
  */
 export const REST_MENU: Record<FoodKind, RestItem[]> = {
   vending: [
-    { id: "water", name: "水", price: 110, energy: 0.03, seconds: 20, legs: false },
-    { id: "sports", name: "スポーツドリンク", price: 160, energy: 0.06, seconds: 30, legs: false },
-    { id: "coffee", name: "缶コーヒー", price: 130, energy: 0.04, seconds: 30, legs: false },
+    // どれも 100 円（ユーザーの指定 2026-11-26。前は 110〜160 円で +3〜6%）
+    { id: "water", name: "水", price: 100, energy: 0.1, seconds: 20, legs: false },
+    { id: "sports", name: "スポーツドリンク", price: 100, energy: 0.15, seconds: 30, legs: false },
+    { id: "coffee", name: "缶コーヒー", price: 100, energy: 0.12, seconds: 30, legs: false },
   ],
   gyudon: [
     { id: "nami", name: "牛丼 並", price: 480, energy: 0.3, seconds: 240, legs: true },

@@ -69,6 +69,9 @@ import { HOKKAIDO_BASE } from "./shared/world/hokkaido.ts";
 import type { PlayMode } from "./world-choice.ts";
 import { autoItem, type FoodKind, isFood, type RestItem, restBlock, REST_MENU, type RestStop, restStopAt, restStopsNear, REST_STOP_RANGE } from "./shared/rest-stops.ts";
 import { type CardEntry, fmtSeconds, RestCard } from "./ui/rest-card.ts";
+import { MyPage, type MyPageInfo } from "./ui/my-page.ts";
+import type { PhoneInfo } from "./ui/order-phone.ts";
+import { KIND_LABELS, kindOf, OPEN_DELIVERED, OPEN_MONEY } from "./shared/economy.ts";
 import { type BikeCare, CARE_LABELS, CARE_PARTS, CARE_SERVICES, careBlock, careEffects, careFromJSON, type CareService, FRESH_CARE, serviceCare, wear, worstPart } from "./shared/bike-care.ts";
 
 /** 左右位置: 1 回押した時に動く量 (m)、押し続けた時の速さ (m/s) と、動き続けるまでの時間 (ms)【初期値】（配達の草案 26 章） */
@@ -341,6 +344,9 @@ export class Game {
   private careWarned = 1;
   private careOdo = NaN;
   private cargoKey = "";
+  /** 世界の今日の数（マイページ・配達アプリの記録。配達の草案 32 章） */
+  dayStats = { day: -1, delivered: 0, earned: 0, onTime: 0 };
+  private myPage = new MyPage();
   private lastCarHit = -Infinity;
 
   constructor(
@@ -722,7 +728,7 @@ export class Game {
       outfit: this.outfit,
       watching: this.watching,
       adventure: this.adventure?.toJSON() ?? this.keptAdventure ?? null,
-      work: { money: this.wallet, delivered: this.delivered, onTime: this.onTime, stamina: this.stamina.toJSON(), guide: this.deliveryGuide, routeStyle: this.routeStyle, app: this.appOn, regulars: this.regulars, economy: this.market?.state ?? this.economySaved, gear: this.gear, bike: { ...this.care } },
+      work: { money: this.wallet, delivered: this.delivered, onTime: this.onTime, stamina: this.stamina.toJSON(), guide: this.deliveryGuide, routeStyle: this.routeStyle, app: this.appOn, regulars: this.regulars, economy: this.market?.state ?? this.economySaved, gear: this.gear, bike: { ...this.care }, day: { ...this.dayStats } },
     };
   }
 
@@ -1411,6 +1417,20 @@ export class Game {
       void this.save();
       this.openGear();
     };
+    this.hud.addButton(
+      "マイページ",
+      () => {
+        this.hud.toggleMenu(false);
+        this.myPage.open(() => this.myPageInfo());
+      },
+      "main",
+    );
+    this.phone.onFocus = (no) => {
+      const d = this.deliveries.find((x) => x.order.no === no);
+      if (!d) return;
+      this.deliveries = [d, ...this.deliveries.filter((x) => x !== d)];
+      this.guideTo(d.target);
+    };
     this.hud.addButton("装備", () => {
       this.hud.toggleMenu(false);
       this.openGear();
@@ -1508,6 +1528,7 @@ export class Game {
     this.regulars = { ...(w?.regulars ?? {}) };
     this.gear = w?.gear ?? "bag";
     this.care = careFromJSON(w?.bike ?? null);
+    this.dayStats = w?.day ? { ...w.day } : { day: -1, delivered: 0, earned: 0, onTime: 0 };
     this.careWarned = 1;
     this.economySaved = w?.economy ?? null;
     if (this.market) {
@@ -1584,6 +1605,11 @@ export class Game {
     const hasRegular = Object.values(this.regulars).some((n) => n >= REGULAR_AFTER);
     // 頼み事・旗の家の知らせを出している間は、重ならないよう画面を隠す
     this.phone.show(!!area && !this.watching && !this.restCard.isOpen);
+    if (area && ride) this.phone.setInfo(this.phoneInfo(time));
+    {
+      const m = Math.floor((((this.view.env.hour % 24) + 24) % 24) * 60);
+      this.phone.setClock(`${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`);
+    }
     if (!area || !ride?.road || this.watching) return;
     const p = ride.pose();
     let note = "";
@@ -2183,6 +2209,76 @@ export class Game {
     return this.restMap.list;
   }
 
+  /** 世界の今日の数（日が変わっていれば 0 から） */
+  private todayStats() {
+    const today = this.worldToday();
+    if (this.dayStats.day !== today) this.dayStats = { day: today, delivered: 0, earned: 0, onTime: 0 };
+    return this.dayStats;
+  }
+
+  /** 経営している・入っている業者 */
+  private companyNow(): { name: string; color: string; own: boolean; staff: number; cash: number } | null {
+    const m = this.market;
+    if (!m) return null;
+    const own = m.own();
+    if (own) return { name: own.name, color: own.color, own: true, staff: own.staff, cash: own.cash };
+    const id = m.state.player.company;
+    const c = id ? m.state.companies.find((x) => x.id === id) : null;
+    return c ? { name: c.name, color: c.color, own: false, staff: c.staff, cash: 0 } : null;
+  }
+
+  /** マイページの中身（配達の草案 32 章） */
+  myPageInfo(): MyPageInfo {
+    const ride = this.ride;
+    const ds = this.todayStats();
+    const co = this.companyNow();
+    const kind = co?.own ? kindOf(co.staff) : null;
+    const stage = co?.own ? `経営 ${co.name}（${KIND_LABELS[kind!]}・配達員 ${co.staff} 人）` : co ? `アルバイト（所属 ${co.name}）` : "個人で配達";
+    let goal: MyPageInfo["goal"] = null;
+    if (!co?.own)
+      goal = {
+        title: "開業の条件",
+        rows: [
+          { label: "所持金", now: this.wallet, goal: OPEN_MONEY, unit: "yen" },
+          { label: "届けた件数", now: this.delivered, goal: OPEN_DELIVERED, unit: "count" },
+        ],
+      };
+    else if (kind === "solo") goal = { title: "中堅（配達員 7 人）まで", rows: [{ label: "配達員", now: co.staff, goal: 7, unit: "person" }] };
+    else if (kind === "mid") goal = { title: "大手（配達員 25 人）まで", rows: [{ label: "配達員", now: co.staff, goal: 25, unit: "person" }] };
+    return {
+      stage,
+      stageColor: co?.color ?? null,
+      money: this.wallet,
+      companyCash: co?.own ? co.cash : null,
+      today: { weekday: worldDay(Date.now() + this.clockOffset).weekday, delivered: ds.delivered, earned: ds.earned },
+      delivered: this.delivered,
+      onTime: this.onTime,
+      regulars: Object.values(this.regulars).filter((n) => n >= REGULAR_AFTER).length,
+      energy: this.stamina.energyShare,
+      legs: this.stamina.legsShare,
+      exhausted: this.stamina.exhausted,
+      care: CARE_PARTS.map((p) => ({ label: CARE_LABELS[p], share: this.care[p] })),
+      gear: GEAR_LABELS[this.gear],
+      carry: carryLimit(this.gear),
+      deliveries: this.deliveries.map((d) => ({ phase: d.phase, target: d.target.name, reward: d.order.reward, remaining: ride ? d.remaining(ride.time) : 0 })),
+      goal,
+    };
+  }
+
+  /** 配達アプリの配達中・記録のタブの中身（配達の草案 32 章） */
+  private phoneInfo(time: number): PhoneInfo {
+    const ds = this.todayStats();
+    const co = this.companyNow();
+    return {
+      active: this.deliveries.map((d, i) => ({ no: d.order.no, phase: d.phase, target: d.target.name, reward: d.order.reward, remaining: d.remaining(time), limit: d.order.limit, heading: i === 0 })),
+      carry: carryLimit(this.gear),
+      today: { weekday: worldDay(Date.now() + this.clockOffset).weekday, delivered: ds.delivered, earned: ds.earned, onTime: ds.onTime },
+      total: { delivered: this.delivered, onTime: this.onTime, regulars: Object.values(this.regulars).filter((n) => n >= REGULAR_AFTER).length },
+      money: this.wallet,
+      company: co ? (co.own ? `経営 ${co.name}` : `所属 ${co.name}`) : null,
+    };
+  }
+
   /**
    * 「横」（幅寄せ。配達の草案 30 章）: 左右の操作をした向きの真横（前後 1.8m・横 0.4〜2m）に配達員がいれば、
    * 自分は一瞬その方へ寄って戻り、相手は押されて寄り、少し遅くなって体力が 3 減る。落車はしない。同じ相手は 2 秒あける。
@@ -2474,7 +2570,7 @@ export class Game {
     this.stamina.refill(it.energy, it.legs);
     for (const d of this.deliveries) d.addTime(it.seconds);
     const pct = Math.round(this.stamina.energyShare * 100);
-    this.hud.flash(`${it.name}　体力 ${pct}%`, "ok");
+    this.hud.flash(`${it.name}　−${it.price} 円　体力 ${pct}%`, "ok");
     this.showRest(st, `${it.name}　${fmtSeconds(it.seconds)}経った`);
     this.lowWarned = 1;
     void this.save();
@@ -2569,6 +2665,10 @@ export class Game {
     this.money += r.reward;
     this.delivered++;
     if (!r.late) this.onTime++;
+    const ds = this.todayStats();
+    ds.delivered++;
+    ds.earned += r.reward;
+    if (!r.late) ds.onTime++;
     // 店から受け取った配達は、店ごとに数える（常連。配達の草案 16 章）
     const extra: [string, string][] = [];
     const shop = r.order.pickup;
@@ -3015,6 +3115,8 @@ export class Game {
       this.view.handoff.update(this.handoffMarks(pose), this.view.originX, this.view.originZ, this.paused ? 0 : dt);
       this.updateAddressSigns(pose, t);
       this.updateRestStops(pose, t);
+      // 掘割の擁壁とアンダーパスの天井（北海道の世界。道が読み込まれた・遠くへ動いた時だけ作り直す）
+      if (this.view.world.local && pose) this.view.cutWalls.update(this.roads.net.roads.values(), this.view.heights, this.view.originX, this.view.originZ, pose.x, pose.z, this.roads.net.version);
       this.view.restStops.pulse(t / 1000);
       this.view.realPoles?.setLights(lights);
       this.player.group.visible = !!pose;
