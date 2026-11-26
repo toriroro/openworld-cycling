@@ -19,7 +19,7 @@ describe("保存データ（モック仕様 7.3）", () => {
     outfit: DEFAULT_OUTFIT,
     watching: true,
     adventure: { mode: "adventure", since: 1795000000, balance: 12345.6, spent: 7654.4, imports: [{ id: "fit:run:1795000100", sport: "run", start: 1795000100, distance: 5000, seconds: 1800, credit: 50000, source: "fit" }], journey: { startedAt: 1795001000, lastSimulated: 1795002000 }, lastJourney: null },
-    work: { money: 2340, delivered: 5, onTime: 4, stamina: { legs: 9000, energy: 800000 }, guide: "route", routeStyle: "flat", app: false, regulars: { "3011": 4, "77": 1 }, economy: null, gear: "carrier", bike: { tire: 0.5, chain: 0.75, brake: 1 } },
+    work: { money: 2340, delivered: 5, onTime: 4, stamina: { legs: 9000, energy: 800000 }, guide: "route", routeStyle: "flat", app: false, regulars: { "3011": 4, "77": 1 }, economy: null, gear: "carrier", bike: { tire: 0.5, chain: 0.75, brake: 1 }, car: { kei: { fuel: 12.5, tire: 0.9, oil: 1, brake: 0.8 } }, carMods: { van: { shelf: true, winter: false, paint: "#c8323f" } } },
   };
 
   it("書いて読むと同じ", () => {

@@ -388,6 +388,24 @@ export class Hud {
     addEventListener("touchstart", () => showTouch(true), { once: true, passive: true });
   }
 
+  /** ペースの釦の字を変える（自分の車では速さの段。配達の草案 33 章） */
+  setPaceLabels(labels: readonly string[]) {
+    [...this.paceRow.children].forEach((el, i) => {
+      if (labels[i] && el.textContent !== labels[i]) el.textContent = labels[i];
+    });
+  }
+
+  /** 走りの要点の 2 本の棒の名前（自転車は「脚」「体力」、自分の車は「燃料」「車」。配達の草案 34 章） */
+  setGaugeLabels(legs: string, energy: string) {
+    for (const [k, t] of [
+      ["legs", legs],
+      ["energy", energy],
+    ] as const) {
+      const l = this.gauges[k].root.firstElementChild;
+      if (l && l.textContent !== t) l.textContent = t;
+    }
+  }
+
   /** メニューの最後（キーの説明の後）に要素を足す（データの出典など） */
   addMenuFooter(el: HTMLElement) {
     this.menu.appendChild(el);

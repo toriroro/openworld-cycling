@@ -132,6 +132,8 @@ export interface Rider {
   /** 道路の上にいる時の位置 */
   pos: RoadPosition | null;
   offset: number;
+  /** 自分の車で走っている時の長さ・幅（D7a。無ければ自転車） */
+  car?: { length: number; width: number };
 }
 
 /** 「横」で押された配達員: 寄る量 (m)・寄っている時間 (s)・速さに掛ける倍率・減る体力【初期値】（配達の草案 30 章） */
@@ -611,7 +613,7 @@ export class Traffic {
       if (gap < best.gap) best = { gap, speed: sp, bike, id, lat, width: wid, length: len, cross: same <= 0.3 };
     };
     for (const o of this.vehicles) if (o !== v) consider(o.id, o.x, o.z, o.dx, o.dz, o.speed, o.length, o.width, o.type === "courier");
-    if (rider) consider(-1, rider.x, rider.z, rider.dx, rider.dz, rider.speed, BIKE_LENGTH, BIKE_WIDTH, true);
+    if (rider) consider(-1, rider.x, rider.z, rider.dx, rider.dz, rider.speed, rider.car?.length ?? BIKE_LENGTH, rider.car?.width ?? BIKE_WIDTH, !rider.car);
     return best;
   }
 
@@ -619,7 +621,7 @@ export class Traffic {
    * 自転車（プレイヤー）と重なっている車（配達の草案 26 章）。車の長さ・幅の箱に、自転車の半分の長さ・幅を足して比べる。
    * 高さが 3m 以上違えば（橋の上と下）重ならない
    */
-  contacts(rider: { x: number; y: number; z: number }): Vehicle[] {
+  contacts(rider: { x: number; y: number; z: number }, size: { length: number; width: number } = { length: BIKE_LENGTH, width: BIKE_WIDTH }): Vehicle[] {
     const out: Vehicle[] = [];
     for (const v of this.vehicles) {
       if (Math.abs(rider.y - v.y) > 3) continue;
@@ -627,7 +629,7 @@ export class Traffic {
       const rz = rider.z - v.z;
       const lon = rx * v.dx + rz * v.dz;
       const lat = -rx * v.dz + rz * v.dx;
-      if (Math.abs(lon) <= v.length / 2 + BIKE_LENGTH / 2 && Math.abs(lat) <= v.width / 2 + BIKE_WIDTH / 2) out.push(v);
+      if (Math.abs(lon) <= v.length / 2 + size.length / 2 && Math.abs(lat) <= v.width / 2 + size.width / 2) out.push(v);
     }
     return out;
   }

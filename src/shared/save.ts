@@ -6,6 +6,8 @@ import { POWER_MAX, POWER_MIN } from "../sim/power.ts";
 import { AdventureLedger } from "../sim/adventure.ts";
 import { type EconomyState, sanitizeEconomy } from "./economy.ts";
 import { type BikeCare, careFromJSON } from "./bike-care.ts";
+import { type CarCare, carFromJSON, type CarMods, modsFromJSON } from "./car-care.ts";
+import type { DriveKind } from "./economy.ts";
 
 export const SAVE_VERSION = 1;
 export const SAVE_KEY = "save";
@@ -77,6 +79,10 @@ export interface WorkSave {
   bike?: BikeCare;
   /** 世界の今日の数（マイページ・配達アプリの記録。配達の草案 32 章）。日が変わると 0 から */
   day?: { day: number; delivered: number; earned: number; onTime: number };
+  /** 自分の車の燃料と傷み（車の種類ごと。D7b、配達の草案 34 章）。無ければ満タン・整備したて */
+  car?: Partial<Record<DriveKind, CarCare>>;
+  /** 自分の車の付け替え（車の種類ごと。D7c、配達の草案 35 章） */
+  carMods?: Partial<Record<DriveKind, CarMods>>;
 }
 
 /** 仕事を始めた時の所持金 (円)【初期値】（最初から喫茶店で食べられるように） */
@@ -112,6 +118,18 @@ export function sanitizeWork(value: unknown): WorkSave {
     gear: w.gear === "carrier" ? "carrier" : "bag",
     bike: careFromJSON(w.bike),
     day: sanitizeDay(w.day),
+    car: (() => {
+      const c = rec(w.car);
+      const out: Partial<Record<DriveKind, CarCare>> = {};
+      for (const k of ["kei", "van"] as DriveKind[]) if (c[k]) out[k] = carFromJSON(c[k], k);
+      return out;
+    })(),
+    carMods: (() => {
+      const c = rec(w.carMods);
+      const out: Partial<Record<DriveKind, CarMods>> = {};
+      for (const k of ["kei", "van"] as DriveKind[]) if (c[k]) out[k] = modsFromJSON(c[k]);
+      return out;
+    })(),
   };
 }
 

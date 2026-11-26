@@ -42,13 +42,19 @@ function clearTerrain(eye: Point, target: Point, ground: Ground, lift = 1.2) {
   }
 }
 
-export function cameraPose(mode: CameraMode, p: RiderPose, aspect: number, ground: Ground): CameraPose {
+/** car: 自分の車で走っている（D7a）。後ろの視点を遠く高く、一人称は右の運転席から */
+export function cameraPose(mode: CameraMode, p: RiderPose, aspect: number, ground: Ground, car = false): CameraPose {
   const portrait = aspect < 0.8;
   const at = (fwd: number, right: number, up: number): Point => ({
     x: p.x + p.dx * fwd - p.dz * right,
     y: p.y + p.grade * fwd + up,
     z: p.z + p.dz * fwd + p.dx * right,
   });
+  if (mode === "rider" && car) {
+    const eye = at(0.45, 0.35, 1.42);
+    const target = at(30, 0.35, 0.4);
+    return { eye, target, fov: portrait ? RIDER_FOV_PORTRAIT : RIDER_FOV, near: 0.12 };
+  }
   if (mode === "rider") {
     const eye = at(-0.15, 0, 1.45);
     const target = at(30, 0, 0.3);
@@ -60,8 +66,9 @@ export function cameraPose(mode: CameraMode, p: RiderPose, aspect: number, groun
     clearTerrain(eye, target, ground, 3);
     return { eye, target, fov: portrait ? 50 : 42 };
   }
-  const eye = at(portrait ? -5.6 : -4.8, 0, portrait ? 2.8 : 2.3);
-  const target = at(3, 0, 0.9);
+  const k = car ? 1.75 : 1;
+  const eye = at((portrait ? -5.6 : -4.8) * k, 0, (portrait ? 2.8 : 2.3) * (car ? 1.45 : 1));
+  const target = at(3 * k, 0, car ? 1.2 : 0.9);
   clearTerrain(eye, target, ground);
   return { eye, target, fov: portrait ? 62 : 55 };
 }

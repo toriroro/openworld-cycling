@@ -71,7 +71,20 @@ import { autoItem, type FoodKind, isFood, type RestItem, restBlock, REST_MENU, t
 import { type CardEntry, fmtSeconds, RestCard } from "./ui/rest-card.ts";
 import { MyPage, type MyPageInfo } from "./ui/my-page.ts";
 import type { PhoneInfo } from "./ui/order-phone.ts";
-import { KIND_LABELS, kindOf, OPEN_DELIVERED, OPEN_MONEY } from "./shared/economy.ts";
+import { KIND_LABELS, kindOf, OPEN_DELIVERED, OPEN_MONEY, DRIVE_CARRY, type DriveKind, driveCheck, setDrive, VEHICLES } from "./shared/economy.ts";
+import { PlayerCar } from "./render/player-car.ts";
+import { applyMod, type CarMods, type ModId, modBlock, modCost, NO_MODS, PAINT, PAINT_CHOICES, SHELF, WINTER } from "./shared/car-care.ts";
+import { CAR_PART_LABELS, CAR_PARTS, type CarCare, carEffects, type CarService, carServiceBlock, carServicePrice, CAR_SERVICES, driveWear, freshCar, RESCUE, rescueCar, serviceCar, TANK, worstCarPart } from "./shared/car-care.ts";
+import { PACE_LABELS } from "./shared/stamina.ts";
+
+/** 自分の車（D7a。配達の草案 33 章）: ペースの段ごとの速さ (km/h)、加速・ブレーキ (m/s²)、大きさ (m)、受け渡しで歩く時間 (s)【初期値】 */
+const CAR_PACE_KMH = [0, 30, 40, 50, 60] as const;
+const CAR_PACE_LABELS = ["止まる", "30km/h", "40km/h", "50km/h", "60km/h"] as const;
+const CAR_SPEC: Record<DriveKind, { accel: number; brake: number; length: number; width: number }> = {
+  kei: { accel: 2.2, brake: 6, length: 3.4, width: 1.48 },
+  van: { accel: 1.9, brake: 6, length: 3.4, width: 1.48 },
+};
+export const CAR_WALK_S = 30;
 import { type BikeCare, CARE_LABELS, CARE_PARTS, CARE_SERVICES, careBlock, careEffects, careFromJSON, type CareService, FRESH_CARE, serviceCare, wear, worstPart } from "./shared/bike-care.ts";
 
 /** 左右位置: 1 回押した時に動く量 (m)、押し続けた時の速さ (m/s) と、動き続けるまでの時間 (ms)【初期値】（配達の草案 26 章） */
@@ -255,7 +268,7 @@ export class Game {
   gear: Gear = "bag";
   /** もう注文を受けられない */
   private get full(): boolean {
-    return this.deliveries.length >= carryLimit(this.gear);
+    return this.deliveries.length >= this.carry();
   }
   /** 買い物を頼んで待っている人の注文の番号 */
   private waitingNo = -1;
@@ -343,7 +356,16 @@ export class Game {
   care: BikeCare = { ...FRESH_CARE };
   private careWarned = 1;
   private careOdo = NaN;
+  /** 自分の車の燃料と傷み（車の種類ごと。D7b）と、燃料を使った所までの走った距離、燃料の知らせの段 */
+  carCare: Partial<Record<DriveKind, CarCare>> = {};
+  /** 自分の車の付け替え（車の種類ごと。D7c） */
+  carMods: Partial<Record<DriveKind, CarMods>> = {};
+  private carOdo = NaN;
+  private fuelWarned = 1;
   private cargoKey = "";
+  /** 自分で乗っている車（D7a。null なら自転車） */
+  driving: DriveKind | null = null;
+  private playerCar = new PlayerCar();
   /** 世界の今日の数（マイページ・配達アプリの記録。配達の草案 32 章） */
   dayStats = { day: -1, delivered: 0, earned: 0, onTime: 0 };
   private myPage = new MyPage();
@@ -576,6 +598,7 @@ export class Game {
     // 眺める乗り方はサイクリングだけ（配達の草案 28 章）
     if (this.mode === "delivery") for (const sel of [this.routeSel, this.fpsSel]) sel.closest(".menu-row")?.remove();
     view.scene.add(this.player.group);
+    view.scene.add(this.playerCar.group);
     // 軽量画質では自転車とライダーも簡略版
     this.player.setLod(view.quality === "light" ? "low" : "high");
     // 自転車と装いの設定画面。開いている間は一時停止し、自転車を横から見る
@@ -728,7 +751,7 @@ export class Game {
       outfit: this.outfit,
       watching: this.watching,
       adventure: this.adventure?.toJSON() ?? this.keptAdventure ?? null,
-      work: { money: this.wallet, delivered: this.delivered, onTime: this.onTime, stamina: this.stamina.toJSON(), guide: this.deliveryGuide, routeStyle: this.routeStyle, app: this.appOn, regulars: this.regulars, economy: this.market?.state ?? this.economySaved, gear: this.gear, bike: { ...this.care }, day: { ...this.dayStats } },
+      work: { money: this.wallet, delivered: this.delivered, onTime: this.onTime, stamina: this.stamina.toJSON(), guide: this.deliveryGuide, routeStyle: this.routeStyle, app: this.appOn, regulars: this.regulars, economy: this.market?.state ?? this.economySaved, gear: this.gear, bike: { ...this.care }, day: { ...this.dayStats }, car: { ...this.carCare }, carMods: { ...this.carMods } },
     };
   }
 
@@ -837,7 +860,8 @@ export class Game {
   private updateTraffic(dt: number, pose: ReturnType<Ride["pose"]> | null) {
     const ride = this.ride;
     if (this.paused || !ride) return;
-    const rider: Rider | null = pose ? { x: pose.x, z: pose.z, dx: pose.dx, dz: pose.dz, speed: ride.speed, pos: { ...ride.pos }, offset: ride.offset } : null;
+    const car = this.driving ? CAR_SPEC[this.driving] : null;
+    const rider: Rider | null = pose ? { x: pose.x, z: pose.z, dx: pose.dx, dz: pose.dz, speed: ride.speed, pos: { ...ride.pos }, offset: ride.offset, car: car ? { length: car.length, width: car.width } : undefined } : null;
     this.traffic.hour = this.view.env.hour;
     let left = dt * this.timeScale;
     while (left > 1e-6) {
@@ -1466,6 +1490,8 @@ export class Game {
       void this.save();
       this.openCompany();
     };
+    this.companyPanel.onDrive = (k) => this.chooseDrive(k);
+    this.companyPanel.carryNow = () => (this.driving ? this.carry() : 0);
     this.companyPanel.onWindUp = () => {
       const m = this.market;
       const c = m?.own();
@@ -1528,6 +1554,9 @@ export class Game {
     this.regulars = { ...(w?.regulars ?? {}) };
     this.gear = w?.gear ?? "bag";
     this.care = careFromJSON(w?.bike ?? null);
+    this.carCare = { ...(w?.car ?? {}) };
+    this.carMods = { ...(w?.carMods ?? {}) };
+    this.fuelWarned = 1;
     this.dayStats = w?.day ? { ...w.day } : { day: -1, delivered: 0, earned: 0, onTime: 0 };
     this.careWarned = 1;
     this.economySaved = w?.economy ?? null;
@@ -1631,18 +1660,18 @@ export class Game {
           return this.appOn ? this.appOrder(p.x, p.z, no, seed) : null;
         },
       );
-    const limit = carryLimit(this.gear);
+    const limit = this.carry();
     const items = this.feed.items.map((it) => ({
       order: it.order,
       remain: it.until - time,
       life: it.until - it.at,
       fromHere: Math.hypot(it.order.pickup.x - p.x, it.order.pickup.z - p.z),
-      block: this.full ? `持てるのは ${limit} 件まで` : gearBlocks(it.order, this.gear),
+      block: this.full ? `持てるのは ${limit} 件まで` : gearBlocks(it.order, this.loadGear()),
       here: false,
     }));
     // 目の前の頼み事・家からの発送も配達アプリの一覧の先頭に出す（受ける所をアプリにそろえる。30 章）
     const c = this.cardOffer;
-    if (c) items.unshift({ order: c.order, remain: 1, life: 1, fromHere: Math.hypot(c.order.pickup.x - p.x, c.order.pickup.z - p.z), block: this.full ? `持てるのは ${limit} 件まで` : gearBlocks(c.order, this.gear), here: true });
+    if (c) items.unshift({ order: c.order, remain: 1, life: 1, fromHere: Math.hypot(c.order.pickup.x - p.x, c.order.pickup.z - p.z), block: this.full ? `持てるのは ${limit} 件まで` : gearBlocks(c.order, this.loadGear()), here: true });
     this.phone.update(items, "");
   }
 
@@ -1653,7 +1682,7 @@ export class Game {
       return;
     }
     const it = this.feed.items.find((x) => x.order.no === no);
-    if (!it || this.full || gearBlocks(it.order, this.gear)) return;
+    if (!it || this.full || gearBlocks(it.order, this.loadGear())) return;
     this.feed.take(no);
     this.offer = it.order;
     this.acceptOrder();
@@ -1714,7 +1743,7 @@ export class Game {
 
   private acceptCardOffer() {
     const c = this.cardOffer;
-    if (!c || gearBlocks(c.order, this.gear) || this.full) return;
+    if (!c || gearBlocks(c.order, this.loadGear()) || this.full) return;
     const ask = c.ask;
     if (ask && this.streetWork) this.streetWork.used.add(ask.kind === "errand" ? ask.errand.id : ask.flag.id);
     // 買い物を頼んだ人は、届けるまでその場で待つ（待つ人は 1 人まで）
@@ -2110,7 +2139,9 @@ export class Game {
     // 持っている注文のどれでも、その行き先の円の中なら受け取り・受け渡しをする
     for (const d of [...this.deliveries]) {
       const z = this.zoneOf(d.target);
-      const r = z ? (inZone(z.zone, pose) ? d.handoff(ride.time, ride.odometer) : null) : d.update(this.addresses, pose, ride.speed, ride.time, ride.odometer);
+      // 自分の車は円の中で止まってから、降りて歩いて渡す（配達の草案 33 章）
+      const stopped = !this.driving || ride.speed < 0.5;
+      const r = z ? (inZone(z.zone, pose) && stopped ? d.handoff(ride.time, ride.odometer, this.driving ? CAR_WALK_S : undefined) : null) : d.update(this.addresses, pose, ride.speed, ride.time, ride.odometer);
       if (!r) continue;
       if (z)
         this.view.handoff.play(r === "picked" ? "pickup" : "dropoff", { x: z.px, y: z.py, z: z.pz }, { x: z.zone.x, y: z.y, z: z.zone.z }, () => this.ride?.pose() ?? pose);
@@ -2127,6 +2158,45 @@ export class Game {
       this.hud.flash("渡した", "ok");
       this.finishDelivery(d, r);
     }
+  }
+
+  /**
+   * 自分の車の前の車・配達員との間（配達の草案 33 章）: 同じ車線の前 40m の相手との隙間が、
+   * 2.5m ＋ 今の速さで 1 秒走る距離 ＋ 相手より速い分を 2.5m/s² で落とすのに要る距離 より短ければ掛ける
+   */
+  private carAheadBrake(): boolean {
+    const ride = this.ride;
+    if (!this.driving || !ride?.road || ride.speed < 0.5) return false;
+    const p = ride.pose();
+    const me = CAR_SPEC[this.driving];
+    for (const v of this.traffic.vehicles) {
+      const rx = v.x - p.x;
+      const rz = v.z - p.z;
+      const lon = rx * p.dx + rz * p.dz;
+      if (lon <= 0 || lon > 40 || Math.abs(v.y - p.y) > 3) continue;
+      const lat = -rx * p.dz + rz * p.dx;
+      if (Math.abs(lat) > (v.width + me.width) / 2 + 0.3) continue;
+      const along = Math.max(0, v.speed * (v.dx * p.dx + v.dz * p.dz));
+      const gap = lon - (v.length + me.length) / 2;
+      const closing = Math.max(0, ride.speed - along);
+      if (gap < 2.5 + ride.speed * 1.0 + (closing * closing) / 5) return true;
+    }
+    return false;
+  }
+
+  /** 自分の車で、向かっている受け渡しの円の中で止まるためのブレーキ（円の中心まで 2.5m/s² で止まれる速さを超えたら・円の中では止まるまで） */
+  private zoneBrake(): boolean {
+    const ride = this.ride;
+    const d = this.delivery;
+    if (!this.driving || !ride?.road || !d || ride.turn) return false;
+    const z = this.zoneOf(d.target);
+    if (!z || ride.pos.road !== z.road) return false;
+    const p = ride.pose();
+    const ahead = (z.zone.x - p.x) * p.dx + (z.zone.z - p.z) * p.dz;
+    if (inZone(z.zone, p)) return ride.speed > 0.3;
+    if (ahead < 0 || ahead > 80) return false;
+    // 円の中心まで 2.5m/s² で止まれる速さより速い時だけ掛ける（手前で止まってまた走り出さないように）
+    return ride.speed > Math.sqrt(2 * 2.5 * ahead) + 0.3;
   }
 
   /** 経路を自動で引く案内の時は、受け渡しの円の手前 40m から、円のある側へ左右位置を寄せる */
@@ -2157,12 +2227,22 @@ export class Game {
     if (this.watching || this.paused || !ride.road) return;
     const p = ride.pose();
     const now = performance.now();
-    for (const v of this.traffic.contacts(p)) {
+    const car = this.driving ? CAR_SPEC[this.driving] : null;
+    for (const v of this.traffic.contacts(p, car ? { length: car.length, width: car.width } : undefined)) {
       // どちらも止まりかけなら当たったことにしない
       if (ride.speed < 1 && v.speed < 1) continue;
       if (now - (this.carHits.get(v.id) ?? -Infinity) < 4000 || now - this.lastCarHit < 1000) continue;
       this.carHits.set(v.id, now);
       this.lastCarHit = now;
+      // 自分の車: 跳ねずに大きく速さを落とし、相手は寄って止まる。体力は減らない（車同士の形は D7d で整える。配達の草案 33 章）
+      if (car) {
+        ride.speed *= 0.3;
+        const rx = p.x - v.x;
+        const rz = p.z - v.z;
+        this.traffic.collide(v, -rx * v.dz + rz * v.dx > 0 ? -1 : 1);
+        this.hud.flash(v.type === "courier" ? "配達員に当たった" : "車に当たった", "hit");
+        continue;
+      }
       // 車の中心から自転車への向きを、自転車の右（-dz, dx）に映して、ずれる向きを決める
       const rx = p.x - v.x;
       const rz = p.z - v.z;
@@ -2207,6 +2287,78 @@ export class Game {
     const now = performance.now();
     if (!this.restMap || now - this.restMap.t > 2000) this.restMap = { t: now, list: restStopsNear(b, this.roads.net.roads, p.x, p.z, 1000, (x, z) => this.inDeliveryArea(x, z), this.restCache) };
     return this.restMap.list;
+  }
+
+  /** 同時に持てる注文の数（自分の車なら車の数。配達の草案 33 章） */
+  carry(): number {
+    return this.driving ? DRIVE_CARRY[this.driving] + (this.modsNow(this.driving).shelf ? SHELF.carry : 0) : carryLimit(this.gear);
+  }
+
+  /** 乗っている車の付け替え（D7c） */
+  modsNow(k: DriveKind): CarMods {
+    return (this.carMods[k] ??= { ...NO_MODS });
+  }
+
+  /** 車の色（塗装していなければ業者の色） */
+  private carColor(k: DriveKind): string {
+    return this.modsNow(k).paint ?? this.market?.own()?.color ?? "#d8642a";
+  }
+
+  /** 燃料店で付け替える（D7c。配達の草案 35 章） */
+  buyMod(id: ModId) {
+    const k = this.driving;
+    const st = this.restCard.stop;
+    if (!k || !st || modBlock(id, this.modsNow(k), this.money)) return;
+    const cost = modCost(id);
+    this.money -= cost.price;
+    this.carMods[k] = applyMod(id, this.modsNow(k));
+    for (const d of this.deliveries) d.addTime(cost.seconds);
+    this.playerCar.set(k, this.carColor(k));
+    const name = id === "shelf" ? "荷室の棚" : id === "winter" ? "冬タイヤ" : `塗装（${PAINT_CHOICES.find((p) => (p.color ?? "") === id.slice(6))?.name ?? ""}）`;
+    this.hud.flash(`${name}　−${cost.price.toLocaleString("ja-JP")} 円`, "ok");
+    this.showRest(st, `${name}　${fmtSeconds(cost.seconds)}経った`, "mods");
+    void this.save();
+  }
+
+  /** 荷の大きさの判定に使う装備（車なら大きめの小包も運べる） */
+  private loadGear(): Gear {
+    return this.driving ? "carrier" : this.gear;
+  }
+
+  /** 自分で乗る車を決める（null で自転車に戻る）。止まっている時だけ。理由があれば返す */
+  chooseDrive(k: DriveKind | null): string | null {
+    const c = this.market?.own();
+    if (!c) return "経営していない";
+    if ((this.ride?.speed ?? 0) > 0.5) return "止まってから";
+    if (k && driveCheck(c, k)) return driveCheck(c, k);
+    if (!k && this.deliveries.length > carryLimit(this.gear)) return `自転車では ${carryLimit(this.gear)} 件まで（今 ${this.deliveries.length} 件）`;
+    setDrive(c, k);
+    this.market!.touch(this.worldToday());
+    void this.save();
+    this.syncDrive();
+    return null;
+  }
+
+  /** 業者の「自分で乗る車」と、走り・見た目・画面を合わせる（毎フレーム。変わった時だけ切り替える） */
+  private syncDrive() {
+    const k = this.mode === "delivery" ? (this.market?.own()?.drive ?? null) : null;
+    const ride = this.ride;
+    if (ride) {
+      const spec = k ? CAR_SPEC[k] : null;
+      // 傷みは加速とブレーキに効く（D7b。配達の草案 34 章）
+      const e = k ? carEffects(this.carNow(k)) : null;
+      ride.car = spec && e ? { accel: spec.accel * e.accel, brake: spec.brake * e.brake } : null;
+    }
+    if (k === this.driving) return;
+    this.driving = k;
+    this.hud.setPaceLabels(k ? CAR_PACE_LABELS : PACE_LABELS);
+    this.hud.setGaugeLabels(k ? "燃料" : "脚", k ? "車" : "体力");
+    this.carOdo = ride?.odometer ?? NaN;
+    this.playerCar.set(k, k ? this.carColor(k) : "#d8642a");
+    this.player.group.visible = !k;
+    this.hud.flash(k ? `${VEHICLES[k].label}に乗った　同時に ${this.carry()} 件まで` : "自転車に乗った", "ok");
+    // 自転車道を通る経路を引き直す
+    if (ride?.goal) ride.setGoal(ride.goal.x, ride.goal.z);
   }
 
   /** 世界の今日の数（日が変わっていれば 0 から） */
@@ -2257,9 +2409,13 @@ export class Game {
       energy: this.stamina.energyShare,
       legs: this.stamina.legsShare,
       exhausted: this.stamina.exhausted,
-      care: CARE_PARTS.map((p) => ({ label: CARE_LABELS[p], share: this.care[p] })),
-      gear: GEAR_LABELS[this.gear],
-      carry: carryLimit(this.gear),
+      care: this.driving
+        ? [{ label: "燃料", share: this.carNow(this.driving).fuel / TANK[this.driving] }, ...CAR_PARTS.map((p) => ({ label: CAR_PART_LABELS[p], share: this.carNow(this.driving!)[p] }))]
+        : CARE_PARTS.map((p) => ({ label: CARE_LABELS[p], share: this.care[p] })),
+      vehicleTitle: this.driving ? "車" : "自転車",
+      vehicleNote: this.driving ? "給油・整備は燃料店" : "直すのは自転車店",
+      gear: this.driving ? `${VEHICLES[this.driving].label}（業者の車）` : GEAR_LABELS[this.gear],
+      carry: this.carry(),
       deliveries: this.deliveries.map((d) => ({ phase: d.phase, target: d.target.name, reward: d.order.reward, remaining: ride ? d.remaining(ride.time) : 0 })),
       goal,
     };
@@ -2271,7 +2427,7 @@ export class Game {
     const co = this.companyNow();
     return {
       active: this.deliveries.map((d, i) => ({ no: d.order.no, phase: d.phase, target: d.target.name, reward: d.order.reward, remaining: d.remaining(time), limit: d.order.limit, heading: i === 0 })),
-      carry: carryLimit(this.gear),
+      carry: this.carry(),
       today: { weekday: worldDay(Date.now() + this.clockOffset).weekday, delivered: ds.delivered, earned: ds.earned, onTime: ds.onTime },
       total: { delivered: this.delivered, onTime: this.onTime, regulars: Object.values(this.regulars).filter((n) => n >= REGULAR_AFTER).length },
       money: this.wallet,
@@ -2286,7 +2442,7 @@ export class Game {
    */
   tryYose(dir: -1 | 1): boolean {
     const ride = this.ride;
-    if (this.mode !== "delivery" || this.watching || !ride?.road || ride.speed < 1.5) return false;
+    if (this.mode !== "delivery" || this.watching || this.driving || !ride?.road || ride.speed < 1.5) return false;
     const p = ride.pose();
     const now = performance.now();
     let best: Vehicle | null = null;
@@ -2459,7 +2615,7 @@ export class Game {
   }
 
   /** 札を出す・出し直す: 食べ物の所は品書き、自転車店は傷みと整備とリアキャリア、車の整備は空気入れ（配達の草案 28・29 章） */
-  private showRest(st: RestStop, note: string) {
+  private showRest(st: RestStop, note: string, page: "service" | "mods" = "service") {
     const money = `所持金 ${Math.round(this.money).toLocaleString("ja-JP")} 円`;
     if (isFood(st.kind)) {
       const entries: CardEntry[] = REST_MENU[st.kind].map((it) => ({
@@ -2472,8 +2628,48 @@ export class Game {
       this.restCard.show(st, `体力 ${Math.round(this.stamina.energyShare * 100)}%  ${money}`, [], entries, note);
       return;
     }
+    // 自分の車で燃料店に来た: 給油・空気・オイル・ブレーキ・まとめて点検（D7b。配達の草案 34 章）
+    const k = this.driving;
+    if (st.kind === "car" && k && page === "mods") {
+      // 付け替えの頁（D7c。配達の草案 35 章）
+      const m = this.modsNow(k);
+      const cur = PAINT_CHOICES.find((p) => p.color === m.paint)?.name ?? "業者の色";
+      const rows: [string, string][] = [
+        ["荷室の棚", m.shelf ? "付いている" : "無し"],
+        ["冬タイヤ", m.winter ? "付いている" : "無し"],
+        ["色", cur],
+      ];
+      const entries: CardEntry[] = [
+        { name: "荷室の棚", price: `${SHELF.price.toLocaleString("ja-JP")} 円`, gain: `同時に持てる注文 +${SHELF.carry} 件  ${fmtSeconds(SHELF.seconds)}`, why: modBlock("shelf", m, this.money), onClick: () => this.buyMod("shelf") },
+        { name: "冬タイヤ", price: `${WINTER.price.toLocaleString("ja-JP")} 円`, gain: `雪の日に遅くならない  ${fmtSeconds(WINTER.seconds)}`, why: modBlock("winter", m, this.money), onClick: () => this.buyMod("winter") },
+        ...PAINT_CHOICES.map((p) => {
+          const id = `paint:${p.color ?? ""}` as ModId;
+          return { name: `塗装（${p.name}）`, price: `${PAINT.price.toLocaleString("ja-JP")} 円`, gain: fmtSeconds(PAINT.seconds), why: modBlock(id, m, this.money), onClick: () => this.buyMod(id) };
+        }),
+        { name: "給油・整備に戻る", price: "", gain: "", why: null, onClick: () => this.showRest(st, "", "service") },
+      ];
+      this.restCard.show(st, `資金 ${Math.round(this.money).toLocaleString("ja-JP")} 円`, rows, entries, note);
+      return;
+    }
+    if (st.kind === "car" && k) {
+      const c = this.carNow(k);
+      const rows: [string, string][] = [["燃料", `${c.fuel.toFixed(1)} / ${TANK[k]} L`], ...CAR_PARTS.map((p) => [CAR_PART_LABELS[p], `${Math.round(c[p] * 100)}%`] as [string, string])];
+      const entries: CardEntry[] = CAR_SERVICES.map((s) => {
+        const price = carServicePrice(s, c, k);
+        return {
+          name: s.name,
+          price: price ? `${price.toLocaleString("ja-JP")} 円` : "無料",
+          gain: `${s.id === "fuel" ? `燃料 ${TANK[k]} L まで` : s.parts.map((p) => CAR_PART_LABELS[p]).join("・") + "を 100%"}  ${fmtSeconds(s.seconds)}`,
+          why: carServiceBlock(s, c, k, this.money),
+          onClick: () => this.buyCarService(s),
+        };
+      });
+      entries.push({ name: "付け替え（荷室の棚・冬タイヤ・塗装）", price: "", gain: "", why: null, onClick: () => this.showRest(st, "", "mods") });
+      this.restCard.show(st, `資金 ${Math.round(this.money).toLocaleString("ja-JP")} 円`, rows, entries, note);
+      return;
+    }
     const rows: [string, string][] = CARE_PARTS.map((p) => [CARE_LABELS[p], `${Math.round(this.care[p] * 100)}%`]);
-    // 燃料店は空気入れだけ（車はまだ持てない）
+    // 自転車で燃料店に来た時は空気入れだけ
     const services = st.kind === "bike" ? CARE_SERVICES : CARE_SERVICES.filter((s) => s.id === "air");
     const entries: CardEntry[] = services.map((s) => ({
       name: s.name,
@@ -2497,7 +2693,7 @@ export class Game {
           void this.save();
         },
       });
-    else rows.push(["車", "持っていない"]);
+    else rows.push(["車", this.market?.own() ? "乗っていない（経営の乗り物のタブで乗る）" : "持っていない"]);
     this.restCard.show(st, money, rows, entries, note);
   }
 
@@ -2514,9 +2710,84 @@ export class Game {
     void this.save();
   }
 
+  /** 乗っている車の燃料と傷み（無ければ満タン・整備したて。D7b） */
+  carNow(k: DriveKind): CarCare {
+    return (this.carCare[k] ??= freshCar(k));
+  }
+
+  /**
+   * 自分の車で走った分だけ燃料を使い傷める（D7b。配達の草案 34 章）。燃料が尽きたら止め、呼んで届けてもらう札を出す。
+   * 燃料が 25%・10% を切った時に近くの燃料店を知らせる
+   */
+  private updateCar(ride: Ride, pose: { x: number; z: number } | null) {
+    const k = this.driving;
+    if (!k || this.watching) {
+      this.carOdo = ride.odometer;
+      return;
+    }
+    const d = ride.odometer - this.carOdo;
+    if (d > 0 && d < 500) this.carCare[k] = driveWear(this.carNow(k), k, d);
+    this.carOdo = ride.odometer;
+    const c = this.carNow(k);
+    const share = c.fuel / TANK[k];
+    if (share > this.fuelWarned + 0.05) this.fuelWarned = 1;
+    for (const th of [0.25, 0.1]) {
+      if (share >= th || this.fuelWarned <= th || !pose) continue;
+      this.fuelWarned = th;
+      let best: RestStop | null = null;
+      for (const s of this.restStops) if (s.kind === "car" && (!best || Math.hypot(s.roadX - pose.x, s.roadZ - pose.z) < Math.hypot(best.roadX - pose.x, best.roadZ - pose.z))) best = s;
+      this.hud.flash(`燃料 ${Math.round(th * 100)}%${best ? `　近くの燃料店 ${Math.round(Math.hypot(best.roadX - pose.x, best.roadZ - pose.z) / 10) * 10}m` : ""}`, "hit");
+      break;
+    }
+    // 燃料が尽きた: 止まって、呼んで届けてもらう札
+    if (c.fuel <= 0 && ride.speed < 0.3 && !this.restCard.isOpen) this.showRescue();
+  }
+
+  /** 燃料切れの札（呼んで届けてもらう。D7b） */
+  private showRescue() {
+    const k = this.driving;
+    const ride = this.ride;
+    if (!k || !ride?.road) return;
+    const p = ride.pose();
+    const st = { id: "rescue", kind: "car", name: "燃料が無い", x: p.x, y: p.y, z: p.z, fx: 0, fz: 1, road: ride.pos.road, s: ride.pos.s, roadX: p.x, roadZ: p.z, bx: p.x, bz: p.z } as RestStop;
+    this.restCard.show(st, `資金 ${Math.round(this.money).toLocaleString("ja-JP")} 円`, [["燃料", "0 L"]], [
+      {
+        name: "呼んで届けてもらう",
+        price: `${RESCUE.price.toLocaleString("ja-JP")} 円`,
+        gain: `燃料 ${RESCUE.liters} L  ${fmtSeconds(RESCUE.seconds)}`,
+        why: this.money < RESCUE.price ? "資金が足りない" : null,
+        onClick: () => {
+          if (this.money < RESCUE.price) return;
+          this.money -= RESCUE.price;
+          this.carCare[k] = rescueCar(this.carNow(k), k);
+          for (const d of this.deliveries) d.addTime(RESCUE.seconds);
+          this.fuelWarned = 1;
+          this.restCard.hide();
+          this.hud.flash(`燃料を ${RESCUE.liters} L 届けてもらった　−${RESCUE.price.toLocaleString("ja-JP")} 円`, "ok");
+          void this.save();
+        },
+      },
+    ]);
+  }
+
+  /** 燃料店で車の給油・整備を頼む（D7b） */
+  buyCarService(s: CarService) {
+    const k = this.driving;
+    const st = this.restCard.stop;
+    if (!k || !st || carServiceBlock(s, this.carNow(k), k, this.money)) return;
+    const price = carServicePrice(s, this.carNow(k), k);
+    this.money -= price;
+    this.carCare[k] = serviceCar(s, this.carNow(k), k);
+    for (const d of this.deliveries) d.addTime(s.seconds);
+    this.fuelWarned = 1;
+    this.hud.flash(`${s.name}　−${price.toLocaleString("ja-JP")} 円`, "ok");
+    this.showRest(st, `${s.name}　${fmtSeconds(s.seconds)}経った`);
+    void this.save();
+  }
+
   /** 走った分だけ自転車を傷め、傷みを走りに効かせる（配達だけ。サイクリングと眺める時は傷めない） */
   private updateCare(ride: Ride) {
-    const on = this.mode === "delivery" && !this.watching && ride.power === this.manual;
+    const on = this.mode === "delivery" && !this.watching && ride.power === this.manual && !this.driving;
     const d = ride.odometer - this.careOdo;
     if (on && d > 0 && d < 500) this.care = wear(this.care, d);
     this.careOdo = ride.odometer;
@@ -2997,7 +3268,7 @@ export class Game {
     // 左右のボタン・キーを押し続けている間は、左右位置を動かし続ける（配達の草案 26 章）
     const lane = this.input.lane;
     if (lane && ride && !this.paused && performance.now() - this.input.laneSince > LANE_HOLD_MS) ride.shiftLane(lane * LANE_SPEED * dt);
-    this.manual.brake = this.input.brake || this.arriving || this.restBrake() ? 1 : 0;
+    this.manual.brake = this.input.brake || this.arriving || this.restBrake() || this.zoneBrake() || this.carAheadBrake() ? 1 : 0;
     this.trainer.power.brake = this.manual.brake;
     this.updateTrainer();
     // 冒険の距離はトレーナー以外で走る時だけ使う（冒険の草案 0 章の 7）
@@ -3008,8 +3279,10 @@ export class Game {
       const maxSteps = 24 * this.timeScale;
       while (this.acc >= DT && n < maxSteps) {
         // 脚と体力（配達の草案 14.2）: 手動では出せる出力を抑え、トレーナーでは減るだけ。眺める乗り方では使わない
-        // 体力とペースの補助は配達だけ。サイクリングは補助なしの出力で走る（配達の草案 28 章）
-        const work = this.mode === "delivery";
+        // 体力とペースの補助は配達の自転車だけ。サイクリングは補助なしの出力で走る（配達の草案 28 章）。車は体力を使わない（33 章）
+        const work = this.mode === "delivery" && !this.driving;
+        // 燃料が尽きたら走れない（D7b）
+        if (this.driving) ride.carTarget = this.carNow(this.driving).fuel > 0 ? CAR_PACE_KMH[this.manual.pedal ? 2 : this.manual.pace] / 3.6 : 0;
         this.manual.cap = this.watching || !work ? Infinity : this.stamina.cap();
         // ペースの補助（配達の草案 26 章）: 手動で漕ぐ時だけ。漕ぐボタンは「ふつう」と同じ
         const assisted = ride.power === this.manual && !this.watching && work;
@@ -3033,6 +3306,8 @@ export class Game {
       this.checkRest(ride);
       this.updateCare(ride);
       this.updateRestAction();
+      this.syncDrive();
+      this.updateCar(ride, ride.road ? ride.pose() : null);
     }
 
     let eye = { x: this.anchor.x, y: this.view.heights.height(this.anchor.x, this.anchor.z) + 40, z: this.anchor.z };
@@ -3043,7 +3318,7 @@ export class Game {
     if (ride?.road) {
       pose = ride.pose();
       const aspect = this.view.camera.aspect;
-      const c = cameraPose(this.camera, pose, aspect, (x, z) => this.view.surfaceHeight(x, z));
+      const c = cameraPose(this.camera, pose, aspect, (x, z) => this.view.surfaceHeight(x, z), !!this.driving);
       this.orbit.update(dt);
       if (this.orbit.active && !this.outfitPanel.isOpen) {
         const o = orbitView(c.eye, c.target, { x: pose.x, y: pose.y + 1.0, z: pose.z }, this.orbit.yaw, this.orbit.pitch, this.camera === "rider");
@@ -3119,8 +3394,9 @@ export class Game {
       if (this.view.world.local && pose) this.view.cutWalls.update(this.roads.net.roads.values(), this.view.heights, this.view.originX, this.view.originZ, pose.x, pose.z, this.roads.net.version);
       this.view.restStops.pulse(t / 1000);
       this.view.realPoles?.setLights(lights);
-      this.player.group.visible = !!pose;
-      if (pose && ride) {
+      this.player.group.visible = !!pose && !this.driving;
+      if (pose && this.driving) this.playerCar.update(pose.x - this.view.originX, pose.y, pose.z - this.view.originZ, pose.dx, pose.dz, pose.grade);
+      if (pose && ride && !this.driving) {
         this.player.cadenceOverride = ride.power === this.trainer.power ? this.trainer.cadenceRpm : null;
         this.player.update(
           this.paused ? 0 : dt,
@@ -3223,8 +3499,9 @@ export class Game {
       pace: !this.watching && ride.power === this.manual ? this.manual.pace : null,
       // 脚が尽きて抑えている間に実際に走れるペース（選んだペースより遅い時だけ）
       paceCapped: !this.watching && ride.power === this.manual && this.mode === "delivery" ? this.cappedPace() : null,
-      legs: this.watching || this.mode === "cycling" ? null : this.stamina.legsShare,
-      energy: this.watching || this.mode === "cycling" ? null : this.stamina.energyShare,
+      // 自分の車では、2 本の棒を燃料と車のいちばん傷んだ所にする（D7b）
+      legs: this.watching || this.mode === "cycling" ? null : this.driving ? this.carNow(this.driving).fuel / TANK[this.driving] : this.stamina.legsShare,
+      energy: this.watching || this.mode === "cycling" ? null : this.driving ? worstCarPart(this.carNow(this.driving)).share : this.stamina.energyShare,
       care: this.mode === "delivery" ? worstPart(this.care).share : null,
       hour: this.view.env.hour,
       weekday: this.forceSky?.hour !== undefined || this.settings.clock === "fixed" ? null : worldDay(Date.now() + this.clockOffset).weekday,

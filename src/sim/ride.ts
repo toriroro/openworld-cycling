@@ -13,6 +13,7 @@ import type { PowerSource } from "./power.ts";
 import { RIDDEN_BIN, RiddenLog } from "./ridden.ts";
 import { type RoadNetwork, type RoadPosition, roadSpacing, sampleRoad } from "./road-network.ts";
 import { planRoute, type RoutePlan, type RouteStyle } from "./route-plan.ts";
+import { SPEED_LIMIT } from "./traffic/vehicle-types.ts";
 
 /** カーブで許す横加速度 (m/s²)【初期値】 */
 export const LATERAL_ACCEL = 4;
@@ -105,6 +106,12 @@ export class Ride {
   offset = 0;
   /** 利用者が動かした左右位置の量 (m) */
   laneShift = 0;
+  /**
+   * 車で走る（D7a。配達の草案 33 章）: 速さの目標 (m/s)・加速・ブレーキ (m/s²)。null なら自転車。
+   * 車の時は自転車の物理（出力）を使わず、目標の速さへ加速し、ブレーキで減速する。自転車道へは曲がらない
+   */
+  car: { accel: number; brake: number } | null = null;
+  carTarget = 0;
   /** はね返りの残りの時間 (s)。0 なら跳ねていない */
   bumpT = 0;
   /** 「横」の残りの時間 (s) と向き（右が 1） */
@@ -244,7 +251,7 @@ export class Ride {
 
   private replan() {
     this.replanT = 30;
-    this.plan = this.goal ? planRoute(this.net, this.pos, this.goal.x, this.goal.z, this.routeStyle) : null;
+    this.plan = this.goal ? planRoute(this.net, this.pos, this.goal.x, this.goal.z, this.routeStyle, !!this.car) : null;
     if (this.upcoming && this.upcoming.selected !== null && this.upcoming.byPlan) this.upcoming.selected = null;
     this.applyPlan();
   }
@@ -352,9 +359,24 @@ export class Ride {
     const slowEnough = pend && this.speed <= UTURN_SPEED;
     this.brake = Math.max(brake, this.autoBrake, pend && !slowEnough ? 1 : 0);
     this.watts = this.autoBrake > 0 || (pend && !slowEnough) ? 0 : slowEnough ? (this.turn ? UTURN_CRAWL_W : 0) : watts;
-    const r = integrateSpeed(this.speed, this.grade, this.brake, this.propulsionWatts(), dt, this.bike);
-    let dist = r.distance;
-    this.speed = r.speed;
+    let dist: number;
+    if (this.car) {
+      // 車: 目標の速さ（道の制限速度まで）へ加速。ブレーキ・自動の減速・U ターンの減速で減速。上りでは加速が鈍る
+      const lim = (SPEED_LIMIT[road.cls] ?? 8) * 1.0;
+      const target = this.uTurnPending && !slowEnough ? 0 : Math.min(this.carTarget, lim, slowEnough && this.turn ? 2 : Infinity);
+      const v0 = this.speed;
+      let v = v0;
+      if (this.brake > 0) v = Math.max(0, v - this.car.brake * this.brake * dt);
+      else if (v < target) v = Math.min(target, v + this.car.accel * Math.max(0.3, 1 - Math.max(0, this.grade) * 6) * dt);
+      else v = Math.max(target, v - 1.2 * dt);
+      this.watts = 0;
+      this.speed = v;
+      dist = ((v0 + v) / 2) * dt;
+    } else {
+      const r = integrateSpeed(this.speed, this.grade, this.brake, this.propulsionWatts(), dt, this.bike);
+      dist = r.distance;
+      this.speed = r.speed;
+    }
     if (edge < Infinity && dist >= edge - EDGE_MARGIN) {
       dist = Math.max(0, edge - EDGE_MARGIN);
       this.speed = 0;
@@ -587,6 +609,8 @@ export class Ride {
       if (!r) continue;
       // 来た道へ戻る腕は除く
       if (a.road === road.id && Math.abs(a.s - s) < 0.5 && a.dir === -this.pos.dir) continue;
+      // 車は自転車道へ曲がらない（配達の草案 33 章）
+      if (this.car && r.kind === "cycleway") continue;
       const p0 = sampleRoad(r, a.s);
       const p1 = sampleRoad(r, Math.max(0, Math.min(r.length, a.s + a.dir * 20)));
       let ax = p1.x - p0.x;

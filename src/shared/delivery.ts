@@ -285,9 +285,9 @@ export class Delivery {
     return this.handoff(time, odometer);
   }
 
-  /** 受け取り・受け渡しを 1 つ進める（受け渡しの円に入った時。配達の草案 26 章） */
-  handoff(time: number, odometer: number): "picked" | DeliveryResult {
-    this.handover += HANDOVER_S;
+  /** 受け取り・受け渡しを 1 つ進める（受け渡しの円に入った時。配達の草案 26 章）。walk は歩いて渡す時間 (s)（車は止めて歩くので長い。33 章） */
+  handoff(time: number, odometer: number, walk: number = HANDOVER_S): "picked" | DeliveryResult {
+    this.handover += walk;
     if (this.phase === "pickup") {
       this.phase = "dropoff";
       return "picked";

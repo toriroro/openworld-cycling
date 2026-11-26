@@ -20,6 +20,9 @@ export interface MyPageInfo {
   legs: number;
   exhausted: boolean;
   care: { label: string; share: number }[];
+  /** 乗り物の欄の見出しと右の補足（自転車・自分の車） */
+  vehicleTitle: string;
+  vehicleNote: string;
   gear: string;
   carry: number;
   deliveries: { phase: "pickup" | "dropoff"; target: string; reward: number; remaining: number }[];
@@ -90,7 +93,7 @@ export class MyPage {
     meter(body, "体力", i.energy, `${Math.round(i.energy * 100)}%`);
     meter(body, "脚", i.legs, `${Math.round(i.legs * 100)}%`);
 
-    const bike = section(this.body, "自転車", "直すのは自転車店");
+    const bike = section(this.body, i.vehicleTitle, i.vehicleNote);
     for (const c of i.care) meter(bike, c.label, c.share, `${Math.round(c.share * 100)}%`);
     const gear = el("div", "my-chips", "", bike);
     chip(gear, i.gear, "accent");

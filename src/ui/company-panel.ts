@@ -11,6 +11,8 @@ import {
   closeDepot,
   type Company,
   crewPlan,
+  DRIVE_CARRY,
+  type DriveKind,
   DEPOT_OPEN,
   depotCheck,
   dismiss,
@@ -126,6 +128,11 @@ export class CompanyPanel {
   onOpen: (name: string, chome: string) => void = () => {};
   /** 畳む */
   onWindUp: () => void = () => {};
+  /** 自分で乗る車を決める（null で自転車に戻る）。できなければ理由（配達の草案 33 章） */
+  onDrive: (k: DriveKind | null) => string | null = () => null;
+  /** 今乗っている車で同時に持てる注文の数（荷室の棚の分も。D7c） */
+  carryNow: () => number = () => 0;
+  private driveNote = "";
 
   constructor() {
     this.root = h("div", "stamp-book ranking company hidden");
@@ -374,6 +381,17 @@ export class CompanyPanel {
 
   private renderVehicles(ctx: CompanyContext, c: Company) {
     const plan = crewPlan(c, ctx.today);
+    // 自分で乗る車（D7a）
+    const me = this.item(c.drive ? `自分で乗っている: ${VEHICLES[c.drive].label}` : "自分は自転車", [this.driveNote, "軽自動車・軽バンを持っていれば、1 台を自分で乗れる。その 1 台は配達員に割り当てない。止まっている時だけ乗り換える"], undefined, {
+      right: c.drive ? `同時に ${this.carryNow() || DRIVE_CARRY[c.drive]} 件` : "",
+      chips: c.drive ? [["円の中で止まって歩いて渡す", "warn"], ["体力を使わない", "good"]] : [],
+    });
+    const drive = (k: DriveKind | null) => {
+      this.driveNote = this.onDrive(k) ?? "";
+      this.changed();
+    };
+    for (const k of ["kei", "van"] as DriveKind[]) if (c.drive !== k) this.button(me, `${VEHICLES[k].label}に乗る`, () => drive(k), !(c.fleet?.[k] ?? 0));
+    if (c.drive) this.button(me, "自転車に戻る", () => drive(null));
     this.sub(`乗り物の費用 1 日 ${yen(plan.vehicles)}  届く距離 ${plan.reach.toFixed(2)} 倍（配達員の平均）`);
     for (const k of VEHICLE_KINDS) {
       const v = VEHICLES[k];
@@ -381,7 +399,7 @@ export class CompanyPanel {
       const used = plan.slots.filter((sl) => sl.vehicle === k).length;
       const act = this.item(v.label, [`買う ${yen(v.price)}  維持 1 日 ${yen(v.daily)}`], undefined, {
         right: `${n} 台`,
-        chips: [[`割り当て ${used} 台`, used ? "accent" : "plain"], [`1 人 1 日 ${v.cap} 件`], [`届く距離 ${v.reach.toFixed(2)} 倍`]],
+        chips: [[`割り当て ${used} 台`, used ? "accent" : "plain"], ...(c.drive === k ? [["自分で 1 台", "warn"] as [string, Tone]] : []), [`1 人 1 日 ${v.cap} 件`], [`届く距離 ${v.reach.toFixed(2)} 倍`]],
       });
       this.button(act, "買う", () => {
         buyVehicle(c, k);

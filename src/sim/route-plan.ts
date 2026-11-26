@@ -114,7 +114,7 @@ export function isTurn(net: RoadNetwork, inRoad: string, inS: number, inDir: num
 const GOAL_EPS = 0.5;
 
 /** 今の位置から行き先までの経路。行けなければ null */
-export function planRoute(net: RoadNetwork, from: RoadPosition, goalX: number, goalZ: number, style: RouteStyle = "short"): RoutePlan | null {
+export function planRoute(net: RoadNetwork, from: RoadPosition, goalX: number, goalZ: number, style: RouteStyle = "short", noCycleway = false): RoutePlan | null {
   // 今いる道路が切れ端の上でなければ、行き先も切れ端の上に置かない
   const goal = nearestOnNetwork(net, goalX, goalZ, !net.roads.get(from.road)?.island);
   if (!goal) return null;
@@ -211,6 +211,8 @@ export function planRoute(net: RoadNetwork, from: RoadPosition, goalX: number, g
     if (!j) continue;
     for (const a of j.arms) {
       if (!net.roads.has(a.road)) continue;
+      // 車は自転車道を通らない（配達の草案 33 章）
+      if (noCycleway && net.roads.get(a.road)!.kind === "cycleway") continue;
       // 来た道へそのまま戻る腕は使わない
       if (a.road === inRoad && a.dir === -Number(inDir) && Math.abs(a.s - Number(inS)) < 0.5) continue;
       relax(v, d, a.road, a.s, a.dir, jid, a, isTurn(net, inRoad, Number(inS), Number(inDir), a) ? TURN_COST : 0);

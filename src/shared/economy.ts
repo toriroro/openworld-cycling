@@ -86,6 +86,8 @@ export interface Company {
   reason?: string;
   /** 長距離の便の契約（D5。配達の草案 22 章。計算は freight.ts） */
   contracts?: Contract[];
+  /** 経営者が自分で乗っている車（D7a。配達の草案 33 章）。その 1 台は配達員に割り当てない */
+  drive?: DriveKind | null;
   /** 便の日ごとの結果（締める前の分。締めると収支へ移す） */
   freight?: FreightDay[];
   /** 便を最後に進めた時刻（Unix ミリ秒） */
@@ -171,6 +173,24 @@ export interface Crew {
 export type Vehicle = "ebike" | "moto" | "kei" | "van" | "truck" | "t3" | "t10";
 export type TruckKind = "truck" | "t3" | "t10";
 export type Fleet = Partial<Record<Vehicle, number>>;
+/** 経営者が自分で乗れる車（D7a。配達の草案 29.5 の 68・33 章） */
+export type DriveKind = "kei" | "van";
+export const DRIVE_KINDS: DriveKind[] = ["kei", "van"];
+/** 自分で乗る時に同時に持てる注文の数【初期値】 */
+export const DRIVE_CARRY: Record<DriveKind, number> = { kei: 3, van: 4 };
+
+/** 自分で乗れるか。乗れなければ理由 */
+export function driveCheck(c: Company, v: DriveKind): string | null {
+  if (!(c.fleet?.[v] ?? 0)) return "持っていない（乗り物のタブで買う）";
+  return null;
+}
+
+/** 自分で乗る車を決める（null で自転車に戻る） */
+export function setDrive(c: Company, v: DriveKind | null): boolean {
+  if (v && driveCheck(c, v)) return false;
+  c.drive = v;
+  return true;
+}
 
 /** 日ごとの収支 */
 export interface Ledger {
@@ -756,6 +776,8 @@ export function crewPlan(c: Company, day: number): { slots: CrewSlot[]; drivers:
   const crew = all.slice(0, all.length - nd);
   const drivers = all.slice(all.length - nd);
   const left: Record<Vehicle, number> = { ebike: c.fleet?.ebike ?? 0, moto: c.fleet?.moto ?? 0, kei: c.fleet?.kei ?? 0, van: c.fleet?.van ?? 0, truck: 0, t3: 0, t10: 0 };
+  // 経営者が自分で乗っている車は配達員に割り当てない（33 章）
+  if (c.drive && left[c.drive] > 0) left[c.drive]--;
   const slots: CrewSlot[] = crew.map((m) => {
     const v = VEHICLE_KINDS.find((k) => left[k] > 0) ?? "own";
     if (v !== "own") left[v]--;
@@ -908,7 +930,9 @@ export const runsOfKind = (c: Company, v: Vehicle) => (c.contracts ?? []).reduce
 
 /** 乗り物を売る（半値）。便に付けているトラックは売らない */
 export function sellVehicle(c: Company, v: Vehicle): boolean {
-  if (!(c.fleet?.[v] ?? 0) || (c.fleet?.[v] ?? 0) <= runsOfKind(c, v)) return false;
+  // 便に付けているトラックと、自分で乗っている車は売らない
+  const inUse = runsOfKind(c, v) + (c.drive === v ? 1 : 0);
+  if (!(c.fleet?.[v] ?? 0) || (c.fleet?.[v] ?? 0) <= inUse) return false;
   c.cash += VEHICLES[v].price / 2;
   c.fleet = { ...c.fleet, [v]: (c.fleet?.[v] ?? 0) - 1 };
   return true;
@@ -935,6 +959,7 @@ export function setPrice(c: Company, price: number) {
 /** 畳む・廃業の後の所持金: 乗り物を半値で売り、資金がプラスならそれ、マイナスなら 0 円（21.1 の 37） */
 export function windUp(s: EconomyState, c: Company, day: number, reason = "畳んだ"): number {
   c.contracts = [];
+  c.drive = null;
   for (const v of ALL_VEHICLES) while (sellVehicle(c, v));
   if (c.closed === null) {
     c.closed = day;
@@ -1122,6 +1147,7 @@ export function sanitizeEconomy(v: unknown): EconomyState | null {
       if (Array.isArray(c.contracts)) co.contracts = sanitizeContracts(c.contracts);
       if (Array.isArray(c.freight)) co.freight = sanitizeFreight(c.freight);
       if (typeof c.freightAt === "number") co.freightAt = num(c.freightAt, 0);
+      if ((c.drive === "kei" || c.drive === "van") && (co.fleet[c.drive] ?? 0) > 0) co.drive = c.drive;
     }
   }
   const history = (Array.isArray(o.history) ? o.history : [])
