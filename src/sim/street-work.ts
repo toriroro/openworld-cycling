@@ -6,6 +6,7 @@ import { type AddressBook, shortAddress } from "../shared/world/address.ts";
 import { hash } from "../shared/world/hash.ts";
 import type { HokkaidoBuildings } from "../shared/world/hokkaido.ts";
 import type { Road } from "../shared/world/types.ts";
+import { CHAIN_NAMES, chainOf } from "../shared/rest-stops.ts";
 import { type Errand, errandsNear, GOODS_SIGNS, houseFlag, housesNear, MEAL_SIGNS, roadSpot, type RoadSpot, SHOP_SIGNS, shopsNear, type WorkBuilding } from "../shared/work-places.ts";
 
 /** 頼み事の人・旗の家を拾う範囲 (m)、拾い直す間隔 (s)【初期値】 */
@@ -137,7 +138,9 @@ export class StreetWork {
     for (const s of shopsNear(this.buildings, x, z, r, signs, this.inside)) {
       const spot = this.spotOf(s);
       if (!spot) continue;
-      out.push({ name: `${SHOP_SIGNS[s.sign]}（${this.short(s.x, s.z)}）`, x: spot.x, z: spot.z, kind: "shop", id: s.id, bx: s.x, bz: s.z });
+      // チェーンの牛丼屋・定食屋は、店の名前で出す（配達の草案 28 章）
+      const chain = chainOf(s.seed, s.sign);
+      out.push({ name: `${chain ? CHAIN_NAMES[chain] : SHOP_SIGNS[s.sign]}（${this.short(s.x, s.z)}）`, x: spot.x, z: spot.z, kind: "shop", id: s.id, bx: s.x, bz: s.z });
     }
     return out;
   }

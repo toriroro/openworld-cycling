@@ -1,8 +1,9 @@
 // 起動画面と操作の説明。文言は操作・状態・事実情報だけ（CLAUDE.md）。
-// 起動画面: 続きから（保存があれば）・はじめから（記録を消す時は 2 回押す）・眺める。保存の事実（総距離・スタンプ・最後に走った日）を出す。
+// 起動画面: 遊び方（配達・サイクリング。配達の草案 28 章）を選び、続きから（保存があれば）・はじめから（記録を消す時は 2 回押す）。
+// 配達は所持金・届けた件数、サイクリングは総距離・スタンプなど保存の事実を出す。世界を選ぶのはサイクリングの時だけ（配達は北海道）。
 
 import type { SaveData } from "../shared/save.ts";
-import { WORLD_LABELS, type WorldChoice, type WorldId } from "../world-choice.ts";
+import { PLAY_LABELS, type PlayMode, WORLD_LABELS, type WorldChoice, type WorldId } from "../world-choice.ts";
 import { creditLine } from "./credit.ts";
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = "", parent?: HTMLElement) => {
@@ -19,7 +20,7 @@ const btn = (label: string, parent: HTMLElement, cls = "") => {
   return b;
 };
 
-export type TitleChoice = "continue" | "new" | "new-adventure" | "watch";
+export type TitleChoice = "continue" | "new" | "new-adventure" | "new-delivery" | "watch";
 
 export class TitleScreen {
   readonly root: HTMLElement;
@@ -29,23 +30,37 @@ export class TitleScreen {
   onHelp: () => void = () => {};
   /** 世界を選び直した（読み込み直しが要る） */
   onWorld: (id: WorldId) => void = () => {};
+  /** 遊び方を選び直した（読み込み直しが要る） */
+  onMode: (m: PlayMode) => void = () => {};
   /** アカウントの画面を開く（配達の草案 23.3） */
   onAccount: () => void = () => {};
   private account: HTMLButtonElement;
 
-  constructor(world?: WorldChoice) {
+  constructor(
+    world?: WorldChoice,
+    private mode: PlayMode = "cycling",
+  ) {
     this.root = h("div", "title-screen hidden");
     document.body.appendChild(this.root);
     const panel = h("div", "title-panel", "", this.root);
     h("h1", "title-name", "openworld-cycling", panel);
-    // 世界の選択（北海道の草案 2.1）。保存は世界ごとに分かれる
-    const current = world?.id ?? "generated";
-    const ws = h("div", "title-world", "", panel);
-    for (const id of ["generated", "hokkaido"] as WorldId[]) {
-      const b = btn(WORLD_LABELS[id], ws, id === current ? "current" : "");
-      b.setAttribute("aria-pressed", String(id === current));
-      if (id !== current) b.addEventListener("click", () => this.onWorld(id));
+    // 遊び方の選択。配達を先に置く
+    const ms = h("div", "title-modes", "", panel);
+    for (const m of ["delivery", "cycling"] as PlayMode[]) {
+      const b = btn(PLAY_LABELS[m], ms, m === mode ? "current" : "");
+      b.setAttribute("aria-pressed", String(m === mode));
+      if (m !== mode) b.addEventListener("click", () => this.onMode(m));
     }
+    // 世界の選択（北海道の草案 2.1）。保存は世界ごとに分かれる。配達は北海道だけなので出さない
+    const current = world?.id ?? "generated";
+    if (mode === "cycling") {
+      const ws = h("div", "title-world", "", panel);
+      for (const id of ["generated", "hokkaido"] as WorldId[]) {
+        const b = btn(WORLD_LABELS[id], ws, id === current ? "current" : "");
+        b.setAttribute("aria-pressed", String(id === current));
+        if (id !== current) b.addEventListener("click", () => this.onWorld(id));
+      }
+    } else h("div", "title-place", `${WORLD_LABELS.hokkaido}・大通の周り 約 4km 四方`, panel);
     // アカウント（ログインしているか・同期の状態）
     this.account = btn("アカウント", h("div", "title-account", "", panel));
     this.account.addEventListener("click", () => this.onAccount());
@@ -66,13 +81,42 @@ export class TitleScreen {
   show(save: SaveData | null) {
     this.buttons.replaceChildren();
     this.info.replaceChildren();
+    if (this.mode === "delivery") this.showDelivery(save);
+    else this.showCycling(save);
+    btn("操作", this.buttons).addEventListener("click", () => this.onHelp());
+    this.root.classList.remove("hidden");
+  }
+
+  private row(k: string, v: string) {
+    const r = h("div", "title-row", "", this.info);
+    h("span", "title-key", k, r);
+    h("span", "title-val", v, r);
+  }
+
+  /** 配達: 所持金・届けた件数・最後に遊んだ日。はじめからは仕事の記録（所持金・届けた件数・業者）を消す */
+  private showDelivery(save: SaveData | null) {
+    const w = save?.work ?? null;
+    const hasProgress = !!w && (w.delivered > 0 || !!w.economy);
+    if (save && w && hasProgress) {
+      this.row("所持金", `${w.money.toLocaleString("ja-JP")} 円`);
+      this.row("届けた件数", `${w.delivered} 件（期限内 ${w.onTime} 件）`);
+      if (save.savedAt) this.row("最後に遊んだ日", new Date(save.savedAt).toLocaleDateString("sv-SE"));
+    }
+    btn(hasProgress ? "続きから" : "はじめる", this.buttons, "primary").addEventListener("click", () => this.choose("continue"));
+    if (!hasProgress) return;
+    const fresh = btn("はじめから", this.buttons);
+    fresh.addEventListener("click", () => {
+      const wipe = btn("記録を消してはじめる（所持金・届けた件数・業者）", this.buttons, "danger");
+      wipe.addEventListener("click", () => this.choose("new-delivery"));
+      fresh.replaceWith(wipe);
+    });
+  }
+
+  /** サイクリング: 総距離・獲得標高・スタンプなど。はじめからは自由と冒険を選ぶ */
+  private showCycling(save: SaveData | null) {
     const hasProgress = !!save && (save.odometer > 0 || save.stamps.length > 0);
     if (save && hasProgress) {
-      const row = (k: string, v: string) => {
-        const r = h("div", "title-row", "", this.info);
-        h("span", "title-key", k, r);
-        h("span", "title-val", v, r);
-      };
+      const row = (k: string, v: string) => this.row(k, v);
       row("総距離", `${(save.odometer / 1000).toFixed(1)} km`);
       row("獲得標高", `${Math.round(save.climb)} m`);
       row("スタンプ", `${save.stamps.length} 個`);
@@ -93,8 +137,6 @@ export class TitleScreen {
       free.after(adv);
     });
     btn("眺める", this.buttons).addEventListener("click", () => this.choose("watch"));
-    btn("操作", this.buttons).addEventListener("click", () => this.onHelp());
-    this.root.classList.remove("hidden");
   }
 
   private choose(c: TitleChoice) {
@@ -107,26 +149,35 @@ export class TitleScreen {
 export class ControlsHelp {
   readonly root: HTMLElement;
 
-  constructor() {
+  constructor(mode: PlayMode = "cycling") {
     this.root = h("div", "help-panel hidden");
     document.body.appendChild(this.root);
     const head = h("div", "help-head", "", this.root);
     h("div", "help-title", "操作", head);
     btn("閉じる", head).addEventListener("click", () => this.close());
     const table = h("dl", "help-table", "", this.root);
+    const delivery = mode === "delivery";
     const rows: [string, string][] = [
-      ["漕ぐ", "Space を押している間 ／ タッチ: 右下の「漕ぐ」"],
-      ["ブレーキ", "Shift ／ タッチ: 右下の「ブレーキ」"],
+      ...(delivery ? ([["ペース", "1〜5・W／S ／ タッチ: 下の「止まる」〜「全力」"]] as [string, string][]) : []),
+      ["漕ぐ", delivery ? "Space を押している間" : "Space を押している間 ／ タッチ: 右下の「漕ぐ」"],
+      ["ブレーキ", "Shift ／ タッチ: 「ブレーキ」"],
       ["分岐を選ぶ", "← ↑ → ／ 上に出る候補を押す"],
-      ["U ターン（止まっている時）", "↓ ／ 右上の「Uターン」"],
-      ["左右に寄る", "A・D ／ タッチ: 左下の「左へ」「右へ」"],
+      ["U ターン", "↓ ／ 上の「Uターン」"],
+      ["左右に寄る", "A・D ／ タッチ: 左下の「左へ」、右下の「右へ」"],
       ["後ろを見る", "Q（左）・R（右）"],
       ["視点を変える", "C ／ メニューの「視点」"],
       ["視点を回す", "画面をドラッグ（離して 3 秒で戻る）"],
-      ["眺める（自動で走る）", "V ／ メニューの「眺める」"],
-      ["地図", "M ／ 右下の小地図を押す。地図を押すと行き先"],
+      ...(delivery ? [] : ([["眺める（自動で走る）", "V ／ メニューの「眺める」"]] as [string, string][])),
+      ["地図", "M ／ 小地図を押す。地図を押すと行き先"],
       ["一時停止", "P ／ メニューの「一時停止」"],
-      ["喫茶店に寄る", "店の前で止まる"],
+      ...(delivery
+        ? ([
+            ["注文を受ける", "配達アプリの注文を押して「受ける」"],
+            ["受け取る・渡す", "光の柱の下の円に入る"],
+            ["体力を戻す", "自販機・牛丼屋・定食屋・喫茶店の前で止まる。地図で「食」の印を押すと経路"],
+            ["自転車を直す", "自転車店（地図の「自」）の前で止まる。空気は燃料店（「車」）でも入れられる"],
+          ] as [string, string][])
+        : ([["喫茶店に寄る", "店の前で止まる"]] as [string, string][])),
     ];
     for (const [k, v] of rows) {
       h("dt", "", k, table);

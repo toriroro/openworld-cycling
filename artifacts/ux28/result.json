@@ -1,0 +1,470 @@
+{
+  "errors": [],
+  "title": {
+    "modes": [
+      "配達（選択）",
+      "サイクリング"
+    ],
+    "world": false,
+    "buttons": [
+      "はじめる",
+      "操作"
+    ]
+  },
+  "titleCycling": {
+    "modes": [
+      "配達",
+      "サイクリング（選択）"
+    ],
+    "worlds": [
+      "生成の世界",
+      "北海道（札幌）"
+    ],
+    "buttons": [
+      "はじめから",
+      "眺める",
+      "操作"
+    ]
+  },
+  "menuCycling": {
+    "sections": [
+      "サイクリング",
+      "設定",
+      "そのほか"
+    ],
+    "top": [
+      "一時停止",
+      "視点",
+      "眺める",
+      "地図"
+    ],
+    "mode": [
+      "スタンプ帳",
+      "冒険",
+      "トレーナー"
+    ],
+    "modeRows": [
+      "出力",
+      "体がぶれ始める出力",
+      "眺める進路",
+      "眺める時の fps"
+    ],
+    "other": [
+      "自転車と装い",
+      "操作",
+      "タイトルへ",
+      "アカウント"
+    ],
+    "settings": [
+      "視点",
+      "画質",
+      "時刻",
+      "固定する時刻",
+      "天候",
+      "音量",
+      "消音",
+      "交通量"
+    ]
+  },
+  "cyclingHud": {
+    "phone": false,
+    "gauges": 0,
+    "deliveryArea": false
+  },
+  "menuDelivery": {
+    "sections": [
+      "配達",
+      "設定",
+      "そのほか"
+    ],
+    "top": [
+      "一時停止",
+      "視点",
+      "地図"
+    ],
+    "mode": [
+      "装備",
+      "配達",
+      "順位",
+      "経営"
+    ],
+    "modeRows": [
+      "配達の案内",
+      "経路の引き方",
+      "配達アプリ"
+    ],
+    "other": [
+      "自転車と装い",
+      "操作",
+      "タイトルへ",
+      "アカウント"
+    ],
+    "settings": [
+      "視点",
+      "画質",
+      "時刻",
+      "固定する時刻",
+      "天候",
+      "音量",
+      "消音",
+      "交通量"
+    ]
+  },
+  "rests": {
+    "near": 16,
+    "byKind": {
+      "gyudon": 2,
+      "teishoku": 2,
+      "vending": 12
+    },
+    "drawn": {
+      "vending": 5,
+      "shops": 1
+    }
+  },
+  "shop": {
+    "kind": "gyudon",
+    "shown": true,
+    "card": {
+      "title": "牛丼 たつ屋",
+      "items": [
+        "牛丼 並 480 円 体力 +30%・脚 4 分",
+        "牛丼 大盛 620 円 体力 +42%・脚 5 分",
+        "牛丼 並と味噌汁 560 円 体力 +36%・脚 5 分"
+      ]
+    },
+    "before": {
+      "energy": 0.25,
+      "money": 1000,
+      "legs": 0.02655555555555542
+    },
+    "after": {
+      "energy": 0.55,
+      "money": 520,
+      "legs": 1,
+      "note": "牛丼 並　4 分経った",
+      "flash": "牛丼 並　体力 55%"
+    },
+    "closedOnRide": true
+  },
+  "vending": {
+    "shown": true,
+    "items": [
+      "水 110 円 体力 +3% 20 秒",
+      "スポーツドリンク 160 円 体力 +6% 30 秒",
+      "缶コーヒー 130 円 体力 +4% 30 秒"
+    ],
+    "closed": true
+  },
+  "lowFlash": "体力 30%　近くの自販機 0m",
+  "mapRests": 133,
+  "cutin": {
+    "shown": true,
+    "main": "受注！",
+    "sub": "ラーメン（南1西11） → 北1条西19丁目　460 円",
+    "hiddenAfter": true
+  },
+  "crash": {
+    "type": "van",
+    "energyBefore": 0.999,
+    "energyAfter": 0.948,
+    "trace": [
+      {
+        "t": 100,
+        "rideOff": -3.07,
+        "hop": 0.15,
+        "rideKmh": 11,
+        "carKmh": 42,
+        "carOff": -2.08,
+        "crash": true,
+        "gap": 2
+      },
+      {
+        "t": 201,
+        "rideOff": -3.51,
+        "hop": 0.3,
+        "rideKmh": 11,
+        "carKmh": 41,
+        "carOff": -2,
+        "crash": true,
+        "gap": 1.7
+      },
+      {
+        "t": 311,
+        "rideOff": -3.69,
+        "hop": 0.35,
+        "rideKmh": 12,
+        "carKmh": 40,
+        "carOff": -1.92,
+        "crash": true,
+        "gap": 1.8
+      },
+      {
+        "t": 416,
+        "rideOff": -3.76,
+        "hop": 0.3,
+        "rideKmh": 12,
+        "carKmh": 39,
+        "carOff": -1.83,
+        "crash": true,
+        "gap": 2.1
+      },
+      {
+        "t": 516,
+        "rideOff": -3.79,
+        "hop": 0.15,
+        "rideKmh": 13,
+        "carKmh": 37,
+        "carOff": -1.75,
+        "crash": true,
+        "gap": 2.5
+      },
+      {
+        "t": 624,
+        "rideOff": -3.79,
+        "hop": 0,
+        "rideKmh": 13,
+        "carKmh": 36,
+        "carOff": -1.67,
+        "crash": true,
+        "gap": 3.1
+      },
+      {
+        "t": 735,
+        "rideOff": -3.79,
+        "hop": 0,
+        "rideKmh": 13,
+        "carKmh": 35,
+        "carOff": -1.58,
+        "crash": true,
+        "gap": 3.7
+      },
+      {
+        "t": 844,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 14,
+        "carKmh": 34,
+        "carOff": -1.5,
+        "crash": true,
+        "gap": 4.2
+      },
+      {
+        "t": 1051,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 15,
+        "carKmh": 32,
+        "carOff": -1.32,
+        "crash": true,
+        "gap": 5.2
+      },
+      {
+        "t": 1376,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 16,
+        "carKmh": 28,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 6.4
+      },
+      {
+        "t": 1699,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 18,
+        "carKmh": 25,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 7.2
+      },
+      {
+        "t": 2005,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 19,
+        "carKmh": 21,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 7.5
+      },
+      {
+        "t": 2334,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 21,
+        "carKmh": 18,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 7.5
+      },
+      {
+        "t": 2636,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 22,
+        "carKmh": 15,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 7.1
+      },
+      {
+        "t": 2953,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 23,
+        "carKmh": 11,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 6.3
+      },
+      {
+        "t": 3267,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 25,
+        "carKmh": 8,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 5.1
+      },
+      {
+        "t": 3587,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 26,
+        "carKmh": 4,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 3.7
+      },
+      {
+        "t": 3901,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 27,
+        "carKmh": 1,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 2.6
+      },
+      {
+        "t": 4219,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 29,
+        "carKmh": 0,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 3.2
+      },
+      {
+        "t": 4536,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 30,
+        "carKmh": 0,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 5.1
+      },
+      {
+        "t": 4851,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 31,
+        "carKmh": 0,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 7.5
+      },
+      {
+        "t": 5168,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 33,
+        "carKmh": 0,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 10.2
+      },
+      {
+        "t": 5489,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 34,
+        "carKmh": 0,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 13.1
+      },
+      {
+        "t": 5818,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 35,
+        "carKmh": 0,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 16.2
+      },
+      {
+        "t": 6152,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 36,
+        "carKmh": 0,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 19.4
+      },
+      {
+        "t": 6470,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 37,
+        "carKmh": 0,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 22.6
+      },
+      {
+        "t": 6789,
+        "rideOff": -3.8,
+        "hop": 0,
+        "rideKmh": 37,
+        "carKmh": 0,
+        "carOff": -1.25,
+        "crash": true,
+        "gap": 25.9
+      }
+    ]
+  },
+  "npc": {
+    "couriers": 18,
+    "near": 5,
+    "vehicles": 50,
+    "delivers": 2,
+    "parcelStops": 1,
+    "colors": [
+      "#e6194b",
+      "#3c78d8"
+    ]
+  },
+  "parcelDriver": {
+    "walkers": 60,
+    "phase": 0.6985194757705787
+  },
+  "npc2": {
+    "couriers": 18,
+    "near": 6,
+    "vehicles": 50,
+    "delivers": 4,
+    "parcelStops": 1,
+    "colors": [
+      "#e6194b",
+      "#3c78d8"
+    ]
+  }
+}

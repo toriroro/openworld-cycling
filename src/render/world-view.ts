@@ -17,6 +17,8 @@ import { TrafficView } from "./traffic/traffic-view.ts";
 import { PedestrianView } from "./pedestrians.ts";
 import { HandoffView } from "./handoff-marks.ts";
 import { AddressSignView } from "./address-signs.ts";
+import { RestStopView } from "./rest-stops.ts";
+import { NpcRiderView } from "./npc-riders.ts";
 import { RealBuildings } from "./real-buildings.ts";
 import { RealStreets } from "./real-streets.ts";
 import { RealPoles } from "./real-poles.ts";
@@ -65,6 +67,10 @@ export class WorldView {
   readonly handoff = new HandoffView();
   /** 交差点の住所の看板（配達の草案 27 章） */
   readonly addressSigns = new AddressSignView();
+  /** 体力を戻す所（自販機・チェーンの店の看板。配達の草案 28 章） */
+  readonly restStops = new RestStopView();
+  /** 近くの NPC の配達員を人の形で（配達の草案 30 章） */
+  readonly npcRiders = new NpcRiderView();
   private pruneT = 0;
   quality: Quality = "standard";
   /** 描画の原点（世界座標、REBASE_UNIT の倍数） */
@@ -191,7 +197,7 @@ export class WorldView {
           this.realBuildings.refresh();
         }
       });
-    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group, this.districts.group, this.trafficView.group, this.pedestrians.group, this.handoff.group, this.addressSigns.group);
+    this.scene.add(this.terrain.group, this.roadMeshes.group, this.vegetation.group, this.buildings.group, this.districts.group, this.trafficView.group, this.pedestrians.group, this.handoff.group, this.addressSigns.group, this.restStops.group, this.npcRiders.group);
     this.setQuality(matchMedia("(pointer: coarse)").matches ? "light" : "standard");
   }
 
@@ -210,6 +216,7 @@ export class WorldView {
     this.districts?.setQuality(light);
     this.trafficView?.setQuality(light);
     this.pedestrians?.setQuality(light);
+    this.restStops?.setQuality(light);
     this.realBuildings?.setQuality(light);
     this.realStreets?.setQuality(light);
     this.realPoles?.setQuality(light);

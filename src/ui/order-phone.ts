@@ -24,6 +24,8 @@ export interface PhoneItem {
   fromHere: number;
   /** 受けられない理由（持てる数・装備） */
   block: string | null;
+  /** 目の前の頼み事・家からの発送（止まった所で頼まれた。消える時間の帯を出さない。配達の草案 30 章） */
+  here?: boolean;
 }
 
 interface Row {
@@ -109,10 +111,11 @@ export class OrderPhone {
         else this.list.prepend(r.root);
       }
       prev = r.root;
-      const left = `残り ${fmtDuration(it.remain)}`;
+      const left = it.here ? "目の前" : `残り ${fmtDuration(it.remain)}`;
       if (r.remain.textContent !== left) r.remain.textContent = left;
-      r.bar.style.transform = `scaleX(${Math.max(0, Math.min(1, it.remain / it.life))})`;
-      r.root.classList.toggle("soon", it.remain < 15);
+      r.bar.style.transform = `scaleX(${it.here ? 1 : Math.max(0, Math.min(1, it.remain / it.life))})`;
+      r.root.classList.toggle("soon", !it.here && it.remain < 15);
+      r.root.classList.toggle("here", !!it.here);
       const from = it.order.pickedAtStart ? "受け取り その場で" : `受け取り ${it.order.pickup.name}  ${km(it.fromHere)}`;
       if (r.from.textContent !== from) r.from.textContent = from;
       r.ok.disabled = !!it.block;

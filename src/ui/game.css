@@ -109,7 +109,8 @@ html, body {
   padding: 10px 12px;
   border-radius: 12px;
   background: rgba(14, 18, 24, 0.88);
-  z-index: 5;
+  /* 開いたメニューは札（頼み事・体力を戻す所）より上に */
+  z-index: 8;
 }
 .menu-buttons {
   display: flex;
@@ -1646,7 +1647,7 @@ html, body {
   }
   /* 配達の帯は、開いた配達アプリの画面（幅 190px）の左に収める */
   .hud-root.has-touch .delivery-strip {
-    max-width: calc(100vw - var(--safe-l) - var(--safe-r) - 220px);
+    max-width: calc(100vw - var(--safe-l) - var(--safe-r) - 252px);
   }
   .hud-root.has-touch .phone {
     top: auto;
@@ -1718,4 +1719,211 @@ html, body {
     right: calc(var(--safe-r) + 72px);
     bottom: calc(var(--safe-b) + 10px);
   }
+}
+
+/* メニューの欄（配達の草案 28 章）: 上の列・遊び方の欄・設定（畳む）・そのほか */
+.menu-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 6px;
+  margin-top: 2px;
+}
+.menu-section .menu-buttons {
+  margin-bottom: 4px;
+}
+.menu-rows:empty {
+  display: none;
+}
+.menu-settings > summary {
+  cursor: pointer;
+  list-style: none;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.menu-settings > summary::before {
+  content: "▶";
+  font-size: 10px;
+  margin-right: 6px;
+}
+.menu-settings[open] > summary::before {
+  content: "▼";
+}
+.menu-settings > summary::-webkit-details-marker {
+  display: none;
+}
+.title-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.title-modes .btn {
+  font-size: 16px;
+  min-height: 48px;
+}
+.title-modes .btn.current {
+  background: #b5651d;
+}
+.title-modes .btn:not(.current) {
+  background: rgba(255, 255, 255, 0.12);
+}
+.title-place {
+  margin-bottom: 12px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+/* 体力を戻す所の札（配達の草案 28 章）。置き場所は頼み事の札（offer-card）と同じ */
+.rest-items {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0;
+}
+.rest-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  text-align: left;
+  padding: 6px 10px;
+  min-height: 44px;
+}
+.rest-name {
+  font-weight: bold;
+}
+.rest-price {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.rest-gain,
+.rest-why {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  opacity: 0.85;
+}
+.rest-why {
+  color: #ffb4a8;
+}
+.rest-note {
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.rest-note:empty {
+  display: none;
+}
+
+/* 受注のカットイン（配達の草案 28 章）: 斜めの帯が左から入り、字が少し遅れて飛び込み、右へ抜ける */
+.cutin {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.cutin-band {
+  width: 140vw;
+  padding: 10px 0 12px;
+  transform: skewY(-6deg);
+  background: linear-gradient(90deg, rgba(232, 115, 26, 0) 0%, rgba(232, 115, 26, 0.94) 14%, rgba(255, 160, 40, 0.96) 50%, rgba(232, 115, 26, 0.94) 86%, rgba(232, 115, 26, 0) 100%);
+  border-top: 3px solid #fff3d2;
+  border-bottom: 3px solid #fff3d2;
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 2px 0 rgba(90, 30, 0, 0.6);
+}
+.cutin-main {
+  font-size: clamp(40px, 11vmin, 84px);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  font-style: italic;
+}
+.cutin-sub {
+  font-size: clamp(12px, 3.4vmin, 18px);
+  font-weight: 700;
+  padding: 0 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cutin.show .cutin-band {
+  animation: cutin-band 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+.cutin.show .cutin-main {
+  animation: cutin-word 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+@keyframes cutin-band {
+  0% {
+    transform: skewY(-6deg) translateX(-110vw);
+  }
+  18% {
+    transform: skewY(-6deg) translateX(0);
+  }
+  78% {
+    transform: skewY(-6deg) translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: skewY(-6deg) translateX(110vw);
+    opacity: 0.6;
+  }
+}
+@keyframes cutin-word {
+  0%,
+  10% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  24% {
+    transform: scale(0.94);
+    opacity: 1;
+  }
+  32% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cutin.show .cutin-band,
+  .cutin.show .cutin-main {
+    animation: cutin-fade 1.2s ease-out forwards;
+  }
+}
+@keyframes cutin-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  15%,
+  80% {
+    opacity: 1;
+  }
+}
+
+/* 大きな画面（タッチなしの横画面）: 今いる所（住所と方位磁針）は上の中ほど、分岐の案内はその下（下の中ほどのペースの列と重なっていた。ユーザーの指定 2026-11-26）。
+   配達の帯は走りの要点（速さと脚・体力）の下 */
+@media (orientation: landscape) {
+  .hud-root:not(.has-touch) .road-name {
+    bottom: auto;
+    top: calc(var(--safe-t) + 10px);
+    max-width: calc(100vw - 420px);
+  }
+  .hud-root:not(.has-touch) .branch {
+    top: calc(var(--safe-t) + 64px);
+  }
+  .hud-root:not(.has-touch) .delivery-strip {
+    top: calc(var(--safe-t) + 110px);
+  }
+}
+
+/* 脚・体力が尽きて実際に走れているペース（選んだペースより遅い時。配達の草案 30 章） */
+.pace-btn.capped {
+  box-shadow: inset 0 0 0 2px #ff8a4e;
+  color: #ffb08a;
 }

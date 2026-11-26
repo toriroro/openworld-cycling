@@ -69,11 +69,15 @@ export class Input {
           e.preventDefault();
           break;
         case "KeyA":
+          // 押しっぱなしのキーの繰り返しは、押し続けの動き（Game）に任せる
+          if (e.repeat) break;
           this.queue.push("lane-left");
           this.laneKeys.left = true;
           this.laneSince = performance.now();
           break;
         case "KeyD":
+          // 押しっぱなしのキーの繰り返しは、押し続けの動き（Game）に任せる
+          if (e.repeat) break;
           this.queue.push("lane-right");
           this.laneKeys.right = true;
           this.laneSince = performance.now();

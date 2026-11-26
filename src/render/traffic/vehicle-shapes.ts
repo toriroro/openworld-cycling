@@ -139,12 +139,17 @@ function lamps(len: number, hw: number, yHead: number, yTail: number, out: THREE
   out.push(tint(box(0, 0.62, zr - 0.025, 0.33, 0.17, 0.02), PLATE));
 }
 
+/**
+ * タイヤとホイール。タイヤの外の面は車体の横の面より 3cm 外、ホイールは薄い円盤でさらに外に置く。
+ * 前はタイヤの外の面が車体の横の面とちょうど重なり、走る車のタイヤの所がちらついていた（2026-11-26）
+ */
 function wheels(xs: number, zs: number[], r: number, out: THREE.BufferGeometry[], w = 0.2) {
+  const x = xs + 0.03;
   for (const z of zs)
     for (const side of [-1, 1]) {
-      out.push(tint(wheel(side * xs, z, r, w), TIRE));
-      // ホイール（外側の面だけ見えればよい）
-      const hub = wheel(side * (xs + 0.012), z, r * 0.58, w);
+      out.push(tint(wheel(side * x, z, r, w), TIRE));
+      // ホイール（外側の面だけ見えればよい）: 厚さ 4cm、外の面はタイヤの外の面より 2.5cm 外
+      const hub = wheel(side * (x + w / 2 + 0.005), z, r * 0.58, 0.04);
       hub.translate(0, r * 0.42, 0);
       out.push(tint(hub, "#8e9497"));
     }
@@ -352,7 +357,57 @@ function bus(): VehicleGeometry {
   return { paint: merge(paint), fixed: merge(fixed) };
 }
 
-const BUILDERS: Record<VehicleType, () => VehicleGeometry> = { sedan, kei, minivan, van, keiTruck, bus };
+/** 傾けた箱（x 軸まわりに rx 回してから置く） */
+function tiltBox(cx: number, cy: number, cz: number, sx: number, sy: number, sz: number, rx: number): THREE.BufferGeometry {
+  const g = new THREE.BoxGeometry(sx, sy, sz).toNonIndexed();
+  g.rotateX(rx);
+  g.translate(cx, cy, cz);
+  return g;
+}
+
+/**
+ * 自転車の配達員（配達の草案 28 章）。塗装の部分（業者の色）は上着・背中の箱・ヘルメット。
+ * 前が +z、長さ 1.8m・幅 0.6m（vehicle-types.ts の courier）
+ */
+function courier(): VehicleGeometry {
+  const paint: THREE.BufferGeometry[] = [
+    // 上着の胴（前へ傾ける）と腕
+    plain(tiltBox(0, 1.22, -0.02, 0.38, 0.56, 0.24, 0.55)),
+    plain(tiltBox(0.22, 1.2, 0.22, 0.09, 0.09, 0.46, 0.45)),
+    plain(tiltBox(-0.22, 1.2, 0.22, 0.09, 0.09, 0.46, 0.45)),
+    // 背中の箱
+    plain(box(0, 1.42, -0.34, 0.44, 0.42, 0.36)),
+    // ヘルメット
+    plain(box(0, 1.66, 0.2, 0.24, 0.1, 0.3)),
+  ];
+  const fixed: THREE.BufferGeometry[] = [];
+  for (const z of [0.52, -0.52]) {
+    fixed.push(tint(wheel(0, z, 0.34, 0.05), TIRE));
+    const hub = wheel(0.004, z, 0.06, 0.06);
+    hub.translate(0, 0.28, 0);
+    fixed.push(tint(hub, "#9aa0a4"));
+  }
+  const frame = "#2a2d30";
+  for (const g of [
+    tiltBox(0, 0.6, 0.02, 0.045, 0.045, 0.92, -0.12),
+    tiltBox(0, 0.5, -0.32, 0.04, 0.42, 0.04, -0.3),
+    tiltBox(0, 0.6, 0.44, 0.04, 0.6, 0.04, 0.25),
+    box(0, 0.98, 0.5, 0.46, 0.035, 0.035),
+    box(0, 0.86, -0.36, 0.12, 0.04, 0.22),
+  ])
+    fixed.push(tint(g, frame));
+  // 脚（ズボン）と靴、顔、箱の白い帯
+  for (const side of [-1, 1]) {
+    fixed.push(tint(tiltBox(side * 0.11, 0.86, -0.08, 0.13, 0.13, 0.44, -0.6), "#24262b"));
+    fixed.push(tint(tiltBox(side * 0.13, 0.5, 0.04, 0.11, 0.46, 0.11, 0.3), "#24262b"));
+    fixed.push(tint(box(side * 0.13, 0.3, 0.12, 0.1, 0.07, 0.22), "#1b1b1b"));
+  }
+  fixed.push(tint(box(0, 1.54, 0.24, 0.2, 0.2, 0.2), "#d9b49a"));
+  fixed.push(tint(box(0, 1.46, -0.525, 0.32, 0.08, 0.012), "#ffffff"));
+  return { paint: merge(paint), fixed: merge(fixed) };
+}
+
+const BUILDERS: Record<VehicleType, () => VehicleGeometry> = { sedan, kei, minivan, van, keiTruck, bus, courier };
 
 const cache = new Map<VehicleType, VehicleGeometry>();
 export function vehicleGeometry(type: VehicleType): VehicleGeometry {

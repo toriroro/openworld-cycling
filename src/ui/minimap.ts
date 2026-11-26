@@ -4,7 +4,7 @@
 import type { Poi, Road } from "../shared/world/types.ts";
 import type { RiddenLog } from "../sim/ridden.ts";
 import { platform } from "../platform/index.ts";
-import { drawLandmark, ROUTE_COLOR, TARGET_COLORS } from "./world-map.ts";
+import { drawLandmark, REST_COLORS, ROUTE_COLOR, TARGET_COLORS } from "./world-map.ts";
 
 const RIDDEN = "#ff8a1f";
 const ROAD = "rgba(245,245,240,0.85)";
@@ -24,6 +24,8 @@ export interface MinimapInput {
   landmarks?: { x: number; z: number; visited: boolean; goal: boolean }[];
   /** 仕事の印（道端の頼み事の人・旗の家。配達の草案 16 章）。円の中だけ描く */
   work?: { x: number; z: number }[];
+  /** 体力を戻す所（配達の草案 28 章）: 自販機は水色の小さな点、店は橙の丸に白い縁 */
+  rests?: { x: number; z: number; kind: "vending" | "gyudon" | "teishoku" | "bike" | "car" }[];
   /** 配達の行き先（受け取り・届け先）。円の外なら縁に出す（配達の草案 26 章） */
   targets?: { x: number; z: number; kind: "pickup" | "dropoff"; active: boolean }[];
   /** 行き先までの経路の線（世界座標 x, z の交互の並び） */
@@ -221,6 +223,20 @@ export class Minimap {
       const [sx, sy] = toScreen(lm.x, lm.z);
       if ((sx - R) ** 2 + (sy - R) ** 2 > (R - 6 * dpr) ** 2) continue;
       drawLandmark(ctx, sx, sy, lm.visited, lm.goal, dpr * 0.8);
+    }
+    // 体力を戻す所
+    for (const r of m.rests ?? []) {
+      const [sx, sy] = toScreen(r.x, r.z);
+      if ((sx - R) ** 2 + (sy - R) ** 2 > (R - 6 * dpr) ** 2) continue;
+      ctx.beginPath();
+      ctx.arc(sx, sy, (r.kind === "vending" ? 2.2 : 3.6) * dpr, 0, Math.PI * 2);
+      ctx.fillStyle = r.kind === "vending" ? REST_COLORS.vending : r.kind === "bike" ? REST_COLORS.bike : r.kind === "car" ? REST_COLORS.car : REST_COLORS.shop;
+      ctx.fill();
+      if (r.kind !== "vending") {
+        ctx.lineWidth = 1.2 * dpr;
+        ctx.strokeStyle = "#ffffff";
+        ctx.stroke();
+      }
     }
     // 仕事の印（橙の菱形）
     for (const w of m.work ?? []) {

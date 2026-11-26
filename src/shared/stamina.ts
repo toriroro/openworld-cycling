@@ -18,8 +18,12 @@ export const DEFAULT_STAMINA: StaminaParams = { cp: 200, wPrime: 15000, energy: 
 const RECOVER = 0.5;
 /** CP を超えた分の仕事は体力を余計に使う倍率【初期値】 */
 const HARD_COST = 1.5;
-/** 脚が尽きた時の出力の上限（CP の割合）と、体力が尽きた時の上限【初期値】 */
-const LEGS_OUT_CAP = 0.95;
+/**
+ * 脚が尽きた時の出力の上限（CP の割合）と、上限を外す脚の量（割合）、体力が尽きた時の上限【初期値】。
+ * 脚が尽きたら、LEGS_BACK まで戻るまで上限を掛け続ける（前は 0.95 で、少し戻るとすぐ外れ、0% 付近で全力のまま走れた。配達の草案 30 章）
+ */
+const LEGS_OUT_CAP = 0.7;
+export const LEGS_BACK = 0.2;
 const BONK_CAP = 0.55;
 
 /** ペース（0 = 漕がない）と、その出力の CP に対する割合【初期値】 */
@@ -29,6 +33,13 @@ export type Pace = 0 | 1 | 2 | 3 | 4;
 
 export function paceWatts(pace: Pace, cp: number): number {
   return PACE_SHARE[pace] * cp;
+}
+
+/** 出せる出力の上限 cap (W) で実際に走れるペース: 選んだペース以下で、出力が上限に収まるいちばん速いペース */
+export function effectivePace(pace: Pace, cp: number, cap: number): Pace {
+  let p = pace;
+  while (p > 1 && paceWatts(p, cp) > cap + 1e-6) p = (p - 1) as Pace;
+  return p;
 }
 
 /**
@@ -54,6 +65,8 @@ const REST_ENERGY = 40_000;
 export class Stamina {
   legs: number;
   energy: number;
+  /** 脚が尽きて、LEGS_BACK まで戻っていない */
+  exhausted = false;
 
   constructor(readonly p: StaminaParams = DEFAULT_STAMINA) {
     this.legs = p.wPrime;
@@ -65,6 +78,8 @@ export class Stamina {
     const { cp, wPrime } = this.p;
     if (watts > cp) this.legs = Math.max(0, this.legs - (watts - cp) * dt);
     else this.legs = Math.min(wPrime, this.legs + (cp - watts) * RECOVER * dt);
+    if (this.legs <= 0) this.exhausted = true;
+    else if (this.exhausted && this.legs >= wPrime * LEGS_BACK) this.exhausted = false;
     const hard = Math.max(0, watts - cp);
     this.energy = Math.max(0, this.energy - (watts - hard + hard * HARD_COST) * dt);
   }
@@ -72,7 +87,7 @@ export class Stamina {
   /** いま出せる出力の上限 (W) */
   cap(): number {
     if (this.energy <= 0) return this.p.cp * BONK_CAP;
-    if (this.legs <= 0) return this.p.cp * LEGS_OUT_CAP;
+    if (this.exhausted || this.legs <= 0) return this.p.cp * LEGS_OUT_CAP;
     return Infinity;
   }
 
@@ -96,8 +111,18 @@ export class Stamina {
     this.energy = Math.min(this.p.energy, this.energy + energy);
   }
 
+  /** 体力を量の share だけ戻す。legs なら脚も全部戻す（店で座って食べた時。配達の草案 28 章） */
+  refill(share: number, legs = false) {
+    this.eat(this.p.energy * share);
+    if (legs) {
+      this.legs = this.p.wPrime;
+      this.exhausted = false;
+    }
+  }
+
   rest() {
     this.legs = this.p.wPrime;
+    this.exhausted = false;
     this.eat(REST_ENERGY);
   }
 

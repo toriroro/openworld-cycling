@@ -87,6 +87,17 @@ const UTURN_AHEAD = 2;
 export const CRUISE_FORCE = 110;
 const CRUISE_TAPER = 1.5;
 
+/** 車に当たった時のはね返り（配達の草案 28 章）: 跳ねる時間 (s)・高さ (m)、速さに掛ける倍率、横へずれる速さの倍率【初期値】 */
+export const BUMP_S = 0.55;
+/** 「横」（幅寄せ。配達の草案 30 章）: 相手の方へ寄って戻る時間 (s) と寄る量 (m)【初期値】 */
+export const YOSE_S = 0.5;
+const YOSE_M = 0.35;
+/** 左右位置を動かす速さの下限 (m/s)【初期値】。1 回押した分（0.8m）は約 0.3 秒で動く */
+const LANE_RATE = 2.5;
+const BUMP_H = 0.35;
+const BUMP_KEEP = 0.45;
+const BUMP_SLIDE = 9;
+
 export class Ride {
   pos: RoadPosition;
   speed = 0;
@@ -94,6 +105,15 @@ export class Ride {
   offset = 0;
   /** 利用者が動かした左右位置の量 (m) */
   laneShift = 0;
+  /** はね返りの残りの時間 (s)。0 なら跳ねていない */
+  bumpT = 0;
+  /** 「横」の残りの時間 (s) と向き（右が 1） */
+  yoseT = 0;
+  private yoseDir: 1 | -1 = 1;
+  /** 自転車の傷みの効き目（配達の草案 29 章）: 転がりの抵抗の倍率、推進に使える割合、ブレーキの効きの倍率 */
+  careCrr = 1;
+  careDrive = 1;
+  careBrake = 1;
   watts = 0;
   /** 推進に使う出力の倍率（ペースの補助。配達の草案 26 章）。watts は漕いだ出力のまま */
   assist = 1;
@@ -154,6 +174,29 @@ export class Ride {
     const r = this.road;
     const lim = r ? r.width / 2 : 3;
     this.laneShift = Math.max(-lim, Math.min(lim, this.laneShift + delta));
+  }
+
+  /**
+   * 車に当たった: 1 回跳ねて、side（自転車の右が 1）へ shift m ずれ、速さを落とす（配達の草案 28 章）。
+   * ずれる量は道の幅の中に収める
+   */
+  bump(side: 1 | -1, shift: number) {
+    this.shiftLane(side * shift);
+    this.bumpT = BUMP_S;
+    this.speed *= BUMP_KEEP;
+  }
+
+  /** 「横」: side（右が 1）の相手の方へ YOSE_M 寄って、YOSE_S で戻る。左右位置の目標（laneShift）は変えない */
+  yose(side: 1 | -1) {
+    this.yoseT = YOSE_S;
+    this.yoseDir = side;
+  }
+
+  /** 跳ねている高さ (m)（描く時だけ使う） */
+  get hopHeight(): number {
+    if (this.bumpT <= 0) return 0;
+    const t = 1 - this.bumpT / BUMP_S;
+    return 4 * BUMP_H * t * (1 - t);
   }
 
   /** 候補を選ぶ（候補の番号） */
@@ -272,13 +315,13 @@ export class Ride {
    * （速さとの差が CRUISE_TAPER より小さくなると弱める。上りでは坂の分を引くので、上りの速さは倍率だけの時と同じ）
    */
   private propulsionWatts(): number {
-    const w = this.watts * this.assist;
+    const w = this.watts * this.assist * this.careDrive;
     if (this.uTurnPending) return this.watts;
     if (this.cruise <= 0 || this.watts <= 0 || this.speed >= this.cruise) return w;
     const k = Math.min(1, (this.cruise - this.speed) / CRUISE_TAPER);
     const climb = this.bike.mass * 9.80665 * Math.max(0, this.grade);
     const force = Math.max(0, CRUISE_FORCE - climb) * k;
-    return Math.max(w, force * Math.max(0.5, this.speed));
+    return Math.max(w, force * this.careDrive * Math.max(0.5, this.speed));
   }
 
   /** 1歩進める（DT 秒）。道路が読み込まれていなければ止まって待つ */
@@ -291,7 +334,8 @@ export class Ride {
     const { watts, brake } = this.power.read(dt);
     const here = sampleRoad(road, this.pos.s);
     this.grade = this.turn ? this.turnGrade() : here.grade * this.pos.dir;
-    this.bike.crr = CRR[road.surface];
+    this.bike.crr = CRR[road.surface] * this.careCrr;
+    this.bike.brakeDecel = DEFAULT_BIKE.brakeDecel * this.careBrake;
     // カーブの上限速度は 1/20 秒ごとに求める
     this.curveT -= dt;
     if (this.curveT <= 0) {
@@ -321,9 +365,17 @@ export class Ride {
     this.time += dt;
     // 冒険の距離は、未走行の 10m の区切りに入った時に 1 区切り分を使う
     if (dist > 0 && this.ridden.mark(this.pos.road, this.pos.s) && this.adventure) this.adventure.spend(RIDDEN_BIN);
-    // 左右位置はなめらかに目標へ
-    const target = this.defaultOffset();
-    this.offset += (target - this.offset) * Math.min(1, dt * 1.5);
+    // 左右位置は目標へ: 少なくとも LANE_RATE の速さで動き、離れている時はその割合で速く（はね返りの間はさらに速く）。
+    // 前は割合だけで寄せていて、0.8m 動くのに 2 秒以上かかり、押してもすぐ動かないように見えた（ユーザーの指摘 2026-11-26）
+    let target = this.defaultOffset();
+    if (this.yoseT > 0) {
+      target += this.yoseDir * YOSE_M * Math.sin(Math.PI * (1 - this.yoseT / YOSE_S));
+      this.yoseT = Math.max(0, this.yoseT - dt);
+    }
+    const gap = target - this.offset;
+    const step = Math.max(LANE_RATE * dt, Math.abs(gap) * Math.min(1, dt * (this.bumpT > 0 ? BUMP_SLIDE : 1.5)));
+    this.offset += Math.max(-step, Math.min(step, gap));
+    if (this.bumpT > 0) this.bumpT = Math.max(0, this.bumpT - dt);
     const y = this.turn ? this.turnPoint(this.turn.d).y : sampleRoad(this.road!, this.pos.s).y;
     if (!Number.isNaN(this.lastY) && y > this.lastY) this.climb += y - this.lastY;
     this.lastY = y;

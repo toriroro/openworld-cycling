@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_STAMINA, paceWatts, Stamina } from "../src/shared/stamina.ts";
+import { DEFAULT_STAMINA, effectivePace, paceWatts, Stamina } from "../src/shared/stamina.ts";
 import { segmentCost } from "../src/sim/route-plan.ts";
 import type { Road } from "../src/shared/world/types.ts";
 
@@ -17,7 +17,7 @@ describe("脚と体力（配達の草案 14.2）", () => {
     expect(paceWatts(4, cp)).toBeGreaterThan(paceWatts(3, cp));
   });
 
-  it("ふつうでは脚が減らない。全力では 2 分ほどで尽き、上限が CP の少し下になる", () => {
+  it("ふつうでは脚が減らない。全力では 2 分ほどで尽き、上限がゆっくりとふつうの間になる（配達の草案 30 章）", () => {
     const st = new Stamina();
     run(st, paceWatts(2, cp), 600);
     expect(st.legsShare).toBe(1);
@@ -26,8 +26,28 @@ describe("脚と体力（配達の草案 14.2）", () => {
     expect(st.legsShare).toBeGreaterThan(0);
     run(st, paceWatts(4, cp), 90);
     expect(st.legs).toBe(0);
-    expect(st.cap()).toBeLessThan(cp);
-    expect(st.cap()).toBeGreaterThan(paceWatts(2, cp));
+    expect(st.cap()).toBeLessThan(paceWatts(2, cp));
+    expect(st.cap()).toBeGreaterThan(paceWatts(1, cp));
+    expect(effectivePace(4, cp, st.cap())).toBe(1);
+  });
+
+  it("脚が尽きたら、20% に戻るまで上限を外さない（0% 付近で全力のまま走れていた）", () => {
+    const st = new Stamina();
+    st.legs = 0;
+    st.update(paceWatts(4, cp), 1 / 120);
+    expect(st.exhausted).toBe(true);
+    // 上限の出力で漕ぎ続けても、少し戻っただけでは外れない
+    let t = 0;
+    while (st.exhausted && t < 600) {
+      st.update(Math.min(paceWatts(4, cp), st.cap()), 0.1);
+      t += 0.1;
+      if (st.legsShare > 0.05 && st.legsShare < 0.19) expect(st.cap()).toBeLessThan(cp);
+    }
+    expect(st.legsShare).toBeGreaterThanOrEqual(0.2);
+    expect(t).toBeGreaterThan(60);
+    expect(t).toBeLessThan(150);
+    expect(st.cap()).toBe(Infinity);
+    expect(effectivePace(4, cp, Infinity)).toBe(4);
   });
 
   it("ゆっくり走ると脚は数分で戻る", () => {

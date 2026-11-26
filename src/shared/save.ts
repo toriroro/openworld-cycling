@@ -5,6 +5,7 @@ import { DEFAULT_OUTFIT, type Outfit, sanitizeOutfit } from "./outfit.ts";
 import { POWER_MAX, POWER_MIN } from "../sim/power.ts";
 import { AdventureLedger } from "../sim/adventure.ts";
 import { type EconomyState, sanitizeEconomy } from "./economy.ts";
+import { type BikeCare, careFromJSON } from "./bike-care.ts";
 
 export const SAVE_VERSION = 1;
 export const SAVE_KEY = "save";
@@ -72,6 +73,8 @@ export interface WorkSave {
   economy: EconomyState | null;
   /** 自転車の装備（配達の草案 22.6 の 49） */
   gear: "bag" | "carrier";
+  /** 自転車の傷み（配達の草案 29 章）。前の保存には無い（整備したてとして読む） */
+  bike?: BikeCare;
 }
 
 /** 仕事を始めた時の所持金 (円)【初期値】（最初から喫茶店で食べられるように） */
@@ -99,6 +102,7 @@ export function sanitizeWork(value: unknown): WorkSave {
     regulars: sanitizeCounts(w.regulars),
     economy: w.economy ? sanitizeEconomy(w.economy) : null,
     gear: w.gear === "carrier" ? "carrier" : "bag",
+    bike: careFromJSON(w.bike),
   };
 }
 

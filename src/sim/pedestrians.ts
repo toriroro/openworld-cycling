@@ -17,6 +17,10 @@ export interface Walker {
   still: boolean;
   /** 見た目の種 */
   seed: number;
+  /** 上着の色（業者の運転手。無ければ種で選ぶ） */
+  coat?: string;
+  /** 荷（箱）を持っている */
+  carry?: boolean;
 }
 
 /** 人を置く道の区切り (m)、1 人が行き来する長さ (m)、歩幅 (m)、道の両端の置かない長さ（交差点の中に立たないように）(m)【初期値】 */

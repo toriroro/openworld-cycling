@@ -7,7 +7,7 @@ import type { Traffic } from "../../sim/traffic/traffic.ts";
 import { VEHICLE_TYPES, type VehicleType } from "../../sim/traffic/vehicle-types.ts";
 import { vehicleGeometry } from "./vehicle-shapes.ts";
 
-const CAPACITY: Record<VehicleType, number> = { sedan: 150, kei: 150, minivan: 150, van: 150, keiTruck: 150, bus: 40 };
+const CAPACITY: Record<VehicleType, number> = { sedan: 150, kei: 150, minivan: 150, van: 150, keiTruck: 150, bus: 40, courier: 60 };
 
 /** 頂点の glow の量だけ、頂点色で光らせる材質 */
 function glowMaterial(params: THREE.MeshStandardMaterialParameters, lights: { value: number }): THREE.MeshStandardMaterial {
@@ -177,10 +177,12 @@ export class TrafficView {
    * 描く。originX, originZ は描画の原点。lights は灯火の明るさ（0 = 昼、夜と霧で上げる）。
    * cx, cz はカメラの世界座標（バス停を選ぶ）
    */
-  update(traffic: Traffic, originX: number, originZ: number, lights: number, cx: number, cz: number) {
+  update(traffic: Traffic, originX: number, originZ: number, lights: number, cx: number, cz: number, hide?: ReadonlySet<number>) {
     this.lights.value = lights;
     const counts = new Map<VehicleType, number>();
     for (const v of traffic.vehicles) {
+      // 別の形で描いている物（近くの配達員を人の形で。npc-riders.ts）
+      if (hide?.has(v.id)) continue;
       const t = v.type;
       const i = counts.get(t) ?? 0;
       if (i >= CAPACITY[t]) continue;

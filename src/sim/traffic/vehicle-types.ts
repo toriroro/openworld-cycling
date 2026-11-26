@@ -1,7 +1,7 @@
 // 車の種類（都市と交通の草案 6.6）。寸法は日本の車の一般的な値【初期値】。形は render/traffic/vehicle-shapes.ts。
 // 北海道・東北の町と農村を手本に、軽自動車と軽トラックを多めにする。
 
-export type VehicleType = "sedan" | "kei" | "minivan" | "van" | "keiTruck" | "bus";
+export type VehicleType = "sedan" | "kei" | "minivan" | "van" | "keiTruck" | "bus" | "courier";
 
 export interface VehicleSpec {
   /** 長さ・幅・高さ (m) */
@@ -19,6 +19,8 @@ export const VEHICLE_SPECS: Record<VehicleType, VehicleSpec> = {
   van: { length: 4.7, width: 1.7, height: 1.98, pace: 0.95 },
   keiTruck: { length: 3.4, width: 1.48, height: 1.8, pace: 0.85 },
   bus: { length: 10.5, width: 2.49, height: 3.05, pace: 0.85 },
+  /** 自転車の配達員（配達の草案 28 章）。一般道で 18〜23km/h */
+  courier: { length: 1.8, width: 0.6, height: 1.75, pace: 0.42 },
 };
 
 export const VEHICLE_TYPES = Object.keys(VEHICLE_SPECS) as VehicleType[];
@@ -72,6 +74,13 @@ export const CAR_COLORS: [string, number][] = [
   ["#3e5a46", 0.04],
   ["#5a4636", 0.03],
   ["#d9d3c2", 0.05],
+];
+/** 配達員の上着の色（業者の色が決まらない時） */
+export const COURIER_COLORS: [string, number][] = [
+  ["#e8731a", 0.3],
+  ["#2a8f4a", 0.25],
+  ["#c62a2a", 0.2],
+  ["#2a58b8", 0.25],
 ];
 /** 軽トラックはほとんど白 */
 export const KEI_TRUCK_COLORS: [string, number][] = [

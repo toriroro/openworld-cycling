@@ -6,6 +6,7 @@ import * as THREE from "three";
 import type { Walker } from "../sim/pedestrians.ts";
 
 const CAPACITY = 240;
+const CARRIED = 16;
 const MARKS = 24;
 const FLAGS = 24;
 
@@ -104,6 +105,7 @@ export class PedestrianView {
   private heads: THREE.InstancedMesh[];
   private marks: THREE.InstancedMesh;
   private flags: THREE.InstancedMesh;
+  private boxes: THREE.InstancedMesh;
   private m = new THREE.Matrix4();
   private q = new THREE.Quaternion();
   private e = new THREE.Euler(0, 0, 0, "YXZ");
@@ -133,6 +135,8 @@ export class PedestrianView {
     this.heads = HAIR.map((h, i) => make(head(h), mat, CAPACITY, `pedestrian-head-${i}`));
     this.marks = make(marker(), glow, MARKS, "work-marks", false);
     this.flags = make(flag(), mat, FLAGS, "house-flags");
+    // 運転手が持つ荷（段ボールの箱。胸の前）
+    this.boxes = make(merge([box(0.46, 0.34, 0.36, 0, 1.12, 0.32, "#b8894f"), box(0.47, 0.05, 0.37, 0, 1.2, 0.32, "#d8c9a6")]), mat, CARRIED, "carried-boxes");
     this.bodies.setColorAt(0, this.c.set("#ffffff"));
     this.legs.setColorAt(0, this.c.set("#ffffff"));
   }
@@ -148,6 +152,7 @@ export class PedestrianView {
   update(people: Walker[], marks: WorkMark[], flags: HouseFlag[], originX: number, originZ: number, t: number) {
     const n = Math.min(CAPACITY, people.length);
     const headCount = this.heads.map(() => 0);
+    let nb = 0;
     for (let i = 0; i < n; i++) {
       const w = people[i];
       const yaw = Math.atan2(w.dx, w.dz);
@@ -158,7 +163,8 @@ export class PedestrianView {
       this.p.set(w.x - originX, w.y + bob, w.z - originZ);
       this.m.compose(this.p, this.q, this.one);
       this.bodies.setMatrixAt(i, this.m);
-      this.bodies.setColorAt(i, this.c.set(COATS[w.seed % COATS.length]));
+      this.bodies.setColorAt(i, this.c.set(w.coat ?? COATS[w.seed % COATS.length]));
+      if (w.carry && nb < CARRIED) this.boxes.setMatrixAt(nb++, this.m);
       const hk = (w.seed >>> 4) % HAIR.length;
       this.heads[hk].setMatrixAt(headCount[hk]++, this.m);
       const pc = PANTS[(w.seed >>> 8) % PANTS.length];
@@ -175,6 +181,9 @@ export class PedestrianView {
         this.legs.setColorAt(k, this.c.set(pc));
       }
     }
+    this.boxes.count = nb;
+    this.boxes.visible = nb > 0;
+    this.boxes.instanceMatrix.needsUpdate = true;
     this.bodies.count = n;
     this.legs.count = n * 2;
     this.heads.forEach((h, i) => {

@@ -95,16 +95,17 @@ export class DeliveryPanel {
     this.fill("配達中", rows);
     this.button("閉じる", () => this.onClose(), true);
     for (let i = 1; i < list.length; i++) this.button(`${i + 1} 件目へ向かう`, () => this.onFocus(i));
-    if (room) this.button("ほかの注文も受ける", () => this.onOther());
+    if (room) this.button("配達アプリを開く", () => this.onOther());
     list.forEach((_, i) => this.button(list.length > 1 ? `${i + 1} 件目をやめる` : "注文をやめる", () => this.onCancel(i)));
   }
 
   /** 自転車の装備（22.6 の 49） */
-  showGear(gear: string, carry: number, money: number, price: number, has: boolean) {
+  showGear(gear: string, carry: number, money: number, price: number, has: boolean, care: [string, string][] = []) {
     this.fill("装備", [
       ["今の装備", gear],
       ["同時に持てる注文", `${carry} 件`],
-      ["大きめの小包（家からの発送）", has ? "運べる" : "リアキャリアが要る"],
+      ["大きめの小包（家からの発送）", has ? "運べる" : "リアキャリアが要る（自転車店でも買える）"],
+      ...care,
       ["所持金", `${money} 円`],
     ]);
     if (!has) this.button(`リアキャリアを買う ${price.toLocaleString("ja-JP")} 円`, () => this.onBuyGear(), true, money < price);
@@ -130,7 +131,7 @@ export class DeliveryPanel {
       ["届けた数", `${count} 件（期限内 ${onTime} 件）`],
       ...extra,
     ]);
-    this.button("次の注文", () => this.onOther(), true);
+    this.button("配達アプリを開く", () => this.onOther(), true);
     this.button("閉じる", () => this.onClose());
   }
 

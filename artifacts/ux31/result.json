@@ -1,0 +1,78 @@
+{
+  "errors": [],
+  "lane": {
+    "msTo90": 301,
+    "moved": 0.8,
+    "cameraTurnDeg": 0.04
+  },
+  "flow": {
+    "panelOpen": false,
+    "phoneOpen": true,
+    "afterAccept": {
+      "goal": true,
+      "pace": 2,
+      "guide": "route"
+    }
+  },
+  "legs": {
+    "fullKmh": 28,
+    "flash": "",
+    "afterKmh": 23,
+    "legs": 0.026,
+    "exhausted": true,
+    "cappedButton": "ゆっくり"
+  },
+  "vending": {
+    "name": "自販機",
+    "point": {
+      "x": 465.27296336262776,
+      "y": 371.6214497001853,
+      "inView": false,
+      "rings": 5
+    },
+    "tapped": "no→direct",
+    "started": true,
+    "before": {
+      "energy": 0.4,
+      "money": 1000
+    },
+    "after": {
+      "energy": 0.46,
+      "money": 840,
+      "flash": "スポーツドリンク　体力 46%"
+    }
+  },
+  "shop": {
+    "name": "定食 まんぷく亭",
+    "point": {
+      "x": 105.31141459256934,
+      "y": 370.532762117221,
+      "inView": true,
+      "rings": 6
+    },
+    "tapped": "tap",
+    "started": true,
+    "before": {
+      "energy": 0.46,
+      "money": 5000
+    },
+    "after": {
+      "energy": 1,
+      "money": 4150,
+      "flash": "日替わり定食　体力 100%"
+    }
+  },
+  "npc": {
+    "seen": true,
+    "drawn": 1,
+    "behind": 155
+  },
+  "car": "minivan",
+  "yose": {
+    "energyBefore": 100,
+    "energyAfter": 100,
+    "courierMoved": 0,
+    "flash": "車に当たった　体力 −5%",
+    "playerEnergy": 0.948
+  }
+}

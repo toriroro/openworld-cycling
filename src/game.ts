@@ -11,7 +11,7 @@ import { watchChoice } from "./sim/watch.ts";
 import { CRR, DT } from "./sim/bicycle.ts";
 import { AutoPower, ManualPower } from "./sim/power.ts";
 import { Ride } from "./sim/ride.ts";
-import { type Rider, TRAFFIC_LIGHT, TRAFFIC_STANDARD, Traffic } from "./sim/traffic/traffic.ts";
+import { type Rider, TRAFFIC_LIGHT, TRAFFIC_STANDARD, Traffic, type Vehicle } from "./sim/traffic/traffic.ts";
 import { sampleRoad } from "./sim/road-network.ts";
 import { CAMERA_MODES, type CameraMode, cameraPose } from "./render/camera-rig.ts";
 import type { Quality } from "./render/world-view.ts";
@@ -58,7 +58,7 @@ import { type Walker, walkersNear } from "./sim/pedestrians.ts";
 import { DeliveryPanel, DeliveryStrip, OfferCard } from "./ui/delivery-panel.ts";
 import { OrderPhone } from "./ui/order-phone.ts";
 import { OrderFeed } from "./sim/order-feed.ts";
-import { CAR_HIT, FOODS, type Pace, PACE_ASSIST, PACE_SPEED, paceWatts, REST_S, Stamina } from "./shared/stamina.ts";
+import { CAR_HIT, effectivePace, FOODS, LEGS_BACK, type Pace, PACE_ASSIST, PACE_SPEED, paceWatts, REST_S, Stamina } from "./shared/stamina.ts";
 import { planPath, ROUTE_STYLE_LABELS, type RouteStyle } from "./sim/route-plan.ts";
 import type { HandoffKind, HandoffMark } from "./render/handoff-marks.ts";
 import type { AddressSign } from "./render/address-signs.ts";
@@ -66,6 +66,10 @@ import { junctionCorners, junctionShape } from "./sim/junction-shape.ts";
 import { hash } from "./shared/world/hash.ts";
 import { project } from "./shared/geo/projection.ts";
 import { HOKKAIDO_BASE } from "./shared/world/hokkaido.ts";
+import type { PlayMode } from "./world-choice.ts";
+import { autoItem, type FoodKind, isFood, type RestItem, restBlock, REST_MENU, type RestStop, restStopAt, restStopsNear, REST_STOP_RANGE } from "./shared/rest-stops.ts";
+import { type CardEntry, fmtSeconds, RestCard } from "./ui/rest-card.ts";
+import { type BikeCare, CARE_LABELS, CARE_PARTS, CARE_SERVICES, careBlock, careEffects, careFromJSON, type CareService, FRESH_CARE, serviceCare, wear, worstPart } from "./shared/bike-care.ts";
 
 /** 左右位置: 1 回押した時に動く量 (m)、押し続けた時の速さ (m/s) と、動き続けるまでの時間 (ms)【初期値】（配達の草案 26 章） */
 const LANE_TAP = 0.8;
@@ -195,7 +199,7 @@ export class Game {
   /** 保存データを読み終えた時（保存がなければ null） */
   readonly ready: Promise<SaveData | null>;
   readonly title: TitleScreen;
-  readonly help = new ControlsHelp();
+  readonly help: ControlsHelp;
   private muteSel: HTMLSelectElement;
   private stampBook = new StampBook();
   private fpsSel: HTMLSelectElement;
@@ -218,8 +222,11 @@ export class Game {
   private clearArmedAt = -Infinity;
   /** 最後に書き出したファイルの名前（確認用） */
   lastExport = "";
-  /** 冒険の乗り方の帳簿（冒険の草案）。自由で始めた世界は null */
+  /** 遊び方（配達の草案 28 章） */
+  readonly mode: PlayMode;
+  /** 冒険の乗り方の帳簿（冒険の草案）。自由で始めた世界は null。配達では使わない（保存には残す） */
   adventure: AdventureLedger | null = null;
+  private keptAdventure: SaveData["adventure"] = null;
   private adventurePanel = new AdventurePanel();
   /** 取り込む前の記録（ファイルから読んだ物） */
   pendingImports: ActivitySummary[] = [];
@@ -265,7 +272,7 @@ export class Game {
   delivered = 0;
   onTime = 0;
   /** 配達の案内（草案 3.3・14.1）: none = 住所と地図だけ、map = 地図に行き先の印、route = 経路を自動で引く */
-  deliveryGuide: WorkSave["guide"] = "map";
+  deliveryGuide: WorkSave["guide"] = "route";
   /** 経路の引き方（草案 14.1） */
   routeStyle: RouteStyle = "short";
   /** 脚と体力（草案 14.2）。眺める乗り方では使わない */
@@ -314,22 +321,45 @@ export class Game {
   private steeredToZone = false;
   /** 車に当たった時刻（同じ車で続けて減らさない） */
   private carHits = new Map<number, number>();
+  /** 体力を戻す所（配達の草案 28 章）: 近くの物（描く・止まって買う）と、建物ごとに決めた所の覚え */
+  restStops: RestStop[] = [];
+  private restCache = new Map<number, RestStop | null>();
+  private restT = 0;
+  private restMap: { t: number; list: RestStop[] } | null = null;
+  private restCard!: RestCard;
+  /** 札を閉じた所（離れるまで出さない） */
+  private restDismissed: string | null = null;
+  /** 体力が少ない知らせを出した段（0.3・0.15） */
+  private lowWarned = 1;
+  private wasExhausted = false;
+  /** 円を押して向かっている所（着いたら自動で頼む。配達の草案 30 章） */
+  private restGoal: RestStop | null = null;
+  /** 自動で頼んだ時の演出（自販機は飲む 3 秒、店は入店して出てくる 5 秒）。終わった時に払って体力を戻す */
+  restAction: { stop: RestStop; item: RestItem; t0: number; ms: number; bike: { x: number; y: number; z: number } } | null = null;
+  /** 自転車の傷み（配達の草案 29 章）と、傷みの知らせを出した段（0.5・0.25）、傷めた所までの走った距離 */
+  care: BikeCare = { ...FRESH_CARE };
+  private careWarned = 1;
+  private careOdo = NaN;
+  private cargoKey = "";
   private lastCarHit = -Infinity;
 
   constructor(
     private view: WorldView,
     private roads: RoadClient,
     start: { x: number; z: number } = view.world.origin,
-    opts: { resume?: boolean; title?: boolean; dev?: boolean } = {},
+    opts: { resume?: boolean; title?: boolean; dev?: boolean; mode?: PlayMode } = {},
   ) {
     this.anchor = { ...start };
-    this.title = new TitleScreen(view.world);
+    // 配達は北海道の世界だけ（配達の草案 28 章）
+    this.mode = opts.mode === "delivery" && view.world.id === "hokkaido" ? "delivery" : "cycling";
+    this.title = new TitleScreen(view.world, this.mode);
+    this.help = new ControlsHelp(this.mode);
     // 出典（北海道の世界は走っている間も見える所に出す。北海道の草案 3.1・3.2）
     this.traffic = new Traffic(roads.net, (Date.now() & 0x7fffffff) | 1, (x, z) => view.heights.height(x, z));
     this.traffic.options = view.quality === "light" ? TRAFFIC_LIGHT : TRAFFIC_STANDARD;
     const st = this.settings;
     const settings: Settings = { power: this.manual.setting, sway: st.sway, quality: view.quality, clock: st.clock, hour: st.hour, weather: st.weather, camera: this.camera };
-    this.hud = new Hud(this.input, settings);
+    this.hud = new Hud(this.input, settings, this.mode);
     // データの出典は、走っている画面には出さず、起動画面・世界地図・メニューに出す（北海道の草案 3.1 で起動画面・メニューのどれでもよい。配達の草案 27.6）
     if (view.world.attribution.length) this.hud.addMenuFooter(creditLine(view.world, "menu-credit"));
     this.hud.onSettings = (s) => this.applySettings(s, true);
@@ -388,16 +418,21 @@ export class Game {
     this.traffic.level = this.settings.traffic;
     this.stopPanel.onDepart = () => this.depart();
     this.stampBook.onPick = (st) => this.startFrom(st);
-    this.hud.addButton("スタンプ帳", () => {
-      this.hud.toggleMenu(false);
-      this.stampBook.open(this.stamps);
-    });
-    this.hud.addButton("地図", () => {
-      this.hud.toggleMenu(false);
-      this.toggleMap();
-    });
+    this.hud.addButton(
+      "地図",
+      () => {
+        this.hud.toggleMenu(false);
+        this.toggleMap();
+      },
+      "main",
+    );
+    if (this.mode === "cycling")
+      this.hud.addButton("スタンプ帳", () => {
+        this.hud.toggleMenu(false);
+        this.stampBook.open(this.stamps);
+      });
     // 名所帳（北海道の世界。名所の草案）
-    if (view.world.local) {
+    if (view.world.local && this.mode === "cycling") {
       this.landmarkBook.onGoal = (lm) => this.goToLandmark(lm);
       this.landmarkBook.onStart = (st) => this.startFrom(st);
       this.hud.addButton("名所帳", () => {
@@ -410,9 +445,27 @@ export class Game {
     this.offerCard = new OfferCard(this.hud.root);
     this.phone = new OrderPhone(this.hud.root);
     this.phone.onAccept = (no) => this.acceptFromPhone(no);
+    this.restCard = new RestCard(this.hud.root);
+    // 円を押す・クリックする（ドラッグで視点を回した時は除く）
+    {
+      const el = view.renderer.domElement;
+      let down: { x: number; y: number; t: number } | null = null;
+      el.addEventListener("pointerdown", (e) => (down = { x: e.clientX, y: e.clientY, t: performance.now() }));
+      el.addEventListener("pointerup", (e) => {
+        const d = down;
+        down = null;
+        if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10 || performance.now() - d.t > 450) return;
+        const r = el.getBoundingClientRect();
+        this.tapAt(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      });
+    }
+    this.restCard.onClose = () => {
+      this.restDismissed = this.restCard.stop?.id ?? null;
+      this.restCard.hide();
+    };
     this.offerCard.onAccept = () => this.acceptCardOffer();
     this.offerCard.onSkip = () => this.skipCardOffer();
-    if (view.world.id === "hokkaido") this.setupDelivery();
+    if (this.mode === "delivery") this.setupDelivery();
     // トレーナー（トレーナー連携の草案 5章）
     this.trainerPanel = new TrainerPanel(this.trainerSettings(), !!opts.dev);
     this.trainerPanel.onConnect = (role) => void this.connectDevice(role);
@@ -475,16 +528,18 @@ export class Game {
       void this.save();
       this.adventurePanel.update(this.adventureView());
     };
-    this.hud.addButton("冒険", () => {
-      this.hud.toggleMenu(false);
-      this.adventurePanel.open(this.adventureView());
-      this.adventurePanel.showPreview(this.previewRows());
-    });
-    this.hud.addButton("トレーナー", () => {
-      this.hud.toggleMenu(false);
-      this.refreshTrainer();
-      this.trainerPanel.open();
-    });
+    if (this.mode === "cycling") {
+      this.hud.addButton("冒険", () => {
+        this.hud.toggleMenu(false);
+        this.adventurePanel.open(this.adventureView());
+        this.adventurePanel.showPreview(this.previewRows());
+      });
+      this.hud.addButton("トレーナー", () => {
+        this.hud.toggleMenu(false);
+        this.refreshTrainer();
+        this.trainerPanel.open();
+      });
+    }
     // 眺める乗り方の設定（モック仕様 7.2）
     this.routeSel = this.hud.addSelect(
       "眺める進路",
@@ -497,6 +552,7 @@ export class Game {
         this.settings.watchRoute = v;
         void this.save();
       },
+      "mode",
     );
     this.fpsSel = this.hud.addSelect(
       "眺める時の fps",
@@ -509,7 +565,10 @@ export class Game {
         this.settings.fps30 = v === "30";
         void this.save();
       },
+      "mode",
     );
+    // 眺める乗り方はサイクリングだけ（配達の草案 28 章）
+    if (this.mode === "delivery") for (const sel of [this.routeSel, this.fpsSel]) sel.closest(".menu-row")?.remove();
     view.scene.add(this.player.group);
     // 軽量画質では自転車とライダーも簡略版
     this.player.setLod(view.quality === "light" ? "low" : "high");
@@ -553,11 +612,15 @@ export class Game {
     // 起動画面（止めた状態で後ろに世界を出しておく）
     this.title.onChoose = (c) => this.leaveTitle(c);
     this.title.onHelp = () => this.help.open();
-    this.hud.addButton("操作", () => {
-      this.hud.toggleMenu(false);
-      this.help.open();
-    });
-    this.hud.addButton("タイトルへ", () => this.showTitle());
+    this.hud.addButton(
+      "操作",
+      () => {
+        this.hud.toggleMenu(false);
+        this.help.open();
+      },
+      "other",
+    );
+    this.hud.addButton("タイトルへ", () => this.showTitle(), "other");
     if (opts.title) {
       this.paused = true;
       this.hud.root.classList.add("hidden");
@@ -619,7 +682,7 @@ export class Game {
     this.ridden = RiddenLog.fromJSON(d.ridden);
     this.stamps = d.stamps;
     this.stampSet = new Set(d.stamps.map((st) => st.poi));
-    this.setWatching(d.watching);
+    this.setWatching(this.mode === "cycling" && d.watching);
     this.routeSel.value = d.settings.watchRoute;
     this.volumeSel.value = String(d.settings.volume);
     // 選べる段階にない値（前の既定 0.7 など）は 30% にそろえる
@@ -633,7 +696,8 @@ export class Game {
     this.trafficSel.value = d.settings.traffic;
     this.traffic.level = d.settings.traffic;
     this.trainerPanel.sync(this.trainerSettings());
-    this.adventure = d.adventure ? AdventureLedger.fromJSON(d.adventure) : null;
+    this.keptAdventure = this.mode === "delivery" ? d.adventure : null;
+    this.adventure = d.adventure && this.mode === "cycling" ? AdventureLedger.fromJSON(d.adventure) : null;
     this.applyWork(d.work);
     if (d.pos) this.anchor = { x: d.pos.x, z: d.pos.z };
     this.resume = { pos: d.pos, odometer: d.odometer, climb: d.climb, time: d.time, generator: d.generator };
@@ -657,8 +721,8 @@ export class Game {
       settings: this.settings,
       outfit: this.outfit,
       watching: this.watching,
-      adventure: this.adventure?.toJSON() ?? null,
-      work: { money: this.wallet, delivered: this.delivered, onTime: this.onTime, stamina: this.stamina.toJSON(), guide: this.deliveryGuide, routeStyle: this.routeStyle, app: this.appOn, regulars: this.regulars, economy: this.market?.state ?? this.economySaved, gear: this.gear },
+      adventure: this.adventure?.toJSON() ?? this.keptAdventure ?? null,
+      work: { money: this.wallet, delivered: this.delivered, onTime: this.onTime, stamina: this.stamina.toJSON(), guide: this.deliveryGuide, routeStyle: this.routeStyle, app: this.appOn, regulars: this.regulars, economy: this.market?.state ?? this.economySaved, gear: this.gear, bike: { ...this.care } },
     };
   }
 
@@ -757,7 +821,7 @@ export class Game {
     let sum = 0;
     for (const v of this.traffic.vehicles) {
       const d = Math.hypot(v.x - this.anchor.x, v.z - this.anchor.z);
-      if (d > 150) continue;
+      if (d > 150 || v.type === "courier") continue;
       sum += (Math.min(1, 0.25 + v.speed / 14) * (v.type === "bus" ? 1.6 : 1)) / (1 + (d / 14) ** 2);
     }
     return Math.min(1, sum);
@@ -839,15 +903,25 @@ export class Game {
         }
         this.goalLandmark = null;
         // 頼み事の人・旗の家の近くを押したら、その前を行き先にして着いたら止まる（配達の草案 16 章）
-        const snap = this.full ? null : this.streetWork?.snap(x, z);
+        // 体力を戻す所の近くを押したら、その前を行き先にして止まる（配達の草案 28 章）
+        const rest = this.restsForMap().find((r) => Math.hypot(r.x - x, r.z - z) < 30) ?? null;
+        // 食べ物・飲み物の所は、着いたら自動で頼む（30 章）
+        if (rest && isFood(rest.kind)) {
+          this.goToRest(rest);
+          this.mapNote = { text: `${rest.name}へ経路を引いた`, until: performance.now() + 4000 };
+          return;
+        }
+        const snap = rest ? { x: rest.roadX, z: rest.roadZ } : this.full ? null : (this.streetWork?.snap(x, z) ?? null);
         this.stopAtGoal = !!snap;
         this.ride?.setGoal(snap?.x ?? x, snap?.z ?? z);
+        if (rest) this.mapNote = { text: `${rest.name}へ経路を引いた`, until: performance.now() + 4000 };
         // 半オート: 止まっていれば「ふつう」で漕ぎ出す（配達の草案 14.1）
         if (this.manual.pace === 0) this.setPace(2);
       },
       landmarks: () => this.landmarkMarks(),
       addresses: this.addresses ?? undefined,
       marks: () => [...this.deliveryMarks(), ...this.workMarks(true)],
+      rests: () => this.restsForMap(),
       route: () => this.routeLine(),
       onMark: (no) => this.goToMark(no),
       territory: () => this.territoryLayer(),
@@ -875,9 +949,10 @@ export class Game {
     void this.save().then(() => this.title.show(this.snapshot()));
   }
 
-  private leaveTitle(c: "continue" | "new" | "new-adventure" | "watch") {
+  private leaveTitle(c: "continue" | "new" | "new-adventure" | "new-delivery" | "watch") {
     if (c === "new") this.startNew("free");
     if (c === "new-adventure") this.startNew("adventure");
+    if (c === "new-delivery") this.startNewWork();
     // 続きから: 旅の途中なら眺めたまま（閉じていた間の旅をまとめて進める）
     if (c === "watch" || (c === "continue" && this.adventure?.journey)) this.setWatching(true);
     else this.setWatching(false);
@@ -1219,6 +1294,22 @@ export class Game {
     void this.save();
   }
 
+  /** 配達をはじめから: 仕事の記録（所持金・届けた件数・業者・持っている注文）を消し、起点から始める。走った記録・スタンプは残す */
+  startNewWork() {
+    this.deliveries = [];
+    this.offer = null;
+    this.feed.clear(this.ride?.time ?? 0);
+    this.applyWork(null);
+    this.goalLandmark = null;
+    this.carryGoal = null;
+    const r = this.ride;
+    this.resume = { pos: null, odometer: r?.odometer ?? this.resume?.odometer ?? 0, climb: r?.climb ?? this.resume?.climb ?? 0, time: r?.time ?? this.resume?.time ?? 0, generator: this.view.world.generator };
+    this.anchor = { ...this.view.world.origin };
+    this.ride = null;
+    this.smoothEye = null;
+    void this.save();
+  }
+
   /** 止まった所の 30m 以内に喫茶店の前があれば、立ち寄りにする */
   private checkCafe(t: number) {
     const ride = this.ride;
@@ -1292,7 +1383,11 @@ export class Game {
         /* 住所が無ければ配達は出さない */
       });
     this.deliveryPanel.onClose = () => this.deliveryPanel.hide();
-    this.deliveryPanel.onOther = () => this.newOrder();
+    // 注文はいつも配達アプリで受ける（30 章）。配達の画面の「配達アプリを開く」はアプリを開くだけ
+    this.deliveryPanel.onOther = () => {
+      this.deliveryPanel.hide();
+      this.phone.setOpen(true, false);
+    };
     this.deliveryPanel.onAccept = () => this.acceptOrder();
     this.deliveryPanel.onCancel = (i) => {
       const d = this.deliveries[i];
@@ -1369,18 +1464,6 @@ export class Game {
       this.openRanking();
       void this.save();
     };
-    this.workSelects.guide = this.hud.addSelect(
-      "配達の案内",
-      [
-        ["map", "経路は自分で選ぶ"],
-        ["route", "経路を自動で引く"],
-      ],
-      this.deliveryGuide,
-      (v) => {
-        this.deliveryGuide = v;
-        void this.save();
-      },
-    );
     this.workSelects.route = this.hud.addSelect(
       "経路の引き方",
       (Object.keys(ROUTE_STYLE_LABELS) as RouteStyle[]).map((k) => [k, ROUTE_STYLE_LABELS[k]] as [RouteStyle, string]),
@@ -1394,6 +1477,7 @@ export class Game {
         }
         void this.save();
       },
+      "mode",
     );
     this.workSelects.app = this.hud.addSelect(
       "配達アプリ",
@@ -1406,7 +1490,7 @@ export class Game {
         this.appOn = v === "on";
         if (!this.appOn) this.feed.clear(this.ride?.time ?? 0);
         void this.save();
-      },
+      },      "mode",
     );
   }
 
@@ -1417,11 +1501,14 @@ export class Game {
     this.onTime = w?.onTime ?? 0;
     this.stamina = Stamina.fromJSON(w?.stamina ?? null);
     // 行き先の印はいつも出すので、前の「住所と地図だけ」は「経路は自分で選ぶ」として読む（配達の草案 27 章）
-    this.deliveryGuide = w?.guide === "route" ? "route" : "map";
+    // 案内はいつも「経路を自動で引く」（30 章）。保存の値は残すが使わない
+    this.deliveryGuide = "route";
     this.routeStyle = w?.routeStyle ?? "short";
     this.appOn = w?.app ?? true;
     this.regulars = { ...(w?.regulars ?? {}) };
     this.gear = w?.gear ?? "bag";
+    this.care = careFromJSON(w?.bike ?? null);
+    this.careWarned = 1;
     this.economySaved = w?.economy ?? null;
     if (this.market) {
       this.market = new Market(this.market.arena, this.roads.seed, this.worldToday(), this.economySaved, this.nowMs());
@@ -1496,7 +1583,7 @@ export class Game {
     const area = this.deliveryArea;
     const hasRegular = Object.values(this.regulars).some((n) => n >= REGULAR_AFTER);
     // 頼み事・旗の家の知らせを出している間は、重ならないよう画面を隠す
-    this.phone.show(!!area && !this.watching && !this.cardOffer);
+    this.phone.show(!!area && !this.watching && !this.restCard.isOpen);
     if (!area || !ride?.road || this.watching) return;
     const p = ride.pose();
     let note = "";
@@ -1519,20 +1606,26 @@ export class Game {
         },
       );
     const limit = carryLimit(this.gear);
-    this.phone.update(
-      this.feed.items.map((it) => ({
-        order: it.order,
-        remain: it.until - time,
-        life: it.until - it.at,
-        fromHere: Math.hypot(it.order.pickup.x - p.x, it.order.pickup.z - p.z),
-        block: this.full ? `持てるのは ${limit} 件まで` : gearBlocks(it.order, this.gear),
-      })),
-      "",
-    );
+    const items = this.feed.items.map((it) => ({
+      order: it.order,
+      remain: it.until - time,
+      life: it.until - it.at,
+      fromHere: Math.hypot(it.order.pickup.x - p.x, it.order.pickup.z - p.z),
+      block: this.full ? `持てるのは ${limit} 件まで` : gearBlocks(it.order, this.gear),
+      here: false,
+    }));
+    // 目の前の頼み事・家からの発送も配達アプリの一覧の先頭に出す（受ける所をアプリにそろえる。30 章）
+    const c = this.cardOffer;
+    if (c) items.unshift({ order: c.order, remain: 1, life: 1, fromHere: Math.hypot(c.order.pickup.x - p.x, c.order.pickup.z - p.z), block: this.full ? `持てるのは ${limit} 件まで` : gearBlocks(c.order, this.gear), here: true });
+    this.phone.update(items, "");
   }
 
   /** 配達アプリの一覧から受ける */
   private acceptFromPhone(no: number) {
+    if (this.cardOffer?.order.no === no) {
+      this.acceptCardOffer();
+      return;
+    }
     const it = this.feed.items.find((x) => x.order.no === no);
     if (!it || this.full || gearBlocks(it.order, this.gear)) return;
     this.feed.take(no);
@@ -1576,7 +1669,9 @@ export class Game {
     }
     if (c) this.closeCardOffer();
     this.cardOffer = { order, until: null, ask };
-    this.offerCard.show(order, order.approach, gearBlocks(order, this.gear));
+    // 別の札は出さず、配達アプリの一覧の先頭に出して、畳んでいれば開く（30 章）
+    this.phone.setOpen(true, false);
+    this.hud.flash(`${ask.kind === "errand" ? "頼み事" : "家からの発送"}　配達アプリに出た`, "ok");
   }
 
   private closeCardOffer() {
@@ -1637,9 +1732,54 @@ export class Game {
       people.push(wp);
       marks.push(wp);
     }
+    const me = this.restWalker();
+    if (me) people.push(me);
+    for (const w of this.parcelDrivers(pose)) people.push(w);
     for (const w of walkersNear(this.roads.net.roads.values(), pose.x, pose.z, light ? 120 : 180, t, density, light ? 60 : 200, (x, z) => this.inDeliveryArea(x, z))) people.push(w);
     const flags = sw.flags.map((f) => ({ x: f.x, y: f.y, z: f.z, yaw: Math.atan2(f.house.x - f.spot.x, f.house.z - f.spot.z) + Math.PI / 2 }));
     pv.update(people, marks, flags, this.view.originX, this.view.originZ, performance.now() / 1000);
+  }
+
+  /**
+   * 荷を届けに止まっている業者の車の運転手（配達の草案 28 章）: 業者の色の上着で、車の左（歩道の側）から箱を持って建物の前まで歩き、
+   * 渡して手ぶらで戻る。止まっている時間の割合で位置が決まる
+   */
+  private parcelDrivers(pose: { x: number; z: number }): Walker[] {
+    const out: Walker[] = [];
+    for (const { v, phase } of this.traffic.parcelStops()) {
+      if (Math.hypot(v.x - pose.x, v.z - pose.z) > 160) continue;
+      // 車の左（-右）。右は (-dz, dx)
+      const lx = v.dz;
+      const lz = -v.dx;
+      const near = v.width / 2 + 0.4;
+      const far = near + 3.6;
+      // 0〜0.12 降りて荷を出す、〜0.42 建物へ歩く、〜0.6 渡す、〜0.9 戻る、〜1 乗る
+      let k: number;
+      let walking = false;
+      let out1 = true;
+      if (phase < 0.12) k = 0;
+      else if (phase < 0.42) {
+        k = (phase - 0.12) / 0.3;
+        walking = true;
+      } else if (phase < 0.6) k = 1;
+      else if (phase < 0.9) {
+        k = 1 - (phase - 0.6) / 0.3;
+        walking = true;
+        out1 = false;
+      } else {
+        k = 0;
+        out1 = false;
+      }
+      const d = near + (far - near) * k;
+      const bx = v.x + lx * d - v.dx * 0.6;
+      const bz = v.z + lz * d - v.dz * 0.6;
+      // 歩く向き: 行きは建物（左）へ、戻りは車へ。止まっている時は建物を向く
+      const fx = walking && !out1 ? -lx : lx;
+      const fz = walking && !out1 ? -lz : lz;
+      const gait = walking ? (phase * 60) % 1 : 0;
+      out.push({ x: bx, y: v.y, z: bz, dx: fx, dz: fz, gait, still: !walking, seed: v.id * 7919, coat: v.color, carry: phase < 0.55 });
+    }
+    return out;
   }
 
   /** 世界の日の通し番号（配達の草案 17 章） */
@@ -1730,12 +1870,20 @@ export class Game {
     this.market = new Market(arena, this.roads.seed, this.worldToday(), this.economySaved, this.nowMs());
     this.checkClosed();
     this.checkAway();
-    // 配達用のバン・軽トラの半分ほどを、その丁目の持ち主の業者の色にする
+    // 配達用のバン・軽トラの半分ほどを、その丁目の持ち主の業者の色にする（その車はときどき止まって荷を届ける）。
+    // 自転車の配達員は、持ち主の業者（自分の業者も）の色の上着で走る（配達の草案 28 章）
     this.traffic.paint = (x, z, type, u) => {
-      if ((type !== "van" && type !== "keiTruck") || u > 0.6) return null;
       const at = book.at(x, z);
       const o = at ? this.market?.ownerOf(at.name) : null;
+      if (type === "courier") return o?.color ?? null;
+      if ((type !== "van" && type !== "keiTruck") || u > 0.6) return null;
       return o && o.kind !== "player" ? o.color : null;
+    };
+    // 配達員の数（1km あたり）: 業者の持つ丁目は多め、持ち主の無い丁目は少し【初期値】
+    this.traffic.couriers = (x, z) => {
+      if (!this.inDeliveryArea(x, z)) return 0;
+      const at = book.at(x, z);
+      return at && this.market?.ownerOf(at.name) ? 1.6 : 0.6;
     };
   }
 
@@ -1843,12 +1991,16 @@ export class Game {
       );
       return;
     }
-    this.newOrder();
+    // 持っている注文が無ければ、配達アプリを開く（範囲の外ならそう出す）
+    const p = this.ride?.road ? this.ride.pose() : this.anchor;
+    if (!this.inDeliveryArea(p.x, p.z)) this.deliveryPanel.showOutside("大通の周り 約 4km 四方（北14条〜南16条、西20丁目〜東13丁目あたり）");
+    else this.phone.setOpen(true, false);
   }
 
   /** 装備の画面（配達の草案 22.6 の 49） */
   openGear() {
-    this.deliveryPanel.showGear(GEAR_LABELS[this.gear], carryLimit(this.gear), Math.round(this.money), CARRIER_COST, this.gear === "carrier");
+    const care: [string, string][] = CARE_PARTS.map((p) => [CARE_LABELS[p], `${Math.round(this.care[p] * 100)}%（自転車店で直す）`]);
+    this.deliveryPanel.showGear(GEAR_LABELS[this.gear], carryLimit(this.gear), Math.round(this.money), CARRIER_COST, this.gear === "carrier", care);
   }
 
   private inDeliveryArea(x: number, z: number): boolean {
@@ -1856,23 +2008,14 @@ export class Game {
     return !!a && x >= a.x0 && x <= a.x1 && z >= a.z0 && z <= a.z1;
   }
 
-  private newOrder() {
-    const area = this.deliveryArea;
-    const p = this.ride?.road ? this.ride.pose() : this.anchor;
-    if (!area || !this.inDeliveryArea(p.x, p.z)) {
-      this.deliveryPanel.showOutside("大通の周り 約 4km 四方（北14条〜南16条、西20丁目〜東13丁目あたり）");
-      return;
-    }
-    this.offer = this.appOrder(p.x, p.z, ++this.orderNo, orderSeed(this.worldUnix()));
-    if (this.offer) this.deliveryPanel.showOrder(this.offer, this.money);
-    else this.deliveryPanel.showOutside("大通の周り 約 4km 四方（北14条〜南16条、西20丁目〜東13丁目あたり）");
-  }
-
   private acceptOrder() {
     const ride = this.ride;
     if (!this.offer || !ride || this.full) return;
     const d = new Delivery(this.offer, ride.time, ride.odometer);
     this.deliveries.push(d);
+    // 受注のカットイン（配達の草案 28 章）
+    const o = this.offer;
+    this.hud.cutIn("受注！", `${o.pickedAtStart ? "その場で受け取り" : o.pickup.name} → ${o.dropoff.name}　${o.reward.toLocaleString("ja-JP")} 円`);
     this.offer = null;
     this.deliveryPanel.hide();
     // 2 件目は、今の行き先のまま（配達の画面で行き先を切り替えられる）
@@ -1889,11 +2032,7 @@ export class Game {
   private guideTo(p: Place) {
     const ride = this.ride;
     if (!ride) return;
-    const tapped = this.deliveries.some((d) => d.target === p && this.routedByTap.has(d.order.no));
-    if (this.deliveryGuide !== "route" && !tapped) {
-      ride.setGoal(null);
-      return;
-    }
+    // 注文を受けたら、いつも行き先へ経路を引いて漕ぎ出す（ユーザーの指定 2026-11-26。配達の草案 30 章）
     // 丁目は、道の脇がその丁目になる所へ引く（店・家・人は止まる所そのもの）
     const spot = this.spotOf(p);
     ride.setGoal(spot?.x ?? p.x, spot?.z ?? p.z);
@@ -1969,7 +2108,7 @@ export class Game {
     const ride = this.ride;
     const d = this.delivery;
     const road = ride?.road;
-    if (!ride || !road || !d || (this.deliveryGuide !== "route" && !this.routedByTap.has(d.order.no)) || this.watching) return;
+    if (!ride || !road || !d || this.watching) return;
     const z = this.zoneOf(d.target);
     if (!z || ride.pos.road !== z.road || ride.turn) return;
     const pose = ride.pose();
@@ -1984,17 +2123,37 @@ export class Game {
     this.steeredToZone = true;
   }
 
-  /** 車に当たったら体力を減らす（配達の草案 26 章）。同じ車は 4 秒、続けては 1 秒あける */
+  /**
+   * 車に当たった時（配達の草案 26・28 章）: すり抜けずに、自転車は 1 回跳ねて車から離れる向きへずれ、車はその逆へ寄りながら減速して止まる。
+   * 体力を減らす（配達だけ）。同じ車は 4 秒、続けては 1 秒あける
+   */
   private checkCarHits(ride: Ride) {
-    if (this.watching || this.paused || !ride.road || ride.speed < 1) return;
+    if (this.watching || this.paused || !ride.road) return;
     const p = ride.pose();
     const now = performance.now();
     for (const v of this.traffic.contacts(p)) {
+      // どちらも止まりかけなら当たったことにしない
+      if (ride.speed < 1 && v.speed < 1) continue;
       if (now - (this.carHits.get(v.id) ?? -Infinity) < 4000 || now - this.lastCarHit < 1000) continue;
       this.carHits.set(v.id, now);
       this.lastCarHit = now;
-      this.stamina.hit(CAR_HIT);
-      this.hud.flash(`車に当たった　体力 −${Math.round(CAR_HIT * 100)}%`, "hit");
+      // 車の中心から自転車への向きを、自転車の右（-dz, dx）に映して、ずれる向きを決める
+      const rx = p.x - v.x;
+      const rz = p.z - v.z;
+      const side: 1 | -1 = rx * -p.dz + rz * p.dx < 0 ? -1 : 1;
+      // 車の箱から出るだけずらす（0.8〜2.2m）
+      const lat = Math.abs(-rx * v.dz + rz * v.dx);
+      const shift = Math.max(0.8, Math.min(2.2, v.width / 2 + 0.3 - lat + 0.5));
+      ride.bump(side, shift);
+      // 車は、自転車がずれた向き（世界の向き）と逆へ寄る。車の右（-dz, dx）に映す
+      const sx = -p.dz * side;
+      const sz = p.dx * side;
+      this.traffic.collide(v, sx * -v.dz + sz * v.dx > 0 ? -1 : 1);
+      const who = v.type === "courier" ? "配達員" : "車";
+      if (this.mode === "delivery") {
+        this.stamina.hit(CAR_HIT);
+        this.hud.flash(`${who}に当たった　体力 −${Math.round(CAR_HIT * 100)}%`, "hit");
+      } else this.hud.flash(`${who}に当たった`, "hit");
     }
     if (this.carHits.size > 32) for (const [id, at] of this.carHits) if (now - at > 4000) this.carHits.delete(id);
   }
@@ -2003,6 +2162,361 @@ export class Game {
    * 交差点の住所の看板（配達の草案 27 章）: 今いる所から 130m 以内の、腕が 3 本以上の交差点の角に、その角の街区の住所（短い形）。
    * 住所の分かる所（北海道の世界の配達の範囲）だけ。0.4 秒ごとに選び直す
    */
+  /** 近くの体力を戻す所を選び直して描く（0.4 秒ごと。配達の範囲の中だけ） */
+  private updateRestStops(pose: { x: number; z: number } | null, t: number) {
+    if (t - this.restT < 400) return;
+    this.restT = t;
+    const b = this.view.world.local?.buildings;
+    if (this.mode !== "delivery" || !b || !pose || !this.inDeliveryArea(pose.x, pose.z)) this.restStops = [];
+    else this.restStops = restStopsNear(b, this.roads.net.roads, pose.x, pose.z, 450, (x, z) => this.inDeliveryArea(x, z), this.restCache);
+    const near = pose ? this.restStops.filter((s) => Math.hypot(s.x - pose.x, s.z - pose.z) < 260) : [];
+    this.view.restStops.update(near, this.view.originX, this.view.originZ);
+  }
+
+  /** 世界地図に出す体力を戻す所（今いる所から 1km。2 秒ごとに選び直す） */
+  private restsForMap(): RestStop[] {
+    const b = this.view.world.local?.buildings;
+    const p = this.ride?.road ? this.ride.pose() : this.anchor;
+    if (this.mode !== "delivery" || !b) return [];
+    const now = performance.now();
+    if (!this.restMap || now - this.restMap.t > 2000) this.restMap = { t: now, list: restStopsNear(b, this.roads.net.roads, p.x, p.z, 1000, (x, z) => this.inDeliveryArea(x, z), this.restCache) };
+    return this.restMap.list;
+  }
+
+  /**
+   * 「横」（幅寄せ。配達の草案 30 章）: 左右の操作をした向きの真横（前後 1.8m・横 0.4〜2m）に配達員がいれば、
+   * 自分は一瞬その方へ寄って戻り、相手は押されて寄り、少し遅くなって体力が 3 減る。落車はしない。同じ相手は 2 秒あける。
+   * 当たったことにはしない（自分の体力は減らない）。配達員がいなければ false（ふつうに左右へ寄る）
+   */
+  tryYose(dir: -1 | 1): boolean {
+    const ride = this.ride;
+    if (this.mode !== "delivery" || this.watching || !ride?.road || ride.speed < 1.5) return false;
+    const p = ride.pose();
+    const now = performance.now();
+    let best: Vehicle | null = null;
+    let bd = Infinity;
+    for (const v of this.traffic.vehicles) {
+      if (v.type !== "courier" || v.dx * p.dx + v.dz * p.dz < 0.7 || Math.abs(v.y - p.y) > 2) continue;
+      const rx = v.x - p.x;
+      const rz = v.z - p.z;
+      const lon = rx * p.dx + rz * p.dz;
+      // 自分の右（-dz, dx）を正にした横の位置
+      const lat = rx * -p.dz + rz * p.dx;
+      if (Math.abs(lon) > 1.8 || lat * dir < 0.4 || lat * dir > 2) continue;
+      if (now - (this.carHits.get(v.id) ?? -Infinity) < 2000) continue;
+      const d = Math.abs(lat) + Math.abs(lon);
+      if (d < bd) {
+        bd = d;
+        best = v;
+      }
+    }
+    if (!best) return false;
+    ride.yose(dir);
+    // 相手は自分から離れる向き（世界の向きで自分の右 × dir）へ。相手の右（-dz, dx）に映す
+    const sx = -p.dz * dir;
+    const sz = p.dx * dir;
+    const left = this.traffic.shove(best, sx * -best.dz + sz * best.dx >= 0 ? 1 : -1);
+    // 寄った時に重なっても、当たったことにしない
+    this.carHits.set(best.id, now);
+    this.hud.flash(`横　配達員の体力 ${left}`, "ok");
+    return true;
+  }
+
+  /** 画面を押した所に体力を戻す所の円があれば、そこへ向かう（配達の草案 30 章） */
+  tapAt(ndcX: number, ndcY: number): boolean {
+    if (this.mode !== "delivery" || this.watching || this.paused || this.restAction) return false;
+    const id = this.view.restStops.pick(ndcX, ndcY, this.view.camera);
+    const st = id ? this.restStops.find((s) => s.id === id) : null;
+    if (!st || !this.ride) return false;
+    this.goToRest(st);
+    return true;
+  }
+
+  /** 体力を戻す所へ向かい、着いたら自動で頼む。もう前にいればすぐ頼む */
+  goToRest(st: RestStop) {
+    const ride = this.ride;
+    if (!ride?.road) return;
+    this.restCard.hide();
+    this.restDismissed = null;
+    this.restGoal = st;
+    const p = ride.pose();
+    if (Math.hypot(st.roadX - p.x, st.roadZ - p.z) <= REST_STOP_RANGE[st.kind] && ride.speed < 0.5) {
+      this.startRestAction(st);
+      return;
+    }
+    this.goalLandmark = null;
+    // 経路の行き先は 15m 手前で外れ、「着いたら止まる」だとそこで止まってしまうので使わない。
+    // 漕ぎ続けて、店の前で restBrake が止める
+    this.stopAtGoal = false;
+    ride.setGoal(st.roadX, st.roadZ);
+    if (this.manual.pace === 0) this.setPace(2);
+    this.hud.flash(`${st.name}へ向かう`, "ok");
+  }
+
+  /**
+   * 円を押して向かう所の前で止まるためのブレーキ（経路の行き先は 15m 手前で外れるので、自分で止める）。
+   * 止まる所まで、今の速さで止まれる距離（2m/s² で減速）＋ 3m を切ったら掛け、止まる所の範囲に入ったら止まるまで掛ける
+   */
+  private restBrake(): boolean {
+    const st = this.restGoal;
+    const r = this.ride;
+    if (!st || !r?.road || this.restAction) return false;
+    const p = r.pose();
+    const d = Math.hypot(st.roadX - p.x, st.roadZ - p.z);
+    // 止まる所の範囲に入ったら止まるまで掛ける
+    if (d <= REST_STOP_RANGE[st.kind]) return true;
+    // 通り過ぎた（後ろにある）時は掛けない
+    if ((st.roadX - p.x) * p.dx + (st.roadZ - p.z) * p.dz < -2) return false;
+    return d < (r.speed * r.speed) / 4 + 3 && r.speed > 0.3;
+  }
+
+  /** 自動で頼む: 品を決めて演出を始める。買える物が無ければ札を出す */
+  private startRestAction(st: RestStop) {
+    this.restGoal = null;
+    const ride = this.ride;
+    if (!ride?.road || !isFood(st.kind)) return;
+    const it = autoItem(st.kind as FoodKind, this.money, this.stamina.energyShare, this.stamina.legsShare);
+    if (!it) {
+      this.setPace(0);
+      this.showRest(st, "");
+      return;
+    }
+    const p = ride.pose();
+    this.setPace(0);
+    this.restAction = { stop: st, item: it, t0: performance.now(), ms: st.kind === "vending" ? 3000 : 5000, bike: { x: p.x, y: p.y, z: p.z } };
+  }
+
+  /** 演出を進める。終わったら払って体力を戻す */
+  private updateRestAction() {
+    const a = this.restAction;
+    const rider = this.player.rider.group;
+    if (!a) {
+      this.player.drink = 0;
+      rider.visible = true;
+      return;
+    }
+    if (this.ride) this.ride.speed = 0;
+    this.manual.pace = 0;
+    const k = Math.min(1, (performance.now() - a.t0) / a.ms);
+    if (a.stop.kind === "vending") {
+      // 手を上げる 0.5 秒・飲む・下ろす 0.5 秒
+      const up = Math.min(1, k / 0.17, (1 - k) / 0.17);
+      this.player.drink = up * up * (3 - 2 * up);
+    } else rider.visible = false; // 自転車を降りて店に出入りする（歩く人の形で描く。0.16〜0.84 は店の中）
+    if (k < 1) return;
+    this.restAction = null;
+    this.player.drink = 0;
+    rider.visible = true;
+    this.restCard.stop = a.stop;
+    this.buyRest(a.item);
+    this.restCard.hide();
+    this.restDismissed = a.stop.id;
+  }
+
+  /** 店に出入りする自分（歩く人の形。業者の色の上着） */
+  private restWalker(): Walker | null {
+    const a = this.restAction;
+    if (!a || a.stop.kind === "vending") return null;
+    const k = Math.min(1, (performance.now() - a.t0) / a.ms);
+    // 0〜0.16 自転車から店の入口へ、0.84〜1 戻る。その間は店の中
+    const door = { x: a.stop.x + a.stop.fx * 1.2, z: a.stop.z + a.stop.fz * 1.2 };
+    let f: number;
+    let back = false;
+    if (k < 0.16) f = k / 0.16;
+    else if (k > 0.84) {
+      f = (1 - k) / 0.16;
+      back = true;
+    } else return null;
+    const x = a.bike.x + (door.x - a.bike.x) * f;
+    const z = a.bike.z + (door.z - a.bike.z) * f;
+    let dx = door.x - a.bike.x;
+    let dz = door.z - a.bike.z;
+    const l = Math.hypot(dx, dz) || 1;
+    dx /= l;
+    dz /= l;
+    if (back) {
+      dx = -dx;
+      dz = -dz;
+    }
+    return { x, y: a.bike.y, z, dx, dz, gait: (k * 18) % 1, still: false, seed: 77, coat: this.outfit.rider.jerseyColor };
+  }
+
+  /** 体力を戻す所の前で止まったら札を出す。動き出す・離れると閉じる（配達の草案 28 章） */
+  private checkRest(ride: Ride) {
+    const card = this.restCard;
+    const p = ride.road ? ride.pose() : null;
+    const open = card.stop;
+    if (open && (!p || ride.speed > 1.5 || Math.hypot(open.roadX - p.x, open.roadZ - p.z) > REST_STOP_RANGE[open.kind] + 4)) card.hide();
+    const d = this.restDismissed ? this.restStops.find((s) => s.id === this.restDismissed) : null;
+    if (this.restDismissed && (!d || !p || Math.hypot(d.roadX - p.x, d.roadZ - p.z) > REST_STOP_RANGE[d.kind] + 4)) this.restDismissed = null;
+    if (this.restAction) return;
+    // 円を押して向かった所に着いたら、自動で頼む（すぐ横に別の所があっても、向かった所で）
+    const rg = this.restGoal;
+    if (p && rg && ride.speed < 1 && Math.hypot(rg.roadX - p.x, rg.roadZ - p.z) <= REST_STOP_RANGE[rg.kind]) {
+      this.startRestAction(rg);
+      return;
+    }
+    if (!p || card.isOpen || ride.speed > 0.5 || this.watching || this.stop) return;
+    const at = restStopAt(this.restStops, p.x, p.z);
+    if (!at || at.id === this.restDismissed) return;
+    this.showRest(at, "");
+  }
+
+  /** 札を出す・出し直す: 食べ物の所は品書き、自転車店は傷みと整備とリアキャリア、車の整備は空気入れ（配達の草案 28・29 章） */
+  private showRest(st: RestStop, note: string) {
+    const money = `所持金 ${Math.round(this.money).toLocaleString("ja-JP")} 円`;
+    if (isFood(st.kind)) {
+      const entries: CardEntry[] = REST_MENU[st.kind].map((it) => ({
+        name: it.name,
+        price: `${it.price} 円`,
+        gain: `体力 +${Math.round(it.energy * 100)}%${it.legs ? "・脚" : ""}  ${fmtSeconds(it.seconds)}`,
+        why: restBlock(it, this.money, this.stamina.energyShare, this.stamina.legsShare),
+        onClick: () => this.buyRest(it),
+      }));
+      this.restCard.show(st, `体力 ${Math.round(this.stamina.energyShare * 100)}%  ${money}`, [], entries, note);
+      return;
+    }
+    const rows: [string, string][] = CARE_PARTS.map((p) => [CARE_LABELS[p], `${Math.round(this.care[p] * 100)}%`]);
+    // 燃料店は空気入れだけ（車はまだ持てない）
+    const services = st.kind === "bike" ? CARE_SERVICES : CARE_SERVICES.filter((s) => s.id === "air");
+    const entries: CardEntry[] = services.map((s) => ({
+      name: s.name,
+      price: s.price ? `${s.price.toLocaleString("ja-JP")} 円` : "無料",
+      gain: `${s.parts.map((p) => CARE_LABELS[p]).join("・")}を 100%  ${fmtSeconds(s.seconds)}`,
+      why: careBlock(s, this.care, this.money),
+      onClick: () => this.buyCare(s),
+    }));
+    if (st.kind === "bike")
+      entries.push({
+        name: "リアキャリア",
+        price: `${CARRIER_COST.toLocaleString("ja-JP")} 円`,
+        gain: `同時に持てる注文 ${carryLimit("carrier")} 件・大きめの小包`,
+        why: this.gear === "carrier" ? "付いている" : this.money < CARRIER_COST ? "所持金が足りない" : null,
+        onClick: () => {
+          if (this.gear === "carrier" || this.money < CARRIER_COST) return;
+          this.money -= CARRIER_COST;
+          this.gear = "carrier";
+          this.hud.flash("リアキャリアを付けた", "ok");
+          this.showRest(st, "リアキャリアを付けた");
+          void this.save();
+        },
+      });
+    else rows.push(["車", "持っていない"]);
+    this.restCard.show(st, money, rows, entries, note);
+  }
+
+  /** 自転車店で整備を頼む: 払って直し、かかった時間を持っている注文の経った時間に足す */
+  buyCare(s: CareService) {
+    const st = this.restCard.stop;
+    if (!st || careBlock(s, this.care, this.money)) return;
+    this.money -= s.price;
+    this.care = serviceCare(s, this.care);
+    for (const d of this.deliveries) d.addTime(s.seconds);
+    this.careWarned = 1;
+    this.hud.flash(`${s.name}　${fmtSeconds(s.seconds)}`, "ok");
+    this.showRest(st, `${s.name}　${fmtSeconds(s.seconds)}経った`);
+    void this.save();
+  }
+
+  /** 走った分だけ自転車を傷め、傷みを走りに効かせる（配達だけ。サイクリングと眺める時は傷めない） */
+  private updateCare(ride: Ride) {
+    const on = this.mode === "delivery" && !this.watching && ride.power === this.manual;
+    const d = ride.odometer - this.careOdo;
+    if (on && d > 0 && d < 500) this.care = wear(this.care, d);
+    this.careOdo = ride.odometer;
+    const e = on ? careEffects(this.care) : { crr: 1, drive: 1, brake: 1 };
+    ride.careCrr = e.crr;
+    ride.careDrive = e.drive;
+    ride.careBrake = e.brake;
+  }
+
+  /**
+   * 配達鞄とリアキャリアの見た目（配達の草案 29 章）。配達だけ。鞄と箱の色は、経営している業者、入っている業者、
+   * どちらも無ければ橙
+   */
+  private updateCargo() {
+    let look: { bag: string; rack: boolean } | null = null;
+    if (this.mode === "delivery") {
+      const m = this.market;
+      const id = m?.own()?.id ?? m?.state.player.company ?? null;
+      const color = (id && m?.now.entities.find((e) => e.id === id)?.color) || "#d8642a";
+      look = { bag: color, rack: this.gear === "carrier" };
+    }
+    const key = look ? `${look.bag}|${look.rack}` : "";
+    if (key === this.cargoKey) return;
+    this.cargoKey = key;
+    this.player.setCargo(look);
+  }
+
+  /** いちばん傷んだ所が 50%・25% を切った時に、近くの自転車店を知らせる */
+  private warnCare(pose: { x: number; z: number } | null) {
+    if (this.mode !== "delivery" || this.watching || !pose) return;
+    const w = worstPart(this.care);
+    if (w.share > this.careWarned + 0.05) this.careWarned = 1;
+    for (const th of [0.5, 0.25]) {
+      if (w.share >= th || this.careWarned <= th) continue;
+      this.careWarned = th;
+      // 空気だけなら燃料店でも入れられる
+      const shops = this.restStops.filter((s) => s.kind === "bike" || (w.part === "tire" && s.kind === "car"));
+      let best: RestStop | null = null;
+      for (const s of shops) if (!best || Math.hypot(s.roadX - pose.x, s.roadZ - pose.z) < Math.hypot(best.roadX - pose.x, best.roadZ - pose.z)) best = s;
+      const where = best ? `　近くの${best.name} ${Math.round(Math.hypot(best.roadX - pose.x, best.roadZ - pose.z) / 10) * 10}m` : "";
+      this.hud.flash(`${CARE_LABELS[w.part]} ${Math.round(th * 100)}%${where}`, "hit");
+      break;
+    }
+  }
+
+  /** 買う・食べる: 所持金を払い、体力（店なら脚も）を戻し、かかった時間を持っている注文の経った時間に足す */
+  buyRest(it: RestItem) {
+    const st = this.restCard.stop;
+    if (!st || restBlock(it, this.money, this.stamina.energyShare, this.stamina.legsShare)) return;
+    this.money -= it.price;
+    this.stamina.refill(it.energy, it.legs);
+    for (const d of this.deliveries) d.addTime(it.seconds);
+    const pct = Math.round(this.stamina.energyShare * 100);
+    this.hud.flash(`${it.name}　体力 ${pct}%`, "ok");
+    this.showRest(st, `${it.name}　${fmtSeconds(it.seconds)}経った`);
+    this.lowWarned = 1;
+    void this.save();
+  }
+
+  /** 脚・体力が尽きて、選んだペースより遅いペースで走っている時、そのペース。そうでなければ null */
+  private cappedPace(): number | null {
+    const sel = this.manual.pace;
+    if (sel === 0) return null;
+    const eff = effectivePace(sel, this.manual.cp, this.stamina.cap());
+    return eff < sel ? eff : null;
+  }
+
+  /** 体力が 30%・15% を切った時に、近くの店を知らせる（地図で押すとそこまでの経路） */
+  private warnLowEnergy(pose: { x: number; z: number } | null) {
+    if (this.mode !== "delivery" || this.watching || !pose) return;
+    // 脚が尽きた時: 戻るまで抑えることを知らせる
+    const ex = this.stamina.exhausted;
+    if (ex && !this.wasExhausted) this.hud.flash(`脚が尽きた　脚 ${Math.round(LEGS_BACK * 100)}% まで出力を抑える`, "hit");
+    this.wasExhausted = ex;
+    const e = this.stamina.energyShare;
+    if (e > this.lowWarned + 0.05) this.lowWarned = 1;
+    for (const th of [0.3, 0.15]) {
+      if (e >= th || this.lowWarned <= th) continue;
+      this.lowWarned = th;
+      let best: RestStop | null = null;
+      let bd = Infinity;
+      for (const st of this.restStops) {
+        if (!isFood(st.kind)) continue;
+        // 店を先に（自販機は少ししか戻らない）
+        const d = Math.hypot(st.roadX - pose.x, st.roadZ - pose.z) * (st.kind === "vending" ? 2.5 : 1);
+        if (d < bd) {
+          bd = d;
+          best = st;
+        }
+      }
+      const where = best ? `　近くの${best.name} ${Math.round(Math.hypot(best.roadX - pose.x, best.roadZ - pose.z) / 10) * 10}m` : "";
+      this.hud.flash(`体力 ${Math.round(th * 100)}%${where}`, "hit");
+      break;
+    }
+  }
+
   private updateAddressSigns(pose: { x: number; z: number } | null, t: number) {
     const book = this.addresses;
     if (!pose || !book) {
@@ -2286,7 +2800,7 @@ export class Game {
           this.hud.syncSettings({ camera: this.camera });
           break;
         case "watch":
-          this.setWatching(!this.watching);
+          if (this.mode === "cycling") this.setWatching(!this.watching);
           break;
         case "choose-left":
           ride?.chooseDirection(-1);
@@ -2298,10 +2812,10 @@ export class Game {
           ride?.chooseDirection(1);
           break;
         case "lane-left":
-          ride?.shiftLane(-LANE_TAP);
+          if (!this.tryYose(-1)) ride?.shiftLane(-LANE_TAP);
           break;
         case "lane-right":
-          ride?.shiftLane(LANE_TAP);
+          if (!this.tryYose(1)) ride?.shiftLane(LANE_TAP);
           break;
         case "look-left":
           this.player.lookBack(1);
@@ -2367,7 +2881,8 @@ export class Game {
     if (this.delivery) this.checkDelivery();
     else if (!this.cardOffer?.ask) {
       this.checkCafe(t);
-      this.checkLandmark(t);
+      // 名所の立ち寄り（回って眺める視点）はサイクリングだけ（配達の草案 28 章）
+      if (this.mode === "cycling") this.checkLandmark(t);
     }
     // 眺めている間の立ち寄り（冒険の距離が尽きて止まった所など）は、20 秒見せてから出発する（冒険の草案 4.1）
     if (this.watching && this.stop && !this.paused && t - this.stop.t0 > WATCH_STOP_MS) this.depart();
@@ -2382,7 +2897,7 @@ export class Game {
     // 左右のボタン・キーを押し続けている間は、左右位置を動かし続ける（配達の草案 26 章）
     const lane = this.input.lane;
     if (lane && ride && !this.paused && performance.now() - this.input.laneSince > LANE_HOLD_MS) ride.shiftLane(lane * LANE_SPEED * dt);
-    this.manual.brake = this.input.brake || this.arriving ? 1 : 0;
+    this.manual.brake = this.input.brake || this.arriving || this.restBrake() ? 1 : 0;
     this.trainer.power.brake = this.manual.brake;
     this.updateTrainer();
     // 冒険の距離はトレーナー以外で走る時だけ使う（冒険の草案 0 章の 7）
@@ -2393,16 +2908,18 @@ export class Game {
       const maxSteps = 24 * this.timeScale;
       while (this.acc >= DT && n < maxSteps) {
         // 脚と体力（配達の草案 14.2）: 手動では出せる出力を抑え、トレーナーでは減るだけ。眺める乗り方では使わない
-        this.manual.cap = this.watching ? Infinity : this.stamina.cap();
+        // 体力とペースの補助は配達だけ。サイクリングは補助なしの出力で走る（配達の草案 28 章）
+        const work = this.mode === "delivery";
+        this.manual.cap = this.watching || !work ? Infinity : this.stamina.cap();
         // ペースの補助（配達の草案 26 章）: 手動で漕ぐ時だけ。漕ぐボタンは「ふつう」と同じ
-        const assisted = ride.power === this.manual && !this.watching;
-        const pace = this.manual.pedal ? 2 : this.manual.pace;
+        const assisted = ride.power === this.manual && !this.watching && work;
+        // 脚・体力が尽きて出力が抑えられている間は、抑えた出力で走れるペースの補助と速さにする（30 章）
+        const pace = effectivePace(this.manual.pedal ? 2 : this.manual.pace, this.manual.cp, this.manual.cap);
         ride.assist = assisted ? PACE_ASSIST[pace] : 1;
-        // 脚・体力が尽きて出力が抑えられている間は、押す速さも同じ割合で下げる
         const nominal = this.manual.pedal ? this.manual.setting : paceWatts(pace, this.manual.cp);
         ride.cruise = assisted && nominal > 0 ? (PACE_SPEED[pace] / 3.6) * Math.min(1, this.manual.cap / nominal) : 0;
         ride.step(DT);
-        if (!this.watching) this.stamina.update(ride.watts, DT);
+        if (!this.watching && work) this.stamina.update(ride.watts, DT);
         this.acc -= DT;
         n++;
       }
@@ -2413,6 +2930,9 @@ export class Game {
       this.updateArrival(ride);
       this.checkCarHits(ride);
       this.steerToZone();
+      this.checkRest(ride);
+      this.updateCare(ride);
+      this.updateRestAction();
     }
 
     let eye = { x: this.anchor.x, y: this.view.heights.height(this.anchor.x, this.anchor.z) + 40, z: this.anchor.z };
@@ -2437,7 +2957,9 @@ export class Game {
       this.smoothEye.z += (c.eye.z - this.smoothEye.z) * k;
       eye = { ...this.smoothEye };
       if (this.camera !== "rider") eye.y = Math.max(eye.y, this.view.surfaceHeight(eye.x, eye.z) + 1.2);
-      target = c.target;
+      // 向きは遅らせない: 注視点を、遅れて追う目の位置から同じ向き・同じ距離に置く。
+      // 注視点だけ先に動くと、左右へ寄った時に画面が一瞬回って見えた（ユーザーの指摘 2026-11-26）
+      target = { x: this.smoothEye.x + (c.target.x - c.eye.x), y: this.smoothEye.y + (c.target.y - c.eye.y), z: this.smoothEye.z + (c.target.z - c.eye.z) };
       fov = c.fov;
       this.view.nearPlane = c.near ?? NEAR_DEFAULT;
       this.anchor = { x: pose.x, z: pose.z };
@@ -2486,10 +3008,14 @@ export class Game {
     this.view.frame(eye, target, fov, () => {
       const env = this.view.env;
       const lights = 2.2 * Math.max(1 - env.daylight, env.mist * 0.7);
-      this.view.trafficView.update(this.traffic, this.view.originX, this.view.originZ, lights, eye.x, eye.z);
+      // 近くの配達員は人の形で描き、その分の箱の形を隠す（配達の草案 30 章）
+      this.view.npcRiders.update(this.traffic, this.view.originX, this.view.originZ, this.anchor.x, this.anchor.z, this.paused ? 0 : dt, this.mode === "delivery" && !!pose);
+      this.view.trafficView.update(this.traffic, this.view.originX, this.view.originZ, lights, eye.x, eye.z, this.view.npcRiders.drawn);
       this.drawPeople(pose);
       this.view.handoff.update(this.handoffMarks(pose), this.view.originX, this.view.originZ, this.paused ? 0 : dt);
       this.updateAddressSigns(pose, t);
+      this.updateRestStops(pose, t);
+      this.view.restStops.pulse(t / 1000);
       this.view.realPoles?.setLights(lights);
       this.player.group.visible = !!pose;
       if (pose && ride) {
@@ -2497,7 +3023,7 @@ export class Game {
         this.player.update(
           this.paused ? 0 : dt,
           pose.x - this.view.originX,
-          pose.y,
+          pose.y + ride.hopHeight,
           pose.z - this.view.originZ,
           pose.dx,
           pose.dz,
@@ -2537,7 +3063,10 @@ export class Game {
     // 小地図（10 回／秒）と世界地図の表示
     if (pose && t - this.minimapT > 100) {
       this.minimapT = t;
-      this.minimap.draw({ roads: this.roads.roadEntries(), pois: this.roads.pois.values(), ridden: this.ridden, stamped: this.stampSet, x: pose.x, z: pose.z, dx: pose.dx, dz: pose.dz, goal, landmarks: this.landmarkMarks(), work: this.workMarks(), targets: this.deliveryMarks(), route: this.routeLine() });
+      this.minimap.draw({ roads: this.roads.roadEntries(), pois: this.roads.pois.values(), ridden: this.ridden, stamped: this.stampSet, x: pose.x, z: pose.z, dx: pose.dx, dz: pose.dz, goal, landmarks: this.landmarkMarks(), work: this.workMarks(), targets: this.deliveryMarks(), route: this.routeLine(), rests: this.restStops });
+      this.warnLowEnergy(pose);
+      this.warnCare(pose);
+      this.updateCargo();
     }
     if (this.mapOverlay.isOpen)
       this.mapOverlay.setInfo(
@@ -2590,8 +3119,11 @@ export class Game {
       goalDistance,
       goalName,
       pace: !this.watching && ride.power === this.manual ? this.manual.pace : null,
-      legs: this.watching ? null : this.stamina.legsShare,
-      energy: this.watching ? null : this.stamina.energyShare,
+      // 脚が尽きて抑えている間に実際に走れるペース（選んだペースより遅い時だけ）
+      paceCapped: !this.watching && ride.power === this.manual && this.mode === "delivery" ? this.cappedPace() : null,
+      legs: this.watching || this.mode === "cycling" ? null : this.stamina.legsShare,
+      energy: this.watching || this.mode === "cycling" ? null : this.stamina.energyShare,
+      care: this.mode === "delivery" ? worstPart(this.care).share : null,
       hour: this.view.env.hour,
       weekday: this.forceSky?.hour !== undefined || this.settings.clock === "fixed" ? null : worldDay(Date.now() + this.clockOffset).weekday,
       weather: WEATHER_LABELS[this.weatherNow.kind],

@@ -7,6 +7,10 @@ import type { Quality } from "../render/world-view.ts";
 import type { Upcoming } from "../sim/ride.ts";
 import type { Action, Input } from "./input.ts";
 import { PACE_LABELS } from "../shared/stamina.ts";
+import type { PlayMode } from "../world-choice.ts";
+
+/** メニューのボタンを置く欄 */
+export type MenuPlace = "main" | "mode" | "other";
 
 export interface HudState {
   speed: number;
@@ -50,9 +54,13 @@ export interface HudState {
   adventureNote?: string | null;
   /** ペース（0〜4）。null ならペースの列を隠す（配達の草案 14.1） */
   pace?: number | null;
+  /** 脚・体力が尽きて実際に走れているペース（選んだペースより遅い時だけ。配達の草案 30 章） */
+  paceCapped?: number | null;
   /** 脚・体力 (0〜1)。null なら隠す（草案 14.2） */
   legs?: number | null;
   energy?: number | null;
+  /** 自転車のいちばん傷んだ所 (0〜1)。null なら隠す（配達の草案 29 章） */
+  care?: number | null;
 }
 
 export interface Settings {
@@ -96,6 +104,10 @@ export class Hud {
   private flashEl!: HTMLElement;
   private vignette!: HTMLElement;
   private flashTimer = 0;
+  private cutEl!: HTMLElement;
+  private cutMain!: HTMLElement;
+  private cutSub!: HTMLElement;
+  private cutTimer = 0;
   private pedalBtn!: HTMLButtonElement;
   private uturnBtn: HTMLButtonElement;
   private roadEl: HTMLElement;
@@ -120,10 +132,16 @@ export class Hud {
     camera: HTMLSelectElement;
   };
   menuOpen = false;
-  private keysEl!: HTMLElement;
+  private modeRows!: HTMLElement;
+  private settingsRows!: HTMLElement;
+  private buttonBoxes!: Record<MenuPlace, HTMLElement>;
   onSettings: (s: Partial<Settings>) => void = () => {};
 
-  constructor(private input: Input, settings: Settings) {
+  constructor(
+    private input: Input,
+    settings: Settings,
+    mode: PlayMode = "cycling",
+  ) {
     this.root = h("div", "hud-root");
     document.body.appendChild(this.root);
 
@@ -140,6 +158,7 @@ export class Hud {
       ["heart", "心拍", "bpm"],
       ["adventure", "冒険の残り", "km"],
       ["elev", "標高", "m"],
+      ["care", "自転車の具合", "%"],
       ["clock", "時刻", ""],
     ] as const) {
       const box = h("div", `stat stat-${key}`, "", info);
@@ -197,29 +216,40 @@ export class Hud {
     this.uturnBtn.classList.add("hidden");
     this.input.bindTap(this.uturnBtn, "u-turn");
 
-    // 左上: メニュー
+    // 左上: メニュー（配達の草案 28 章）。上の列（いつも使う物）・遊び方の欄（配達かサイクリング）・設定（畳む）・そのほか・出典の順
     this.menuBtn = h("button", "btn menu-btn", "メニュー", this.root);
     this.menuBtn.type = "button";
     this.menuBtn.addEventListener("click", () => this.toggleMenu());
     this.menu = h("div", "menu hidden", "", this.root);
-    const row = (label: string) => {
-      const r = h("label", "menu-row", "", this.menu);
+    const topBtns = h("div", "menu-buttons menu-main", "", this.menu);
+    const modeBox = h("div", "menu-section", "", this.menu);
+    h("div", "menu-head", mode === "delivery" ? "配達" : "サイクリング", modeBox);
+    const modeBtns = h("div", "menu-buttons", "", modeBox);
+    this.modeRows = h("div", "menu-rows", "", modeBox);
+    const settingsBox = h("details", "menu-section menu-settings", "", this.menu);
+    h("summary", "menu-head", "設定", settingsBox);
+    this.settingsRows = h("div", "menu-rows", "", settingsBox);
+    const otherBox = h("div", "menu-section", "", this.menu);
+    h("div", "menu-head", "そのほか", otherBox);
+    const otherBtns = h("div", "menu-buttons", "", otherBox);
+    this.buttonBoxes = { main: topBtns, mode: modeBtns, other: otherBtns };
+    const row = (label: string, parent: HTMLElement = this.settingsRows) => {
+      const r = h("label", "menu-row", "", parent);
       h("span", "", label, r);
       return r;
     };
-    const btns = h("div", "menu-buttons", "", this.menu);
-    const mk = (label: string, action: Parameters<Input["push"]>[0]) => {
-      const b = h("button", "btn", label, btns);
+    const mk = (label: string, action: Parameters<Input["push"]>[0], box: HTMLElement) => {
+      const b = h("button", "btn", label, box);
       b.type = "button";
       b.addEventListener("click", () => this.input.push(action));
       return b;
     };
-    mk("一時停止", "pause");
-    mk("視点", "camera");
-    mk("眺める", "watch");
-    mk("自転車と装い", "outfit");
-    h("div", "menu-head", "設定", this.menu);
-    const rp = row("出力");
+    mk("一時停止", "pause", topBtns);
+    mk("視点", "camera", topBtns);
+    if (mode === "cycling") mk("眺める", "watch", topBtns);
+    mk("自転車と装い", "outfit", otherBtns);
+    // 漕ぐ出力と体のぶれはサイクリングの欄に（配達はペースで漕ぐので出さない）
+    const rp = row("出力", this.modeRows);
     const power = h("input", "", "", rp);
     power.type = "range";
     power.min = String(POWER_MIN);
@@ -232,7 +262,7 @@ export class Hud {
       this.onSettings({ power: Number(power.value) });
     });
     // 体がぶれ始める出力（この出力から腰・肩・車体の左右の振れが出始め、2 倍で最大）
-    const rs = row("体がぶれ始める出力");
+    const rs = row("体がぶれ始める出力", this.modeRows);
     const sway = h("input", "", "", rs);
     sway.type = "range";
     sway.min = "100";
@@ -244,6 +274,10 @@ export class Hud {
       swayOut.textContent = `${sway.value} W`;
       this.onSettings({ sway: Number(sway.value) });
     });
+    if (mode === "delivery") {
+      rp.remove();
+      rs.remove();
+    }
     this.swayInput = sway;
     this.swayOut = swayOut;
     const rc = row("視点");
@@ -312,13 +346,16 @@ export class Hud {
       settings.weather,
     );
     weather.addEventListener("change", () => this.onSettings({ weather: weather.value as Settings["weather"] }));
-    // 足した設定の行はこの印の前に入る（キーの一覧は「操作」の画面へ移した）
-    this.keysEl = h("div", "menu-end", "", this.menu);
     this.settingsEls = { power, powerOut, quality, clock, hour, hourOut, weather, camera };
 
     // 短い知らせ（受け取った・渡した・車に当たった）
     this.flashEl = h("div", "flash hidden", "", this.root);
     this.vignette = h("div", "hit-vignette hidden", "", this.root);
+    // 受注のカットイン（配達の草案 28 章）: 斜めの帯と大きな字が一瞬横切る
+    this.cutEl = h("div", "cutin hidden", "", this.root);
+    const band = h("div", "cutin-band", "", this.cutEl);
+    this.cutMain = h("div", "cutin-main", "", band);
+    this.cutSub = h("div", "cutin-sub", "", band);
 
     // 一時停止の表示
     this.pauseEl = h("div", "pause-banner hidden", "一時停止中", this.root);
@@ -356,8 +393,8 @@ export class Hud {
     this.menu.appendChild(el);
   }
 
-  /** メニューに選択の行を足す（キーの説明の前） */
-  addSelect<T extends string>(label: string, options: [T, string][], value: T, onChange: (v: T) => void): HTMLSelectElement {
+  /** メニューに選択の行を足す（mode は遊び方の欄、settings は設定の欄） */
+  addSelect<T extends string>(label: string, options: [T, string][], value: T, onChange: (v: T) => void, place: "mode" | "settings" = "settings"): HTMLSelectElement {
     const r = h("label", "menu-row");
     h("span", "", label, r);
     const sel = h("select", "", "", r);
@@ -367,14 +404,13 @@ export class Hud {
     }
     sel.value = value;
     sel.addEventListener("change", () => onChange(sel.value as T));
-    this.menu.insertBefore(r, this.keysEl);
+    (place === "mode" ? this.modeRows : this.settingsRows).appendChild(r);
     return sel;
   }
 
-  /** メニューにボタンを足す */
-  addButton(label: string, onClick: () => void): HTMLButtonElement {
-    const btns = this.menu.querySelector(".menu-buttons")!;
-    const b = h("button", "btn", label, btns as HTMLElement);
+  /** メニューにボタンを足す（main は上の列、mode は遊び方の欄、other はそのほか） */
+  addButton(label: string, onClick: () => void, place: MenuPlace = "mode"): HTMLButtonElement {
+    const b = h("button", "btn", label, this.buttonBoxes[place]);
     b.type = "button";
     b.addEventListener("click", onClick);
     return b;
@@ -430,6 +466,7 @@ export class Hud {
     };
     opt("cadence", st.cadence);
     opt("heart", st.heartRate);
+    opt("care", st.care == null ? null : st.care * 100);
     for (const key of ["legs", "energy"] as const) {
       const v = st[key];
       const g = this.gauges[key];
@@ -442,7 +479,11 @@ export class Hud {
       }
     }
     this.paceBar.classList.toggle("hidden", st.pace == null);
-    if (st.pace != null) [...this.paceRow.children].forEach((el, i) => el.classList.toggle("selected", i === st.pace));
+    if (st.pace != null)
+      [...this.paceRow.children].forEach((el, i) => {
+        el.classList.toggle("selected", i === st.pace);
+        el.classList.toggle("capped", i === st.paceCapped);
+      });
     this.stats.adventure.parentElement!.classList.toggle("hidden", st.adventure == null);
     if (st.adventure != null) this.stats.adventure.textContent = (st.adventure / 1000).toFixed(1);
     const main = st.address ?? st.roadName;
@@ -522,6 +563,18 @@ export class Hud {
       f.classList.add("hidden");
       this.vignette.classList.add("hidden");
     }, 1600);
+  }
+
+  /** カットイン（約 1.2 秒。押せない）。main は大きな字、sub は下の小さな行 */
+  cutIn(main: string, sub: string) {
+    this.cutMain.textContent = main;
+    this.cutSub.textContent = sub;
+    const el = this.cutEl;
+    el.classList.remove("hidden", "show");
+    void el.offsetWidth;
+    el.classList.add("show");
+    clearTimeout(this.cutTimer);
+    this.cutTimer = window.setTimeout(() => el.classList.add("hidden"), 1300);
   }
 
   /** 候補を押した時の番号（Game が取り出す） */

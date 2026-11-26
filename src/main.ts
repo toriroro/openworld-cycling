@@ -15,15 +15,21 @@ import { groundProbe, rayCheck } from "./render/raycheck.ts";
 import { type Quality, WorldView } from "./render/world-view.ts";
 import { WORLD_SEED } from "./shared/world/constants.ts";
 import { RoadClient } from "./workers/road-client.ts";
-import { generatedWorld, hokkaidoWorld, WORLD_KEY, type WorldChoice, type WorldId } from "./world-choice.ts";
+import { generatedWorld, hokkaidoWorld, PLAY_KEY, type PlayMode, WORLD_KEY, type WorldChoice, type WorldId } from "./world-choice.ts";
 
 const q = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (q.has(k) ? Number(q.get(k)) : d);
 const seed = num("seed", WORLD_SEED);
 
+// 遊び方（配達の草案 28 章）: ?play=delivery|cycling（省くと最後に選んだ物、初めては配達）。配達は北海道の世界で遊ぶ
+const qp = q.get("play");
+const storedPlay = await platform.storage.load(PLAY_KEY);
+let playMode: PlayMode = qp === "delivery" || qp === "cycling" ? qp : storedPlay === "cycling" ? "cycling" : "delivery";
+
 async function chooseWorld(): Promise<WorldChoice> {
   const qw = q.get("world");
-  const id = qw === "hokkaido" || qw === "generated" ? qw : await platform.storage.load(WORLD_KEY);
+  // 配達は北海道の世界だけ。?world=generated を指定した時はサイクリングにする
+  const id = qw === "hokkaido" || qw === "generated" ? qw : playMode === "delivery" ? "hokkaido" : await platform.storage.load(WORLD_KEY);
   if (id === "hokkaido") {
     try {
       return await hokkaidoWorld(seed);
@@ -35,15 +41,28 @@ async function chooseWorld(): Promise<WorldChoice> {
   return generatedWorld(seed);
 }
 
-/** 世界を選び直す: 覚えて読み込み直す（URL の ?world= は外す） */
+/** 世界を選び直す: 覚えて読み込み直す（URL の ?world= は外す）。世界を選ぶのはサイクリングの時 */
 async function switchWorld(id: WorldId) {
   await platform.storage.save(WORLD_KEY, id);
+  await platform.storage.save(PLAY_KEY, "cycling");
+  reloadClean();
+}
+
+/** 遊び方を選び直す: 覚えて読み込み直す */
+async function switchPlay(m: PlayMode) {
+  await platform.storage.save(PLAY_KEY, m);
+  reloadClean();
+}
+
+function reloadClean() {
   const u = new URL(location.href);
   u.searchParams.delete("world");
+  u.searchParams.delete("play");
   location.href = u.toString();
 }
 
 const world = await chooseWorld();
+if (world.id !== "hokkaido") playMode = "cycling";
 const startX = num("x", world.origin.x);
 const startZ = num("z", world.origin.z);
 
@@ -77,7 +96,7 @@ if (q.get("mode") === "m2" && devTools) {
   await Promise.race([account.initAccount().catch((e) => console.error("account", e)), new Promise((r) => setTimeout(r, 8000))]);
   account.markStarted();
   world.saveKey += account.scopeSuffix();
-  const game = new Game(view, roads, { x: startX, z: startZ }, { resume, title, dev: !!devTools });
+  const game = new Game(view, roads, { x: startX, z: startZ }, { resume, title, dev: !!devTools, mode: playMode });
   const accountPanel = new AccountPanel();
   accountPanel.onSaveNow = () => game.save();
   accountPanel.onReload = (save) => {
@@ -100,12 +119,17 @@ if (q.get("mode") === "m2" && devTools) {
     if ((s === "remote" || s === "conflict") && !accountPanel.isOpen) accountPanel.open();
   });
   game.title.onAccount = () => accountPanel.open();
-  game.hud.addButton("アカウント", () => {
-    game.hud.toggleMenu(false);
-    accountPanel.open();
-  });
+  game.hud.addButton(
+    "アカウント",
+    () => {
+      game.hud.toggleMenu(false);
+      accountPanel.open();
+    },
+    "other",
+  );
   if (account.syncState() === "remote" || account.syncState() === "conflict") accountPanel.open();
   game.title.onWorld = (id) => void switchWorld(id);
+  game.title.onMode = (m) => void switchPlay(m);
   if (q.get("perf") === "1") startPerfOverlay(view, game);
   // 検証用: ?time= と ?weather=clear|cloudy|fog で時刻・天候を決める（保存しない）
   if (q.has("time") || skyWeather) {

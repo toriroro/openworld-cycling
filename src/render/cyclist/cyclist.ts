@@ -6,6 +6,7 @@ import type { Outfit } from "../../shared/outfit.ts";
 import { PaletteMaterial } from "./palette.ts";
 import { Rider } from "./rider.ts";
 import { ankling, FIT, type Lod, RoadBike } from "./road-bike.ts";
+import { Cargo, type CargoLook } from "./cargo.ts";
 
 export interface CyclistPose {
   /** クランクの角度（左が前で 0） */
@@ -46,6 +47,11 @@ export class CyclistModel {
   readonly material = new PaletteMaterial();
   readonly bike = new RoadBike(this.material);
   readonly rider = new Rider(this.material);
+  /** 配達鞄とリアキャリア（配達の草案 29 章） */
+  readonly cargo = new Cargo();
+  /** 飲む動き（0〜1。右手を口へ。配達の草案 30 章） */
+  drink = 0;
+  private can: THREE.Mesh;
   private outfit: Outfit;
   private lod: Lod;
   private phase = 0;
@@ -71,6 +77,12 @@ export class CyclistModel {
   constructor(outfit: Outfit, lod: Lod) {
     this.group.name = "cyclist";
     this.group.add(this.bike.group, this.rider.group);
+    this.rider.group.add(this.cargo.bag);
+    // 飲み物の缶（飲む動きの間だけ右手に出す）
+    this.can = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.12, 12), new THREE.MeshStandardMaterial({ color: "#2a7fd4", roughness: 0.35, metalness: 0.6 }));
+    this.can.visible = false;
+    this.rider.group.add(this.can);
+    this.bike.group.add(this.cargo.rack);
     this.outfit = outfit;
     this.lod = lod;
     this.rider.setLod(lod);
@@ -95,9 +107,21 @@ export class CyclistModel {
   pose(_dt: number, p: CyclistPose) {
     this.bike.update(p.distance, p.steer, p.speed, p.phase);
     const effort = this.effort(p.watts);
+    // 飲む動き: 右手（hands[1]）を口の前へ。胸の付け根から立った姿勢で上へ 0.6m・前へ 0.2m を、胸の向きで回す
+    const hands = [this.bike.hoodPoint(1), this.bike.hoodPoint(-1)];
+    const chest = this.rider.chest;
+    const q = this.rider.chestQ;
+    if (this.drink > 0 && chest && q && !p.firstPerson) {
+      const mouth = new THREE.Vector3(-0.06, 0.6, 0.2).applyQuaternion(q).add(chest);
+      hands[1] = hands[1].clone().lerp(mouth, this.drink);
+      this.can.visible = this.drink > 0.35;
+      this.can.position.copy(hands[1]).add(new THREE.Vector3(0, 0.02, 0.04));
+      this.can.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -1.9 * this.drink);
+    } else this.can.visible = false;
     this.rider.update({
       pedals: [this.bike.pedalPoint(1, p.phase), this.bike.pedalPoint(-1, p.phase)],
-      hands: [this.bike.hoodPoint(1), this.bike.hoodPoint(-1)],
+      hands: hands as [THREE.Vector3, THREE.Vector3],
+      drink: this.can.visible || this.drink > 0 ? this.drink : 0,
       saddle: FIT.saddle,
       effort,
       phase: p.phase,
@@ -107,6 +131,12 @@ export class CyclistModel {
       headYaw: p.headYaw ?? 0,
       look: p.look ?? 0,
     });
+    this.cargo.placeBag(this.rider.chest, this.rider.chestQ, p.firstPerson);
+  }
+
+  /** 配達鞄・リアキャリアの見た目（null で隠す） */
+  setCargo(look: CargoLook | null) {
+    this.cargo.set(look);
   }
 
   /**
@@ -127,8 +157,10 @@ export class CyclistModel {
     const mz = z - first.z;
     if (speed > 1.5 && Math.hypot(mx, mz) > speed * HEADING_WINDOW * 0.5) {
       const travel = Math.atan2(mx, mz);
-      // 道の向きから大きく外れる時（U ターン直後など）は道の向き
-      if (Math.abs(wrap(travel - target)) < 0.5) target = travel;
+      // 道の向きから大きく外れる時（U ターン直後など）は道の向き。左右へ寄る時の向きの変わりは半分だけ効かせる
+      // （全部効かせると、寄り終わった後に車体の向きが遅れて大きく振れた。2026-11-26）
+      const dev = wrap(travel - target);
+      if (Math.abs(dev) < 0.5) target += dev * 0.5;
     }
     // ばねで滑らかに追う（行き過ぎない減衰）。変わる速さはばねの速度をそのまま使う
     if (Number.isNaN(this.yaw)) this.yaw = target;
@@ -209,5 +241,6 @@ export class CyclistModel {
   dispose() {
     this.bike.dispose();
     this.material.dispose();
+    this.cargo.dispose();
   }
 }

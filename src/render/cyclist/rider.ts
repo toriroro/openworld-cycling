@@ -22,6 +22,8 @@ export interface RiderTargets {
   pedals: [V3, V3];
   /** 左右の手を置く所 */
   hands: [V3, V3];
+  /** 飲む動きの量（0〜1。右手の向きを変える） */
+  drink?: number;
   /** サドルの上面の中心 */
   saddle: V3;
   /** 0..1 立ち漕ぎに近い力み */
@@ -70,6 +72,9 @@ export class Rider {
   private lod: Lod = "high";
   private helmet: HelmetShape = "road";
   private last: RiderTargets | null = null;
+  /** 胸の骨の付け根と、胸から上の向き（背中の鞄を置く。配達の草案 29 章）。まだ形が無ければ null */
+  chest: THREE.Vector3 | null = null;
+  chestQ: THREE.Quaternion | null = null;
   readonly ready: Promise<void>;
 
   constructor(private readonly material: PaletteMaterial) {
@@ -235,6 +240,8 @@ export class Rider {
     const chest = body(this.bindings.get("spine_03")!.head);
     const upper = (p: V3) => body(p).sub(chest).applyQuaternion(twist).add(chest);
     const upperQ = twist.clone().multiply(tilt);
+    this.chest = chest.clone();
+    this.chestQ = upperQ.clone();
     for (const name of ["pelvis", "spine_01", "spine_02"]) {
       const b = this.bindings.get(name)!;
       this.setBone(name, body(b.head), tilt.clone().multiply(b.rotation));
@@ -278,14 +285,16 @@ export class Rider {
       const forearm = this.bindings.get("lowerarm_" + suffix)!;
       const shoulder = upper(arm.head);
       const hand = t.hands[i];
-      const wrist = hand.clone().add(v3(0, 0.022, -0.06));
+      // 飲む時の右手（配達の草案 30 章）: 手首を手の下に置き、手先を上へ向ける（前のままだと手首がねじれて見えた）
+      const sip = side < 0 ? (t.drink ?? 0) : 0;
+      const wrist = hand.clone().add(v3(0, 0.022, -0.06).lerp(v3(0.02, -0.065, 0.01), sip));
       this.reachExcess = Math.max(this.reachExcess, shoulder.distanceTo(wrist) - arm.length - forearm.length);
       bend = Math.max(bend, 1 - shoulder.distanceTo(wrist) / (arm.length + forearm.length));
       // 脇を締める: 肘は外へ張らず、体の横で下・後ろへ曲げる
       const elbow = Rider.joint(shoulder, wrist, arm.length, forearm.length, v3(side * 0.12, -0.75, -0.4));
       this.aim("upperarm_" + suffix, shoulder, elbow);
       this.aim("lowerarm_" + suffix, elbow, wrist);
-      this.aim("hand_" + suffix, wrist, hand.clone().add(v3(0, 0, 0.03)));
+      this.aim("hand_" + suffix, wrist, hand.clone().add(v3(0, 0, 0.03).lerp(v3(0, 0.03, -0.005), sip)));
       for (const finger of FINGERS)
         for (const segment of ["01", "02", "03"]) {
           const b = this.bindings.get(`${finger}_${segment}_${suffix}`);

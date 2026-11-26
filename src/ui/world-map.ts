@@ -62,6 +62,8 @@ export interface GameMapLayer {
   addresses?: AddressBook;
   /** 配達の行き先の印（配達の草案 3.3 の案内）。kind があれば受け取り・届け先の色の目立つ印（26 章） */
   marks?: () => { x: number; z: number; name: string; kind?: "pickup" | "dropoff"; active?: boolean; id?: number }[];
+  /** 体力を戻す所（配達の草案 28 章）。拡大した時に名前 */
+  rests?: () => { x: number; z: number; kind: "vending" | "gyudon" | "teishoku" | "bike" | "car"; name: string }[];
   /** 受け取り・届け先の印を押した時（id は marks の id）。押した所が印でなければ onTap（配達の草案 27 章） */
   onMark?: (id: number) => void;
   /** 行き先までの経路の線（世界座標 x, z の交互の並び。配達の草案 26 章） */
@@ -75,6 +77,11 @@ export interface GameMapLayer {
   /** 長距離の便: 経路（世界座標 x, z の並び）・業者の色・行き先・トラックの位置（配達の草案 22 章） */
   freight?: () => { path: number[]; color: string; town: string; trucks: { x: number; z: number; back: boolean }[] }[];
 }
+
+/** 体力を戻す所の色（小地図と世界地図。配達の草案 28 章） */
+export const REST_COLORS = { vending: "#4cc3ff", shop: "#e2771e", bike: "#2a9d5a", car: "#5c6670" };
+/** 世界地図の丸の中の字（自販機は字なし） */
+const REST_MARK: Record<string, string> = { gyudon: "食", teishoku: "食", bike: "自", car: "車" };
 
 /** 経路の線と、受け取り・届け先の色（3D の光の柱・円と同じ。配達の草案 26 章） */
 export const ROUTE_COLOR = "#2fd0ff";
@@ -777,6 +784,29 @@ export class WorldMap {
         }
         if (this.mpp <= 8) label(ctx, p.name, sx + 8, sy + 4, 11, "#1b1b1b");
       }
+    }
+
+    // 立ち寄る所（店は「食」、自転車店は「自」、燃料店は「車」の丸。自販機は水色の点）
+    for (const r of this.opts.game?.rests?.() ?? []) {
+      if (r.x < v.x0 || r.x > v.x1 || r.z < v.z0 || r.z > v.z1) continue;
+      // 引いた縮尺では出さない（多くて地図が見えなくなる）。自販機はさらに寄った時だけ
+      if (this.mpp > (r.kind === "vending" ? 3 : 7)) continue;
+      const [sx, sy] = toScreen(r.x, r.z);
+      ctx.beginPath();
+      ctx.arc(sx, sy, r.kind === "vending" ? 4 : 8, 0, Math.PI * 2);
+      ctx.fillStyle = r.kind === "vending" ? REST_COLORS.vending : r.kind === "bike" ? REST_COLORS.bike : r.kind === "car" ? REST_COLORS.car : REST_COLORS.shop;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+      if (r.kind !== "vending") {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(REST_MARK[r.kind] ?? "", sx, sy + 3.5);
+        ctx.textAlign = "start";
+      }
+      if (this.mpp <= 3) label(ctx, r.name, sx + 10, sy + 4, 11, "#1b1b1b");
     }
 
     // 名所（どの縮尺でも出す。行った名所は塗る）

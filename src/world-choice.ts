@@ -7,6 +7,14 @@ import { loadHokkaidoWorld } from "./workers/hokkaido-load.ts";
 
 export type WorldId = "generated" | "hokkaido";
 
+/**
+ * 遊び方（配達の草案 28 章）: 配達（北海道の世界だけ）とサイクリング（どちらの世界でも）。
+ * 既定は配達。サイクリングは走る記録・スタンプ・冒険・トレーナー・眺めるをまとめた別の遊び方
+ */
+export type PlayMode = "delivery" | "cycling";
+export const PLAY_KEY = "play";
+export const PLAY_LABELS: Record<PlayMode, string> = { delivery: "配達", cycling: "サイクリング" };
+
 /** 最後に選んだ世界を覚える保存の鍵 */
 export const WORLD_KEY = "world";
 

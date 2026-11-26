@@ -1,7 +1,7 @@
 // 交通（都市と交通の草案 6 章、T1 の一部）。端末ごとに自分の周りに車を出して動かし、同期しない（決定 2026-11-13）。
 // - 量は場所（道路の等級）と世界の時刻から決める。範囲の外れで出し、範囲を出たら消す
 // - 前の車・自転車への追従は Intelligent Driver Model。自転車は 1.5m 空けて、対向車線が空いている時に追い越す
-// - 接触判定はしない（概要仕様 4.1）。自転車と重なった回数だけ数える
+// - 自転車と当たった車は、自転車がずれた向きと逆へ寄りながら減速して止まり、しばらくして走り出す（配達の草案 28 章）
 // - 従道路から出る車は口で止まり、近づく車がなければ出る。信号はまだない（街路網は U1）
 // - バスはバス停で止まる
 // sim は shared/world と sim の道路網だけに依存する（モック仕様 3.3）。描画は読むだけ。
@@ -13,6 +13,7 @@ import { type BusStop, busStopsOn } from "./bus-stops.ts";
 import {
   BUS_COLORS,
   CAR_COLORS,
+  COURIER_COLORS,
   DENSITY_PER_KM,
   hourFactor,
   KEI_TRUCK_COLORS,
@@ -95,6 +96,17 @@ export interface Vehicle {
   /** 交差する相手と向かい合って止まっている時間と、相手を見ないで進む期限（互いに譲り合って動けなくなるのを防ぐ） */
   blockedT: number;
   ignoreCrossUntil: number;
+  /** 配達員の体力（0〜100。「横」で減り、減ると遅くなる。配達の草案 30 章） */
+  energy: number;
+  /** 押された: 寄る向き（車の右が 1）と、押された時の左右位置、戻り始める時刻 */
+  shoved: { side: 1 | -1; from: number; until: number } | null;
+  /** 業者の配達をする車（業者の色のバン・軽トラ）。ときどき道の端に止まり、運転手が荷を届ける（配達の草案 28 章） */
+  delivers: boolean;
+  /** 荷を届けに止まる所（道のり）と、止まった時刻・出る時刻。次に止まるまでの道のり (m) */
+  parcel: { s: number; at: number | null; until: number } | null;
+  nextParcel: number;
+  /** 自転車と当たった: 寄る向き（車の右が 1）と寄る前の左右位置、止まった時刻（まだなら null）（配達の草案 28 章） */
+  crash: { side: 1 | -1; from: number; stoppedAt: number | null } | null;
   /** バス: 止まっている停留所と、出る時刻 */
   busStop: { id: string; until: number } | null;
   servedStop: string;
@@ -122,6 +134,17 @@ export interface Rider {
   offset: number;
 }
 
+/** 「横」で押された配達員: 寄る量 (m)・寄っている時間 (s)・速さに掛ける倍率・減る体力【初期値】（配達の草案 30 章） */
+const SHOVE_M = 0.7;
+const SHOVE_S = 1.4;
+const SHOVE_KEEP = 0.85;
+export const YOSE_HIT = 3;
+
+/** 当たった車: 減速 (m/s²)・寄る量 (m)・止まっている時間 (s)【初期値】 */
+const CRASH_DECEL = 3;
+const CRASH_SWERVE = 0.9;
+const CRASH_STAY_S = 4;
+
 const BIKE_LENGTH = 1.8;
 const BIKE_WIDTH = 0.6;
 /** 自転車を追い越す時の横の間隔 (m)【初期値】 */
@@ -141,8 +164,10 @@ export class Traffic {
   readonly vehicles: Vehicle[] = [];
   options: TrafficOptions = TRAFFIC_STANDARD;
   level: TrafficLevel = "normal";
-  /** 車の色を場所で決める（配達用のバン・軽トラをその丁目の業者の色にする。配達の草案 18 章）。null なら色の表から */
+  /** 車の色を場所で決める（配達用のバン・軽トラ・配達員をその丁目の業者の色にする。配達の草案 18 章）。null なら色の表から */
   paint: ((x: number, z: number, type: VehicleType, u: number) => string | null) | null = null;
+  /** 自転車の配達員の 1km あたりの数（場所で決める。配達の範囲の外は 0。配達の草案 28 章）。null なら出さない */
+  couriers: ((x: number, z: number) => number) | null = null;
   /** 世界の時刻（時） */
   hour = 12;
   /** 確かめる用の数 */
@@ -155,7 +180,7 @@ export class Traffic {
   private stopCache = new Map<string, BusStop[]>();
   private stopVersion = -1;
   /** 範囲の中の道路の長さ（台数の目標と、出す場所を選ぶのに使う） */
-  private nearby: { road: Road; s0: number; s1: number; weight: number }[] = [];
+  private nearby: { road: Road; s0: number; s1: number; weight: number; courier: number }[] = [];
   private filled = false;
   private fillRounds = 0;
 
@@ -241,7 +266,13 @@ export class Traffic {
       }
       if (s0 < 0) continue;
       s1 = Math.min(r.length, s1 + step * ds);
-      this.nearby.push({ road: r, s0, s1, weight: ((s1 - s0) / 1000) * d });
+      // 配達員は車の走る道を走る（自転車道は上で除いている）
+      let c = 0;
+      if (this.couriers) {
+        const m = sampleRoad(r, (s0 + s1) / 2);
+        c = this.couriers(m.x, m.z);
+      }
+      this.nearby.push({ road: r, s0, s1, weight: ((s1 - s0) / 1000) * (d + c), courier: c / (d + c) });
     }
   }
 
@@ -292,7 +323,7 @@ export class Traffic {
         if (!this.nearby.length) break;
         continue;
       }
-      const { road, s, dir } = site;
+      const { road, s, dir, courier } = site;
       const p = sampleRoad(road, s);
       const d = Math.hypot(p.x - cx, p.z - cz);
       if (d > R) continue;
@@ -303,14 +334,15 @@ export class Traffic {
       // 接続点の近く（曲がる線の上）と、ほかの車の近くには出さない
       if (this.net.junctionsOn(road.id).some((j) => Math.abs(j.s - s) < 35)) continue;
       if (this.vehicles.some((o) => Math.hypot(o.x - p.x, o.z - p.z) < 25)) continue;
-      this.vehicles.push(this.makeVehicle(road, s, dir));
+      // 乱数は配達員を出す道でだけ引く（出さない世界では今までと同じ並び）
+      this.vehicles.push(this.makeVehicle(road, s, dir, courier > 0 && this.rand() < courier));
       this.stats.spawned++;
       budget--;
     }
     if (this.nearby.length && (this.vehicles.length >= want * 0.8 || ++this.fillRounds >= 4)) this.filled = true;
   }
 
-  private pickSite(): { road: Road; s: number; dir: 1 | -1 } | null {
+  private pickSite(): { road: Road; s: number; dir: 1 | -1; courier: number } | null {
     let sum = 0;
     for (const n of this.nearby) sum += n.weight;
     if (sum <= 0) return null;
@@ -320,30 +352,35 @@ export class Traffic {
       if (x <= 0) {
         const s = n.s0 + (n.s1 - n.s0) * this.rand();
         if (s < 20 || s > n.road.length - 20) return null;
-        return { road: n.road, s, dir: this.rand() < 0.5 ? 1 : -1 };
+        return { road: n.road, s, dir: this.rand() < 0.5 ? 1 : -1, courier: n.courier };
       }
     }
     return null;
   }
 
-  private paintAt(road: Road, s: number, type: VehicleType, fallback: string): string {
-    if (!this.paint) return fallback;
+  /** 業者の色（無ければ null） */
+  private paintAt(road: Road, s: number, type: VehicleType): string | null {
+    if (!this.paint) return null;
     const p = sampleRoad(road, s);
-    return this.paint(p.x, p.z, type, this.rand()) ?? fallback;
+    return this.paint(p.x, p.z, type, this.rand());
   }
 
-  private makeVehicle(road: Road, s: number, dir: 1 | -1): Vehicle {
-    const type = pickWeighted(TYPE_MIX[road.cls] ?? TYPE_MIX[1], this.rand());
+  private makeVehicle(road: Road, s: number, dir: 1 | -1, courier = false): Vehicle {
+    const type: VehicleType = courier ? "courier" : pickWeighted(TYPE_MIX[road.cls] ?? TYPE_MIX[1], this.rand());
     const spec = VEHICLE_SPECS[type];
-    const palette = type === "bus" ? BUS_COLORS : type === "keiTruck" ? KEI_TRUCK_COLORS : CAR_COLORS;
+    const palette = type === "bus" ? BUS_COLORS : type === "keiTruck" ? KEI_TRUCK_COLORS : type === "courier" ? COURIER_COLORS : CAR_COLORS;
+    const company = this.paintAt(road, s, type);
     const v: Vehicle = {
       id: this.nextId++,
       type,
       length: spec.length,
       width: spec.width,
-      color: this.paintAt(road, s, type, pickWeighted(palette, this.rand())),
+      color: company ?? pickWeighted(palette, this.rand()),
       pos: { road: road.id, s, dir },
-      offset: this.laneOffset(road, spec.width),
+      offset: this.laneOffset(road, spec.width, type === "courier"),
+      delivers: !!company && (type === "van" || type === "keiTruck"),
+      parcel: null,
+      nextParcel: 0,
       speed: 0,
       pace: spec.pace * (0.88 + 0.22 * this.rand()),
       turn: null,
@@ -353,6 +390,9 @@ export class Traffic {
       followT: 0,
       blockedT: 0,
       ignoreCrossUntil: 0,
+      crash: null,
+      energy: 100,
+      shoved: null,
       busStop: null,
       servedStop: "",
       x: 0,
@@ -364,19 +404,23 @@ export class Traffic {
       braking: false,
       age: 0,
     };
+    if (v.delivers) v.nextParcel = 80 + this.rand() * 400;
     v.speed = this.speedLimit(v, road) * 0.9;
     this.updatePose(v);
     return v;
   }
 
-  /** 左側の車線の中央（左側通行）。狭い道では左へ寄せる */
-  laneOffset(road: Road, width: number): number {
+  /** 左側の車線の中央（左側通行）。狭い道では左へ寄せる。自転車の配達員は道の左の端 */
+  laneOffset(road: Road, width: number, edge = false): number {
     const hw = road.width / 2;
+    if (edge) return Math.min(0, -hw + width / 2 + 0.5);
     return Math.max(-hw + width / 2 + 0.1, Math.min(0, -road.width / 4));
   }
 
   private speedLimit(v: Vehicle, road: Road): number {
-    return (SPEED_LIMIT[road.cls] ?? 8) * v.pace;
+    // 配達員は体力が減ると遅くなる（0 で 7 割）
+    const tired = v.type === "courier" ? 0.7 + 0.3 * (v.energy / 100) : 1;
+    return (SPEED_LIMIT[road.cls] ?? 8) * v.pace * tired;
   }
 
   // ---- 姿勢 ----
@@ -456,6 +500,7 @@ export class Traffic {
       }
     }
     if (!v.turn && v.type === "bus") stopAt = Math.min(stopAt, this.busStopDistance(v, road));
+    if (!v.turn && v.delivers) stopAt = Math.min(stopAt, this.parcelDistance(v, road, dt));
 
     // 前の相手（車・自転車）
     const lead = this.leader(v, rider);
@@ -470,20 +515,44 @@ export class Traffic {
     else if (lead.gap > 60) v.followT = 0;
     let accel = this.idm(v, vmax, lead.gap, lead.speed, lead.bike);
     if (stopAt < Infinity) accel = Math.min(accel, this.idm(v, vmax, stopAt, 0, false, true));
+    // 自転車と当たった車は、ゆっくり減速して止まり、しばらく止まってから走り出す
+    const crash = v.crash;
+    if (crash) {
+      if (v.speed > 0.05) accel = -CRASH_DECEL;
+      else {
+        accel = Math.min(0, accel);
+        crash.stoppedAt ??= this.t;
+        if (this.t - crash.stoppedAt > CRASH_STAY_S) v.crash = null;
+      }
+      v.passing = null;
+    }
     // 追い越し
-    this.considerPassing(v, road, lead, rider);
+    if (!crash) this.considerPassing(v, road, lead, rider);
     accel = Math.max(-6, Math.min(1.5, accel));
     v.braking = accel < -0.8 || v.speed < 0.3;
     v.speed = Math.max(0, v.speed + accel * dt);
 
     // 左右位置
-    const base = this.laneOffset(road, v.width);
+    const base = this.laneOffset(road, v.width, v.type === "courier");
     let want = v.passing ? v.passing.offset : base;
-    if (v.busStop) want = -road.width / 2 + v.width / 2 + 0.1;
+    if (v.busStop || v.parcel) want = -road.width / 2 + v.width / 2 + 0.1;
+    if (crash) {
+      const hw = road.width / 2 - v.width / 2 - 0.1;
+      want = Math.max(-hw, Math.min(hw, crash.from + crash.side * CRASH_SWERVE));
+    }
+    // 「横」で押された配達員: 押された向きへ寄り、しばらくして戻る
+    const sh = v.shoved;
+    if (sh) {
+      if (this.t > sh.until) v.shoved = null;
+      else {
+        const hw = road.width / 2 - v.width / 2 - 0.1;
+        want = Math.max(-hw, Math.min(hw, sh.from + sh.side * SHOVE_M));
+      }
+    }
     // 狭い道で対向車が近い時は左へ寄せる
     if (!v.passing && road.width < 5.2 && this.oncomingNear(v, 70)) want = -road.width / 2 + v.width / 2 + 0.1;
     const dOff = want - v.offset;
-    const rate = (v.passing ? 1.2 : 0.8) * dt;
+    const rate = (v.shoved ? 2.5 : v.passing ? 1.2 : 0.8) * dt;
     if (!v.turn) v.offset += Math.max(-rate, Math.min(rate, dOff));
 
     this.advance(v, v.speed * dt);
@@ -541,7 +610,7 @@ export class Traffic {
       const sp = same > 0.3 ? speed * same : 0;
       if (gap < best.gap) best = { gap, speed: sp, bike, id, lat, width: wid, length: len, cross: same <= 0.3 };
     };
-    for (const o of this.vehicles) if (o !== v) consider(o.id, o.x, o.z, o.dx, o.dz, o.speed, o.length, o.width, false);
+    for (const o of this.vehicles) if (o !== v) consider(o.id, o.x, o.z, o.dx, o.dz, o.speed, o.length, o.width, o.type === "courier");
     if (rider) consider(-1, rider.x, rider.z, rider.dx, rider.dz, rider.speed, BIKE_LENGTH, BIKE_WIDTH, true);
     return best;
   }
@@ -561,6 +630,25 @@ export class Traffic {
       if (Math.abs(lon) <= v.length / 2 + BIKE_LENGTH / 2 && Math.abs(lat) <= v.width / 2 + BIKE_WIDTH / 2) out.push(v);
     }
     return out;
+  }
+
+  /**
+   * 「横」（幅寄せ）で配達員を押す（配達の草案 30 章）: side（相手の右が 1）へ寄せて少し遅くし、体力を YOSE_HIT 減らす。落車はしない。
+   * 減った後の体力を返す
+   */
+  shove(v: Vehicle, side: 1 | -1): number {
+    v.shoved = { side, from: v.offset, until: this.t + SHOVE_S };
+    v.speed *= SHOVE_KEEP;
+    v.passing = null;
+    v.energy = Math.max(0, v.energy - YOSE_HIT);
+    return v.energy;
+  }
+
+  /** 自転車と当たった車を、side（車の右が 1）へ寄せながら止める（配達の草案 28 章） */
+  collide(v: Vehicle, side: 1 | -1) {
+    if (v.crash && v.crash.stoppedAt === null) return;
+    v.crash = { side, from: v.offset, stoppedAt: null };
+    v.passing = null;
   }
 
   /** 対向車が前 dist m 以内にいるか（道路の幅の中） */
@@ -697,13 +785,13 @@ export class Traffic {
     const outArm = shape.arms.find((a) => a.arm.road === arm.road && a.arm.dir === arm.dir && Math.abs(a.arm.s - arm.s) < 0.5);
     const out = this.net.roads.get(arm.road)!;
     if (!inArm || !outArm) {
-      v.plan = { junction: j.id, s: next.s, entryS: null, to: { road: arm.road, s: arm.s, dir: arm.dir }, offOut: this.laneOffset(out, v.width), yieldFirst, cleared: !yieldFirst, dead: false };
+      v.plan = { junction: j.id, s: next.s, entryS: null, to: { road: arm.road, s: arm.s, dir: arm.dir }, offOut: this.laneOffset(out, v.width, v.type === "courier"), yieldFirst, cleared: !yieldFirst, dead: false };
       return;
     }
     // もう口を過ぎていたら（出したばかりの車など）、そのまま進む
     const entryS = inArm.mouthS;
     if ((entryS - v.pos.s) * v.pos.dir < 0) {
-      v.plan = { junction: j.id, s: next.s, entryS: null, to: { road: arm.road, s: arm.s, dir: arm.dir }, offOut: this.laneOffset(out, v.width), yieldFirst: false, cleared: true, dead: false };
+      v.plan = { junction: j.id, s: next.s, entryS: null, to: { road: arm.road, s: arm.s, dir: arm.dir }, offOut: this.laneOffset(out, v.width, v.type === "courier"), yieldFirst: false, cleared: true, dead: false };
       return;
     }
     v.plan = {
@@ -711,7 +799,7 @@ export class Traffic {
       s: next.s,
       entryS,
       to: { road: out.id, s: outArm.mouthS, dir: arm.dir },
-      offOut: this.laneOffset(out, v.width),
+      offOut: this.laneOffset(out, v.width, v.type === "courier"),
       yieldFirst,
       cleared: !yieldFirst,
       dead: false,
@@ -807,6 +895,53 @@ export class Traffic {
       v.turn = { pts, acc, length: acc[acc.length - 1], d: 0, to: { ...plan.to! } };
       v.passing = null;
     }
+  }
+
+  // ---- 業者の車の配達（配達の草案 28 章） ----
+
+  /**
+   * 荷を届けに止まる所までの距離。止まっている間は 0。止まる所は今の位置の 25m 先で、接続点から 30m 離れた所。
+   * 止まる時間は 25〜40 秒【初期値】。出た後 250〜700m 走るとまた止まる
+   */
+  private parcelDistance(v: Vehicle, road: Road, dt: number): number {
+    const pc = v.parcel;
+    if (pc) {
+      if (pc.at !== null) {
+        if (this.t < pc.until) return 0;
+        v.parcel = null;
+        v.nextParcel = 250 + this.rand() * 450;
+        return Infinity;
+      }
+      const d = (pc.s - v.pos.s) * v.pos.dir;
+      if (d < 1.5 && v.speed < 0.4) {
+        pc.at = this.t;
+        pc.until = this.t + 25 + this.rand() * 15;
+        return 0;
+      }
+      return Math.max(0, d);
+    }
+    if (v.crash || v.busStop) return Infinity;
+    v.nextParcel -= v.speed * dt;
+    if (v.nextParcel > 0) return Infinity;
+    const s = v.pos.s + v.pos.dir * 25;
+    const near = this.net.junctionsOn(road.id).some((j) => Math.abs(j.s - s) < 30);
+    if (s < 20 || s > road.length - 20 || near || road.width < 5) {
+      v.nextParcel = 40;
+      return Infinity;
+    }
+    v.parcel = { s, at: null, until: 0 };
+    return 25;
+  }
+
+  /** 荷を届けに止まっている業者の車と、止まってからの割合（0〜1。運転手を歩かせる。描く時だけ使う） */
+  parcelStops(): { v: Vehicle; phase: number }[] {
+    const out: { v: Vehicle; phase: number }[] = [];
+    for (const v of this.vehicles) {
+      const pc = v.parcel;
+      if (!pc || pc.at === null) continue;
+      out.push({ v, phase: Math.min(1, (this.t - pc.at) / Math.max(1, pc.until - pc.at)) });
+    }
+    return out;
   }
 
   // ---- バス ----
