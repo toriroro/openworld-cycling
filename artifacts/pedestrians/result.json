@@ -1,0 +1,24 @@
+{
+  "people": 10,
+  "stats": {
+    "walkers": 141,
+    "marks": 4,
+    "flags": 1,
+    "real": {
+      "people": 10,
+      "triangles": 77193
+    }
+  },
+  "errors": [],
+  "shots": [
+    "artifacts/pedestrians/p0-front.png",
+    "artifacts/pedestrians/p0-back.png",
+    "artifacts/pedestrians/p0-far.png",
+    "artifacts/pedestrians/p1-front.png",
+    "artifacts/pedestrians/p1-back.png",
+    "artifacts/pedestrians/p1-far.png",
+    "artifacts/pedestrians/p2-front.png",
+    "artifacts/pedestrians/p2-back.png",
+    "artifacts/pedestrians/p2-far.png"
+  ]
+}

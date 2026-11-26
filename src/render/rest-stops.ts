@@ -214,6 +214,18 @@ export class RestStopView {
     for (const im of [this.bodies, this.frames, ...this.banners.values()]) im.castShadow = !light;
   }
 
+  /** 置き場所に物（街路樹の幹など）があるか。WorldView が渡す。あれば道に沿って少しずらして置く */
+  avoid: ((x: number, z: number) => boolean) | null = null;
+
+  /** 自販機・置き看板を、ほかの物に重ならない所へ道に沿ってずらす（最大 1.6m。どこも空いていなければそのまま） */
+  private clear(st: RestStop): RestStop {
+    const a = this.avoid;
+    if (!a || !a(st.x, st.z)) return st;
+    const rx = -st.fz, rz = st.fx;
+    for (const d of [0.8, -0.8, 1.6, -1.6]) if (!a(st.x + rx * d, st.z + rz * d)) return { ...st, x: st.x + rx * d, z: st.z + rz * d };
+    return st;
+  }
+
   /** 描く。stops は近い順でなくてよい（上限で落とす時は先の物を残す）。originX, originZ は描画の原点 */
   update(stops: readonly RestStop[], originX: number, originZ: number) {
     const key = `${originX},${originZ}|${stops.map((s) => s.id).join(",")}`;
@@ -223,7 +235,8 @@ export class RestStopView {
     let nf = 0;
     const nb = new Map<SignKind, number>();
     const nn = new Map<SignKind, number>();
-    for (const st of stops) {
+    for (const st0 of stops) {
+      const st = this.clear(st0);
       // 表は道の側（建物と逆の向き）
       const yaw = Math.atan2(-st.fx, -st.fz);
       if (st.kind === "vending") {

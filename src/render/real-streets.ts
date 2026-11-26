@@ -4,7 +4,7 @@
 // 地形はこの道に合わせて平らにする（pack を地形タイルへ渡す。印 STREET_FLAG = 見た目だけの道、地形を下げる量が小さい）。
 
 import * as THREE from "three";
-import type { HokkaidoSidewalks, HokkaidoStreets } from "../shared/world/hokkaido.ts";
+import { type HokkaidoSidewalks, type HokkaidoStreets, SIGN_REC, SIGN_TYPES } from "../shared/world/hokkaido.ts";
 import type { TerrainLike } from "../shared/world/terrain.ts";
 import type { Rect } from "../shared/world/world.ts";
 import { type PackedRoads, STREET_FLAG } from "../workers/terrain-tile.ts";
@@ -18,6 +18,40 @@ interface Layer {
   mesh: THREE.Mesh | null;
   ox: number;
   oz: number;
+}
+
+/** 標識の柱からこの距離 (m) より近い街路樹は植えない【初期値】（幹が標識の板に食い込んでいた。標識を先に置く） */
+const TREE_SIGN_GAP = 1.1;
+
+/** 標識（規制・案内・矢羽根）の柱に近すぎる街路樹の番号 */
+export function treesBlockedBySigns(S: HokkaidoSidewalks, cells: string[]): Set<number> {
+  const out = new Set<number>();
+  const G = 4;
+  const posts = new Map<number, [number, number][]>();
+  const D = S.signs;
+  for (const k of cells)
+    for (const t of S.index.signs[k] ?? []) {
+      const o = t * SIGN_REC;
+      const type = D[o + 5];
+      if (type < SIGN_TYPES.stop || type > SIGN_TYPES.yabane) continue;
+      const key = Math.floor(D[o] / G) * 100003 + Math.floor(D[o + 2] / G);
+      (posts.get(key) ?? posts.set(key, []).get(key)!).push([D[o], D[o + 2]]);
+    }
+  if (!posts.size) return out;
+  const T = S.trees;
+  for (const k of cells)
+    for (const t of S.index.trees[k] ?? []) {
+      const x = T[t * 5], z = T[t * 5 + 2];
+      const gx = Math.floor(x / G), gz = Math.floor(z / G);
+      search: for (let i = -1; i <= 1; i++)
+        for (let j = -1; j <= 1; j++)
+          for (const [px, pz] of posts.get((gx + i) * 100003 + gz + j) ?? [])
+            if ((px - x) ** 2 + (pz - z) ** 2 < TREE_SIGN_GAP * TREE_SIGN_GAP) {
+              out.add(t);
+              break search;
+            }
+    }
+  return out;
 }
 
 export class RealStreets {
@@ -89,7 +123,12 @@ export class RealStreets {
     l.mesh!.updateMatrix();
   }
 
-  private cellsWithin(cx: number, cz: number, range: number): string[] {
+  /**
+   * range 以内の区画のうち、has が真の物。既定は走らない道のある区画。
+   * 歩道・街路樹は歩道の頁にある区画で選ぶ（前は走らない道のある区画だけを見ていて、住宅街の道の無い区画では
+   * 幹線の歩道と街路樹が描かれていなかった。2026-11-26）
+   */
+  private cellsWithin(cx: number, cz: number, range: number, has: (i: number, j: number) => unknown = (i, j) => this.data.cell(i, j)): string[] {
     const C = this.cell;
     const out: string[] = [];
     for (let i = Math.floor((cx - range) / C); i <= Math.floor((cx + range) / C); i++)
@@ -97,7 +136,7 @@ export class RealStreets {
         const dx = Math.max(i * C - cx, 0, cx - (i + 1) * C);
         const dz = Math.max(j * C - cz, 0, cz - (j + 1) * C);
         if (dx * dx + dz * dz > range * range) continue;
-        if (this.data.cell(i, j)) out.push(`${i},${j}`);
+        if (has(i, j)) out.push(`${i},${j}`);
       }
     return out.sort();
   }
@@ -107,11 +146,13 @@ export class RealStreets {
     if (now - this.lastT < 300) return;
     this.lastT = now;
     const cells = this.cellsWithin(cx, cz, this.range);
-    const walk = this.cellsWithin(cx, cz, this.walkRange);
+    const S = this.sidewalks;
+    const walk = this.cellsWithin(cx, cz, this.walkRange, (i, j) => this.data.cell(i, j) || S?.index.sidewalks[`${i},${j}`]);
     const ox = Math.round(cx / 256) * 256;
     const oz = Math.round(cz / 256) * 256;
-    const treeCells = this.cellsWithin(cx, cz, this.treeRange);
-    const shadowCells = this.cellsWithin(cx, cz, this.treeShadowRange);
+    const hasTrees = (i: number, j: number) => S?.index.trees[`${i},${j}`];
+    const treeCells = this.cellsWithin(cx, cz, this.treeRange, hasTrees);
+    const shadowCells = this.cellsWithin(cx, cz, this.treeShadowRange, hasTrees);
     const treeKey = `${treeCells.join("|")}#${shadowCells.join("|")}`;
     if (treeKey !== this.treeKey) {
       this.treeKey = treeKey;
@@ -137,7 +178,8 @@ export class RealStreets {
     this.trees = [];
     const near: number[] = [];
     const far: number[] = [];
-    for (const k of cells) for (const t of S.index.trees[k] ?? []) (shadowCells.has(k) ? near : far).push(t);
+    const blocked = treesBlockedBySigns(S, cells);
+    for (const k of cells) for (const t of S.index.trees[k] ?? []) if (!blocked.has(t)) (shadowCells.has(k) ? near : far).push(t);
     this.treesAt = { x: ox, z: oz };
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
     const T = S.trees;

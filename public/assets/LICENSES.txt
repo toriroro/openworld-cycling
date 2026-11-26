@@ -69,3 +69,11 @@ rider/ と nature/ の 3D モデルは M3 以降で必要になった時に写�
 - white_plaster_02（モルタルの外壁）: _Diffuse.jpg 527,219 B / _nor_gl.jpg 652,310 B
 - japanese_cedar_planks（杉板の外壁）: _Diffuse.jpg 704,030 B / _nor_gl.jpg 745,514 B
 加工: なし。
+
+Pedestrians revision v1 (2026-11-26): the same pinned MakeHuman / MPFB2 CC0 body, rig and weights
+as the cyclist (assets-source/rider/makehuman-v1). No new external model sources.
+Built by scripts/build-pedestrians.py: four bodies (two from the base mesh with the male targets above,
+two from the untargeted base mesh), winter clothing shaped from the body surface, hair, knit cap,
+scarf, shoes, eye spheres, a baked walk cycle and standing pose (vertex animation data).
+Revision v2: six bodies, hair and caps as separate head-attached sheets (eleven styles).
+Output: public/assets/pedestrians/pedestrians-v2.bin. Source hashes: assets-source/pedestrians/v1/source-manifest.json

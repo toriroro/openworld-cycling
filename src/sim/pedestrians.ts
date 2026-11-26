@@ -26,7 +26,7 @@ export interface Walker {
 /** 人を置く道の区切り (m)、1 人が行き来する長さ (m)、歩幅 (m)、道の両端の置かない長さ（交差点の中に立たないように）(m)【初期値】 */
 const STEP = 8;
 const SPAN = 16;
-const STRIDE = 1.4;
+const STRIDE = 1.25;
 const EDGE = 12;
 
 const bbox = new WeakMap<Road, [number, number, number, number]>();
@@ -48,10 +48,37 @@ function bboxOf(r: Road) {
 }
 
 /**
- * (x, z) から r 以内の歩く人。t は秒（世界の時刻）。density は 1 区切りに人のいる割合（昼 0.5・夜 0.15 など）。
- * inside で出してよい範囲を絞る。近い順に max 人まで
+ * 町の込み具合から、人の多さの倍率（1 が今までの量）【初期値】。commercial は店・ビル・集合住宅の込み具合、coverage は建物の込み具合（どちらも 0〜1）。
+ * 都心（店 0.5）で 1.4、すすきの 1.25、住宅街（店 0.1・建物 0.3）で 0.4、建物の少ない所で 0.1
  */
-export function walkersNear(roads: Iterable<Road>, x: number, z: number, r: number, t: number, density: number, max: number, inside?: (x: number, z: number) => boolean): Walker[] {
+export function crowdFactor(commercial: number, coverage: number): number {
+  const f = 0.12 + 2.5 * commercial + 0.3 * Math.max(0, coverage - commercial);
+  return Math.max(0.1, Math.min(1.45, f));
+}
+
+export interface WalkerOptions {
+  /** 出してよい範囲 */
+  inside?: (x: number, z: number) => boolean;
+  /** 場所ごとの人の多さの倍率（crowdFactor）。区切りの始めの点で決める */
+  crowd?: (x: number, z: number) => number;
+  /**
+   * 足元の高さ。roadY は道の中心の高さ、key は区切りごとの識別子（覚えておく時に使う）。
+   * null なら立つ所が無い（橋の脇・高い盛土の脇など）ので出さない。無ければ道の中心の高さ
+   */
+  ground?: (x: number, z: number, roadY: number, key: number) => number | null;
+  /**
+   * 歩く所の横の位置（道の中心からの距離と、歩ける幅）。(x, z) は道の中心の点、(nx, nz) は歩く側への水平の単位ベクトル、
+   * half は道の半幅、key は区切りごとの識別子。歩道があればその真ん中を返す。null なら道の端から 0.8〜1.5m
+   */
+  lane?: (key: number, x: number, z: number, nx: number, nz: number, half: number) => { center: number; width: number } | null;
+}
+
+/**
+ * (x, z) から r 以内の歩く人。t は秒（世界の時刻）。density は 1 区切りに人のいる割合（昼 0.5・夜 0.15 など）。
+ * opt で出してよい範囲・場所ごとの多さ・足元の高さを渡す。近い順に max 人まで。橋・トンネルの区間には出さない
+ */
+export function walkersNear(roads: Iterable<Road>, x: number, z: number, r: number, t: number, density: number, max: number, opt: WalkerOptions = {}): Walker[] {
+  const { inside, crowd, ground, lane } = opt;
   const cand: { w: Walker; d: number }[] = [];
   const r2 = r * r;
   for (const rd of roads) {
@@ -64,12 +91,22 @@ export function walkersNear(roads: Iterable<Road>, x: number, z: number, r: numb
     const ds = rd.length / (n - 1);
     const room = rd.length - 2 * EDGE - SPAN;
     const slots = Math.floor(room / STEP) + 1;
+    const ds0 = rd.length / (n - 1);
     for (let k = 0; k < slots; k++) {
-      if (hashUnit(0x9a1, hr, k) >= density) continue;
+      const keep = hashUnit(0x9a1, hr, k);
+      // 倍率が最大でも出ない区切りは先に除く
+      if (keep >= density * (crowd ? 1.45 : 1)) continue;
       const u = hashUnit(0x9a2, hr, k);
       const s0 = EDGE + k * STEP + u * Math.max(0, Math.min(STEP, room - k * STEP));
+      if (rd.spans.some((q) => s0 + SPAN > q.from - 4 && s0 < q.to + 4)) continue;
+      if (crowd) {
+        const f0 = Math.min(n - 1.001, s0 / ds0);
+        const i0 = Math.floor(f0);
+        if (keep >= density * crowd(P[i0 * 3] + rd.origin[0], P[i0 * 3 + 2] + rd.origin[1])) continue;
+      }
       const still = hashUnit(0x9a3, hr, k) < 0.15;
-      const v = 1.0 + 0.5 * hashUnit(0x9a4, hr, k);
+      // 歩く速さ 0.75〜1.2m/s（前は 1.0〜1.5 で急いで見えた。2026-11-26）
+      const v = 0.75 + 0.45 * hashUnit(0x9a4, hr, k);
       const walked = still ? 0 : t * v + hashUnit(0x9a5, hr, k) * 2 * SPAN;
       const p = walked % (2 * SPAN);
       const fwd = p < SPAN;
@@ -90,13 +127,20 @@ export function walkersNear(roads: Iterable<Road>, x: number, z: number, r: numb
       tx /= l;
       tz /= l;
       const side = hashUnit(0x9a6, hr, k) < 0.5 ? 1 : -1;
-      const off = rd.width / 2 + 0.8 + 0.7 * hashUnit(0x9a7, hr, k);
+      const seed = (hr ^ (k * 0x9e3779b1)) >>> 0;
+      const u7 = hashUnit(0x9a7, hr, k);
+      // 歩道があれば歩道の真ん中あたり（幅の 6 割の中でばらす）、無ければ道の端から 0.8〜1.5m
+      const ln = lane ? lane(seed, px, pz, tz * side, -tx * side, rd.width / 2) : null;
+      const off = ln ? ln.center + (u7 - 0.5) * Math.min(0.6 * ln.width, 1.2) : rd.width / 2 + 0.8 + 0.7 * u7;
       // 左（進む向きに対して）は (tz, −tx)
       const wx = px + tz * off * side;
       const wz = pz - tx * off * side;
       const dir = fwd ? 1 : -1;
+      const roadY = P[i * 3 + 1] + (P[i * 3 + 4] - P[i * 3 + 1]) * a;
+      const y = ground ? ground(wx, wz, roadY, seed) : roadY;
+      if (y === null) continue;
       cand.push({
-        w: { x: wx, y: P[i * 3 + 1] + (P[i * 3 + 4] - P[i * 3 + 1]) * a, z: wz, dx: tx * dir, dz: tz * dir, gait: (walked / STRIDE) % 1, still, seed: (hr ^ (k * 0x9e3779b1)) >>> 0 },
+        w: { x: wx, y, z: wz, dx: tx * dir, dz: tz * dir, gait: (walked / STRIDE) % 1, still, seed },
         d,
       });
     }

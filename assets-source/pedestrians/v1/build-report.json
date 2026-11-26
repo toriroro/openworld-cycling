@@ -1,0 +1,126 @@
+{
+  "version": 2,
+  "walkFrames": 24,
+  "stride": 1.25,
+  "slots": {
+    "SKIN": 0,
+    "HAIR": 1,
+    "EYE": 2,
+    "COAT": 3,
+    "TRIM": 4,
+    "PANTS": 5,
+    "SHOE": 6,
+    "HAT": 7,
+    "SCARF": 8,
+    "GLOVE": 9,
+    "LINING": 10
+  },
+  "source": "MakeHuman / MPFB2 CC0 core data",
+  "commit": "d0a32e57a7f915cb2f2b95410e2117648c7bbb7e",
+  "groups": [
+    {
+      "name": "male",
+      "styles": [
+        "crop",
+        "side",
+        "buzz",
+        "receding",
+        "cap"
+      ],
+      "variants": [
+        {
+          "name": "down",
+          "height": 1.72
+        },
+        {
+          "name": "long_coat",
+          "height": 1.77
+        },
+        {
+          "name": "jacket",
+          "height": 1.69
+        }
+      ],
+      "vertices": 10292,
+      "triangles": 19243,
+      "lo": [
+        -0.30825909972190857,
+        0.0,
+        -0.4203472137451172
+      ],
+      "hi": [
+        0.3063022196292877,
+        1.7775357030332088,
+        0.47510361671447754
+      ],
+      "index": 0,
+      "slot": 115460,
+      "variant": 125752,
+      "position": 136044,
+      "normal": 1679844,
+      "heads": 2709044,
+      "hair": {
+        "vertices": 3206,
+        "triangles": 6160,
+        "index": 2712644,
+        "slot": 2749604,
+        "style": 2752812,
+        "position": 2756020,
+        "normal": 2794492
+      }
+    },
+    {
+      "name": "neutral",
+      "styles": [
+        "bob",
+        "long",
+        "ponytail",
+        "bun",
+        "pixie",
+        "cap"
+      ],
+      "variants": [
+        {
+          "name": "long_coat",
+          "height": 1.61
+        },
+        {
+          "name": "jacket",
+          "height": 1.64
+        },
+        {
+          "name": "down",
+          "height": 1.58
+        }
+      ],
+      "vertices": 10383,
+      "triangles": 19244,
+      "lo": [
+        -0.2927437722682953,
+        0.0,
+        -0.3508319556713104
+      ],
+      "hi": [
+        0.29104411602020264,
+        1.6507593477144837,
+        0.4660604000091553
+      ],
+      "index": 2807316,
+      "slot": 2922780,
+      "variant": 2933164,
+      "position": 2943548,
+      "normal": 4501000,
+      "heads": 5539300,
+      "hair": {
+        "vertices": 4334,
+        "triangles": 8120,
+        "index": 5542900,
+        "slot": 5591620,
+        "style": 5595956,
+        "position": 5600292,
+        "normal": 5652300
+      }
+    }
+  ],
+  "bytes": 5671168
+}

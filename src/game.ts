@@ -1790,7 +1790,16 @@ export class Game {
     const me = this.restWalker();
     if (me) people.push(me);
     for (const w of this.parcelDrivers(pose)) people.push(w);
-    for (const w of walkersNear(this.roads.net.roads.values(), pose.x, pose.z, light ? 120 : 180, t, density, light ? 60 : 200, (x, z) => this.inDeliveryArea(x, z))) people.push(w);
+    // 人の多さは町の込み具合で変え（都心 1.4 倍・住宅街 0.4 倍）、足元は歩道・地面に合わせる（ビジュアルの点検 2026-11-26）
+    const view = this.view;
+    view.settleFeet(people);
+    const walkers = walkersNear(this.roads.net.roads.values(), pose.x, pose.z, light ? 120 : 180, t, density, light ? 60 : 220, {
+      inside: (x, z) => this.inDeliveryArea(x, z),
+      crowd: (x, z) => view.crowdAt(x, z),
+      ground: (x, z, y, k) => view.walkHeight(x, z, y, k),
+      lane: (k, x, z, nx, nz, half) => view.walkLane(k, x, z, nx, nz, half),
+    });
+    for (const w of walkers) people.push(w);
     const flags = sw.flags.map((f) => ({ x: f.x, y: f.y, z: f.z, yaw: Math.atan2(f.house.x - f.spot.x, f.house.z - f.spot.z) + Math.PI / 2 }));
     pv.update(people, marks, flags, this.view.originX, this.view.originZ, performance.now() / 1000);
   }

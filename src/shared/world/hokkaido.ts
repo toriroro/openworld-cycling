@@ -500,6 +500,12 @@ abstract class PagedStore {
   }
   protected abstract addPage(index: unknown, floats: Float32Array): void;
 
+  /** (x, z) の頁を読み終えているか（中身の無い頁は読み終えたとする） */
+  hasPage(x: number, z: number): boolean {
+    const k = `${Math.floor((x - this.grid.x0) / this.pageSize)}_${Math.floor((z - this.grid.z0) / this.pageSize)}`;
+    return this.have.has(k) || !this.exists.has(k);
+  }
+
   /** 矩形にかかる頁を読む */
   ensure(r: PageRect): Promise<void> {
     const g = this.grid;

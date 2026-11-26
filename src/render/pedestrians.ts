@@ -4,11 +4,15 @@
 
 import * as THREE from "three";
 import type { Walker } from "../sim/pedestrians.ts";
+import { type RealPerson, RealPedestrians } from "./pedestrian-real.ts";
 
-const CAPACITY = 240;
+const CAPACITY = 280;
 const CARRIED = 16;
 const MARKS = 24;
 const FLAGS = 24;
+/** リアルな形で描く距離 (m)・人数（標準の画質だけ。町の見た目の草案 3 章）【初期値】 */
+const REAL_RANGE = 40;
+const REAL_MAX = 32;
 
 /** 上着・ズボンの色（冬の上着の落ち着いた色） */
 const COATS = ["#2b3442", "#3b3b3e", "#5b4a3a", "#2f4a3c", "#5a2a30", "#6b6f74", "#8a7a62", "#1f2226", "#40506a", "#7a3e2a", "#9a9488", "#2a2f3a"];
@@ -113,7 +117,13 @@ export class PedestrianView {
   private one = new THREE.Vector3(1, 1, 1);
   private c = new THREE.Color();
   private hip = new THREE.Vector3();
-  readonly stats = { walkers: 0, marks: 0, flags: 0 };
+  readonly stats = { walkers: 0, marks: 0, flags: 0, real: 0 };
+  /** リアルな人（読み終えるまでは箱の人形だけ） */
+  readonly real = new RealPedestrians(REAL_MAX);
+  private light = false;
+  /** 視点（世界座標）。近い人をリアルな形にする。WorldView.frame が入れる */
+  eye = { x: 0, z: 0 };
+  private realList: RealPerson[] = [];
 
   constructor() {
     this.group.name = "pedestrians";
@@ -139,10 +149,14 @@ export class PedestrianView {
     this.boxes = make(merge([box(0.46, 0.34, 0.36, 0, 1.12, 0.32, "#b8894f"), box(0.47, 0.05, 0.37, 0, 1.2, 0.32, "#d8c9a6")]), mat, CARRIED, "carried-boxes");
     this.bodies.setColorAt(0, this.c.set("#ffffff"));
     this.legs.setColorAt(0, this.c.set("#ffffff"));
+    this.group.add(this.real.group);
+    void this.real.load(import.meta.env?.BASE_URL ?? "/");
   }
 
   setQuality(light: boolean) {
     for (const im of [this.bodies, this.legs, ...this.heads, this.flags]) im.castShadow = !light;
+    this.real.setShadows(!light);
+    this.light = light;
   }
 
   /**
@@ -150,11 +164,33 @@ export class PedestrianView {
    * originX, originZ は描画の原点、t は秒（印の上下の動き）
    */
   update(people: Walker[], marks: WorkMark[], flags: HouseFlag[], originX: number, originZ: number, t: number) {
-    const n = Math.min(CAPACITY, people.length);
+    // 標準の画質では、視点の近くの人（箱を持つ運転手を除く）をリアルな形で描く。残りは箱の人形
+    const real = this.realList;
+    real.length = 0;
+    let boxes = people;
+    if (this.real.ready && !this.light) {
+      const r2 = REAL_RANGE * REAL_RANGE;
+      const near: { w: Walker; d: number }[] = [];
+      for (const w of people) {
+        if (w.carry) continue;
+        const d = (w.x - this.eye.x) ** 2 + (w.z - this.eye.z) ** 2;
+        if (d < r2) near.push({ w, d });
+      }
+      near.sort((a, b) => a.d - b.d);
+      const chosen = new Set<Walker>();
+      for (const { w } of near.slice(0, REAL_MAX)) {
+        chosen.add(w);
+        real.push({ x: w.x, y: w.y, z: w.z, yaw: Math.atan2(w.dx, w.dz), gait: w.gait, still: w.still, seed: w.seed });
+      }
+      if (chosen.size) boxes = people.filter((w) => !chosen.has(w));
+    }
+    this.real.update(real, originX, originZ);
+    this.stats.real = real.length;
+    const n = Math.min(CAPACITY, boxes.length);
     const headCount = this.heads.map(() => 0);
     let nb = 0;
     for (let i = 0; i < n; i++) {
-      const w = people[i];
+      const w = boxes[i];
       const yaw = Math.atan2(w.dx, w.dz);
       const swing = w.still ? 0 : Math.sin(w.gait * Math.PI * 2) * 0.42;
       const bob = w.still ? 0 : Math.abs(Math.cos(w.gait * Math.PI * 2)) * 0.03;
@@ -221,7 +257,7 @@ export class PedestrianView {
     this.flags.count = nf;
     this.flags.visible = nf > 0;
     this.flags.instanceMatrix.needsUpdate = true;
-    this.stats.walkers = n;
+    this.stats.walkers = n + real.length;
     this.stats.marks = nm;
     this.stats.flags = nf;
   }

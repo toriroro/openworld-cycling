@@ -1,0 +1,764 @@
+{
+  "R": 260,
+  "places": {
+    "odori": {
+      "pos": {
+        "x": 239,
+        "y": 20.9,
+        "z": 37
+      },
+      "roadGaps": {
+        "samples": 6589,
+        "points": 0,
+        "clusters": []
+      },
+      "streetGaps": {
+        "samples": 242,
+        "points": 0,
+        "clusters": []
+      },
+      "overlaps": {
+        "items": {
+          "addr": 24,
+          "light": 93,
+          "tree": 166,
+          "sign": 227,
+          "guide": 1,
+          "pole": 8,
+          "yabane": 5,
+          "standSign": 6,
+          "vending": 5
+        },
+        "pairs": 0,
+        "byPair": {},
+        "list": []
+      },
+      "buildings": {
+        "n": 147,
+        "floating03": 2,
+        "floating1": 0,
+        "worst": [
+          {
+            "x": 140,
+            "z": 212,
+            "base": 21.53,
+            "gap": 0.41
+          },
+          {
+            "x": 457,
+            "z": 158,
+            "base": 21.4,
+            "gap": 0.32
+          }
+        ]
+      },
+      "walkers": {
+        "n": 141,
+        "off12": 0,
+        "floating": 0,
+        "sunk": 0,
+        "worst": []
+      },
+      "shots": [],
+      "errors": []
+    },
+    "susukino": {
+      "pos": {
+        "x": 155,
+        "y": 25.1,
+        "z": 914
+      },
+      "roadGaps": {
+        "samples": 8009,
+        "points": 0,
+        "clusters": []
+      },
+      "streetGaps": {
+        "samples": 212,
+        "points": 0,
+        "clusters": []
+      },
+      "overlaps": {
+        "items": {
+          "addr": 24,
+          "sign": 186,
+          "light": 59,
+          "tree": 124,
+          "pole": 3,
+          "standSign": 16,
+          "vending": 13
+        },
+        "pairs": 0,
+        "byPair": {},
+        "list": []
+      },
+      "buildings": {
+        "n": 317,
+        "floating03": 4,
+        "floating1": 0,
+        "worst": [
+          {
+            "x": 48,
+            "z": 1040,
+            "base": 25.68,
+            "gap": 0.42
+          },
+          {
+            "x": 26,
+            "z": 886,
+            "base": 24.57,
+            "gap": 0.32
+          },
+          {
+            "x": 310,
+            "z": 776,
+            "base": 24.66,
+            "gap": 0.32
+          },
+          {
+            "x": 306,
+            "z": 782,
+            "base": 24.66,
+            "gap": 0.31
+          }
+        ]
+      },
+      "walkers": {
+        "n": 114,
+        "off12": 0,
+        "floating": 0,
+        "sunk": 0,
+        "worst": []
+      },
+      "shots": [],
+      "errors": []
+    },
+    "kita": {
+      "pos": {
+        "x": 300,
+        "y": 15.5,
+        "z": -1322
+      },
+      "roadGaps": {
+        "samples": 6345,
+        "points": 7,
+        "clusters": [
+          {
+            "road": "h1130906212_2",
+            "x": 331.1,
+            "z": -1471.1,
+            "y": 15.03,
+            "off": -9.2,
+            "near": null,
+            "n": 3
+          },
+          {
+            "road": "h1130906212_2",
+            "x": 324.7,
+            "z": -1465.9,
+            "y": 14.94,
+            "off": -9.2,
+            "near": null,
+            "n": 2
+          },
+          {
+            "road": "h1130906212_2",
+            "x": 353.1,
+            "z": -1469.3,
+            "y": 15.08,
+            "off": 9.2,
+            "near": null,
+            "n": 1
+          },
+          {
+            "road": "h1130906212_2",
+            "x": 326.4,
+            "z": -1467.4,
+            "y": 14.97,
+            "off": -9.2,
+            "near": null,
+            "n": 1
+          }
+        ]
+      },
+      "streetGaps": {
+        "samples": 215,
+        "points": 0,
+        "clusters": []
+      },
+      "overlaps": {
+        "items": {
+          "addr": 12,
+          "sign": 160,
+          "light": 81,
+          "tree": 145,
+          "pole": 11,
+          "standSign": 5,
+          "vending": 3
+        },
+        "pairs": 0,
+        "byPair": {},
+        "list": []
+      },
+      "buildings": {
+        "n": 179,
+        "floating03": 6,
+        "floating1": 0,
+        "worst": [
+          {
+            "x": 527,
+            "z": -1315,
+            "base": 15.26,
+            "gap": 0.42
+          },
+          {
+            "x": 506,
+            "z": -1435,
+            "base": 15.07,
+            "gap": 0.39
+          },
+          {
+            "x": 236,
+            "z": -1233,
+            "base": 15.44,
+            "gap": 0.37
+          },
+          {
+            "x": 271,
+            "z": -1564,
+            "base": 14.26,
+            "gap": 0.36
+          },
+          {
+            "x": 194,
+            "z": -1483,
+            "base": 14.45,
+            "gap": 0.35
+          },
+          {
+            "x": 484,
+            "z": -1204,
+            "base": 15.37,
+            "gap": 0.35
+          }
+        ]
+      },
+      "walkers": {
+        "n": 64,
+        "off12": 0,
+        "floating": 0,
+        "sunk": 0,
+        "worst": []
+      },
+      "shots": [],
+      "errors": []
+    },
+    "higashi": {
+      "pos": {
+        "x": 1273,
+        "y": 18.9,
+        "z": 4
+      },
+      "roadGaps": {
+        "samples": 6499,
+        "points": 1,
+        "clusters": [
+          {
+            "road": "h966612069_0",
+            "x": 1245,
+            "z": 186.9,
+            "y": 19.51,
+            "off": 5.9,
+            "near": null,
+            "n": 1
+          }
+        ]
+      },
+      "streetGaps": {
+        "samples": 75,
+        "points": 0,
+        "clusters": []
+      },
+      "overlaps": {
+        "items": {
+          "addr": 20,
+          "sign": 134,
+          "light": 45,
+          "pole": 10,
+          "tree": 122,
+          "standSign": 7,
+          "vending": 6
+        },
+        "pairs": 0,
+        "byPair": {},
+        "list": []
+      },
+      "buildings": {
+        "n": 178,
+        "floating03": 14,
+        "floating1": 0,
+        "worst": [
+          {
+            "x": 1085,
+            "z": -35,
+            "base": 19.14,
+            "gap": 0.54
+          },
+          {
+            "x": 1200,
+            "z": 204,
+            "base": 19.66,
+            "gap": 0.44
+          },
+          {
+            "x": 1207,
+            "z": -97,
+            "base": 18.23,
+            "gap": 0.39
+          },
+          {
+            "x": 1094,
+            "z": 156,
+            "base": 19.68,
+            "gap": 0.36
+          },
+          {
+            "x": 1098,
+            "z": -33,
+            "base": 18.86,
+            "gap": 0.35
+          },
+          {
+            "x": 1058,
+            "z": -5,
+            "base": 19.41,
+            "gap": 0.35
+          },
+          {
+            "x": 1049,
+            "z": 101,
+            "base": 19.56,
+            "gap": 0.35
+          },
+          {
+            "x": 1251,
+            "z": 62,
+            "base": 18.93,
+            "gap": 0.35
+          },
+          {
+            "x": 1201,
+            "z": -112,
+            "base": 18.1,
+            "gap": 0.34
+          },
+          {
+            "x": 1219,
+            "z": -53,
+            "base": 18.71,
+            "gap": 0.33
+          }
+        ]
+      },
+      "walkers": {
+        "n": 83,
+        "off12": 0,
+        "floating": 0,
+        "sunk": 0,
+        "worst": []
+      },
+      "shots": [],
+      "errors": []
+    },
+    "nishi": {
+      "pos": {
+        "x": -1198,
+        "y": 18.3,
+        "z": 304
+      },
+      "roadGaps": {
+        "samples": 6919,
+        "points": 0,
+        "clusters": []
+      },
+      "streetGaps": {
+        "samples": 66,
+        "points": 0,
+        "clusters": []
+      },
+      "overlaps": {
+        "items": {
+          "addr": 22,
+          "sign": 188,
+          "light": 85,
+          "tree": 168,
+          "pole": 7,
+          "standSign": 8,
+          "vending": 8
+        },
+        "pairs": 0,
+        "byPair": {},
+        "list": []
+      },
+      "buildings": {
+        "n": 232,
+        "floating03": 5,
+        "floating1": 0,
+        "worst": [
+          {
+            "x": -1220,
+            "z": 332,
+            "base": 18.6,
+            "gap": 0.39
+          },
+          {
+            "x": -1272,
+            "z": 337,
+            "base": 18.67,
+            "gap": 0.37
+          },
+          {
+            "x": -1306,
+            "z": 422,
+            "base": 19.41,
+            "gap": 0.36
+          },
+          {
+            "x": -1100,
+            "z": 300,
+            "base": 18.52,
+            "gap": 0.33
+          },
+          {
+            "x": -1094,
+            "z": 311,
+            "base": 18.46,
+            "gap": 0.31
+          }
+        ]
+      },
+      "walkers": {
+        "n": 118,
+        "off12": 0,
+        "floating": 0,
+        "sunk": 0,
+        "worst": []
+      },
+      "shots": [],
+      "errors": []
+    },
+    "sw": {
+      "pos": {
+        "x": -1796,
+        "y": 26.3,
+        "z": 1915
+      },
+      "roadGaps": {
+        "samples": 8052,
+        "points": 4,
+        "clusters": [
+          {
+            "road": "h973109234_0",
+            "x": -1601.5,
+            "z": 1782.3,
+            "y": 25.63,
+            "off": -2.4,
+            "near": null,
+            "n": 2
+          },
+          {
+            "road": "h973109233_0",
+            "x": -1605.4,
+            "z": 1777.3,
+            "y": 25.63,
+            "off": -2.4,
+            "near": null,
+            "n": 1
+          },
+          {
+            "road": "h973109233_0",
+            "x": -1605.2,
+            "z": 1779.3,
+            "y": 25.63,
+            "off": -2.4,
+            "near": null,
+            "n": 1
+          }
+        ]
+      },
+      "streetGaps": {
+        "samples": 273,
+        "points": 0,
+        "clusters": []
+      },
+      "overlaps": {
+        "items": {
+          "addr": 32,
+          "sign": 123,
+          "light": 30,
+          "tree": 90,
+          "pole": 35,
+          "standSign": 3,
+          "vending": 10
+        },
+        "pairs": 0,
+        "byPair": {},
+        "list": []
+      },
+      "buildings": {
+        "n": 353,
+        "floating03": 7,
+        "floating1": 0,
+        "worst": [
+          {
+            "x": -1791,
+            "z": 1860,
+            "base": 25.77,
+            "gap": 0.37
+          },
+          {
+            "x": -1666,
+            "z": 1931,
+            "base": 26.66,
+            "gap": 0.35
+          },
+          {
+            "x": -1558,
+            "z": 1954,
+            "base": 26.98,
+            "gap": 0.33
+          },
+          {
+            "x": -1801,
+            "z": 2013,
+            "base": 26.44,
+            "gap": 0.32
+          },
+          {
+            "x": -1586,
+            "z": 2057,
+            "base": 27.94,
+            "gap": 0.32
+          },
+          {
+            "x": -1629,
+            "z": 1774,
+            "base": 25.52,
+            "gap": 0.31
+          },
+          {
+            "x": -1671,
+            "z": 1844,
+            "base": 25.91,
+            "gap": 0.31
+          }
+        ]
+      },
+      "walkers": {
+        "n": 74,
+        "off12": 0,
+        "floating": 0,
+        "sunk": 0,
+        "worst": []
+      },
+      "shots": [],
+      "errors": []
+    },
+    "se": {
+      "pos": {
+        "x": 1778,
+        "y": 32.9,
+        "z": 1904
+      },
+      "roadGaps": {
+        "samples": 8760,
+        "points": 0,
+        "clusters": []
+      },
+      "streetGaps": {
+        "samples": 126,
+        "points": 0,
+        "clusters": []
+      },
+      "overlaps": {
+        "items": {
+          "addr": 37,
+          "sign": 148,
+          "pole": 19,
+          "light": 25,
+          "tree": 48,
+          "standSign": 7,
+          "vending": 14
+        },
+        "pairs": 0,
+        "byPair": {},
+        "list": []
+      },
+      "buildings": {
+        "n": 372,
+        "floating03": 12,
+        "floating1": 0,
+        "worst": [
+          {
+            "x": 1788,
+            "z": 1865,
+            "base": 32.01,
+            "gap": 0.47
+          },
+          {
+            "x": 1847,
+            "z": 1874,
+            "base": 31.79,
+            "gap": 0.44
+          },
+          {
+            "x": 1673,
+            "z": 1871,
+            "base": 32.79,
+            "gap": 0.43
+          },
+          {
+            "x": 1937,
+            "z": 1863,
+            "base": 30.99,
+            "gap": 0.41
+          },
+          {
+            "x": 1693,
+            "z": 1942,
+            "base": 33.27,
+            "gap": 0.38
+          },
+          {
+            "x": 1664,
+            "z": 1868,
+            "base": 32.93,
+            "gap": 0.38
+          },
+          {
+            "x": 1961,
+            "z": 1914,
+            "base": 31.66,
+            "gap": 0.37
+          },
+          {
+            "x": 1791,
+            "z": 2067,
+            "base": 33.77,
+            "gap": 0.37
+          },
+          {
+            "x": 1673,
+            "z": 1890,
+            "base": 32.73,
+            "gap": 0.36
+          },
+          {
+            "x": 1957,
+            "z": 1902,
+            "base": 31.54,
+            "gap": 0.34
+          }
+        ]
+      },
+      "walkers": {
+        "n": 71,
+        "off12": 0,
+        "floating": 0,
+        "sunk": 0,
+        "worst": []
+      },
+      "shots": [],
+      "errors": []
+    },
+    "nw": {
+      "pos": {
+        "x": -1672,
+        "y": 11.7,
+        "z": -1804
+      },
+      "roadGaps": {
+        "samples": 4443,
+        "points": 4,
+        "clusters": [
+          {
+            "road": "h105006007_1",
+            "x": -1563.3,
+            "z": -1833.4,
+            "y": 11.89,
+            "off": 2.4,
+            "near": null,
+            "n": 1
+          },
+          {
+            "road": "h105006008_1",
+            "x": -1559.9,
+            "z": -1830.1,
+            "y": 11.91,
+            "off": -2.4,
+            "near": null,
+            "n": 1
+          },
+          {
+            "road": "h168593830_0",
+            "x": -1601.7,
+            "z": -1585.5,
+            "y": 12.33,
+            "off": -2.4,
+            "near": null,
+            "n": 1
+          },
+          {
+            "road": "h168593832_0",
+            "x": -1605,
+            "z": -1588.8,
+            "y": 12.33,
+            "off": -2.4,
+            "near": null,
+            "n": 1
+          }
+        ]
+      },
+      "streetGaps": {
+        "samples": 214,
+        "points": 0,
+        "clusters": []
+      },
+      "overlaps": {
+        "items": {
+          "addr": 26,
+          "pole": 37,
+          "light": 4,
+          "tree": 16,
+          "sign": 38,
+          "vending": 10
+        },
+        "pairs": 0,
+        "byPair": {},
+        "list": []
+      },
+      "buildings": {
+        "n": 260,
+        "floating03": 1,
+        "floating1": 0,
+        "worst": [
+          {
+            "x": -1589,
+            "z": -1613,
+            "base": 12.29,
+            "gap": 0.42
+          }
+        ]
+      },
+      "walkers": {
+        "n": 27,
+        "off12": 0,
+        "floating": 0,
+        "sunk": 0,
+        "worst": []
+      },
+      "shots": [],
+      "errors": []
+    }
+  }
+}

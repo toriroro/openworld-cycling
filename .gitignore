@@ -21,3 +21,6 @@ public/data/hokkaido/
 assets-source/hokkaido/pbf/*.osm.pbf
 assets-source/hokkaido/**/buildings.json
 assets-source/hokkaido/plateau/
+# 歩く人の Blender の作業ファイル（scripts/build-pedestrians.py で作り直せる）
+assets-source/pedestrians/v1/*.blend
+assets-source/pedestrians/v1/*.blend1

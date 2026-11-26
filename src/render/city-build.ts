@@ -334,6 +334,45 @@ function sidewalkStrip(walk: Mesher, curb: Mesher, P: Float32Array, off: number,
   }
 }
 
+/** 小道の切れ端の長さ (m)【初期値】。これより短く、どちらかの端が何にもつながらない小道は描かない */
+const STUB_LEN = 16;
+
+/**
+ * 描かない小道の切れ端（最初の点の番号）。走る道・接続点の舗装面で切った後に残る短い小道（横断歩道の歩道の残りなど）が、
+ * 草地の上の白い帯に見えていた（2026-11-26）。端がほかの走らない道の線に 1m 以内か、走る道に出る印があればつながっているとする。
+ * 区画の境で切れた続きの小道は端どうしが重なるので残る
+ */
+export function pathStubs(P: Float32Array, pieces: readonly StreetPiece[]): Set<number> {
+  const out = new Set<number>();
+  const short = pieces.filter(([off, count, , kind]) => {
+    if (kind === 0 || count < 2) return false;
+    let L = 0;
+    for (let i = 1; i < count; i++) L += Math.hypot(P[(off + i) * 2] - P[(off + i - 1) * 2], P[(off + i) * 2 + 1] - P[(off + i - 1) * 2 + 1]);
+    return L < STUB_LEN;
+  });
+  if (!short.length) return out;
+  const near = (x: number, z: number, self: number) => {
+    for (const [off, count] of pieces) {
+      if (off === self) continue;
+      for (let i = 0; i + 1 < count; i++) {
+        const ax = P[(off + i) * 2], az = P[(off + i) * 2 + 1], bx = P[(off + i + 1) * 2], bz = P[(off + i + 1) * 2 + 1];
+        if (x < Math.min(ax, bx) - 1 || x > Math.max(ax, bx) + 1 || z < Math.min(az, bz) - 1 || z > Math.max(az, bz) + 1) continue;
+        const dx = bx - ax, dz = bz - az;
+        const l2 = dx * dx + dz * dz || 1;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
+        if ((ax + dx * t - x) ** 2 + (az + dz * t - z) ** 2 < 1) return true;
+      }
+    }
+    return false;
+  };
+  for (const [off, count, , , ends = 0] of short) {
+    const a = ends & 1 || near(P[off * 2], P[off * 2 + 1], off);
+    const b = ends & 2 || near(P[(off + count - 1) * 2], P[(off + count - 1) * 2 + 1], off);
+    if (!a || !b) out.add(off);
+  }
+  return out;
+}
+
 /** 走らない道の路面（車の道・歩道と小道・幹線の歩道の 3 つ。ox, oz からの相対） */
 export function buildStreets(
   streets: HokkaidoStreets,
@@ -345,7 +384,9 @@ export function buildStreets(
 ): { mesh: MeshArrays | null; groups: [number, number, number][]; triangles: number } {
   const g = [new Mesher(), new Mesher(), new Mesher()];
   if (sidewalks) for (const [off, count] of sidewalks.runs) sidewalkStrip(g[2], g[1], sidewalks.data.pts, off, count, ox, oz);
+  const stubs = pathStubs(streets.pts, pieces);
   for (const [off, count, w10, kind, ends = 0] of pieces) {
+    if (stubs.has(off)) continue;
     const p = resampleStreet(streets, heights, off, count, STREET_STEP);
     const n = p.length / 3;
     if (n < 2) continue;

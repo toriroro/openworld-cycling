@@ -42,6 +42,49 @@ const BLUE = "#1d4f9e";
 const BACK = "#b9bab6";
 const FONT = `"Hiragino Sans", "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif`;
 
+/** 規制標識の板の中心の高さ (m)（柱の根元から） */
+const PLATE_Y: Partial<Record<number, number>> = { [SIGN_TYPES.stop]: 2.25, [SIGN_TYPES.crosswalk]: 2.35, [SIGN_TYPES.noEntry]: 2.3, [SIGN_TYPES.speed]: 2.3, [SIGN_TYPES.oneway]: 2.0 };
+/** 規制標識の板の高さ (m) */
+const PLATE_H: Partial<Record<number, number>> = { [SIGN_TYPES.stop]: 0.8, [SIGN_TYPES.oneway]: 0.9 };
+/** 1 本の柱に並べる順（上から） */
+const STACK_ORDER = [SIGN_TYPES.stop, SIGN_TYPES.noEntry, SIGN_TYPES.speed, SIGN_TYPES.crosswalk, SIGN_TYPES.oneway];
+/** 別の標識の柱とまとめる距離 (m)【初期値】。板（幅 0.6〜0.9m）が食い込まない間隔 */
+const SHARE_POST = 0.9;
+
+/**
+ * 同じ所（SHARE_POST 以内）に立つ規制標識を 1 本の柱にまとめる（変換では標識ごとに柱を置くので、横断歩道と進入禁止などが
+ * 5cm 離れた 2 本の柱に重なって立っていた）。番号 → { 柱の位置にする標識の番号, 柱を描くか, 板の中心の高さ }
+ */
+export function stackRegulation(D: Float32Array, list: readonly number[]): Map<number, { at: number; post: boolean; y: number }> {
+  const out = new Map<number, { at: number; post: boolean; y: number }>();
+  const regs = list.filter((t) => STACK_ORDER.includes(D[t * SIGN_REC + 5] as (typeof STACK_ORDER)[number]));
+  const used = new Set<number>();
+  for (const t of regs) {
+    if (used.has(t)) continue;
+    const group = [t];
+    used.add(t);
+    for (const u of regs) {
+      if (used.has(u)) continue;
+      if (group.some((g) => Math.hypot(D[g * SIGN_REC] - D[u * SIGN_REC], D[g * SIGN_REC + 2] - D[u * SIGN_REC + 2]) < SHARE_POST)) {
+        group.push(u);
+        used.add(u);
+      }
+    }
+    if (group.length < 2) continue;
+    group.sort((a, b) => STACK_ORDER.indexOf(D[a * SIGN_REC + 5] as (typeof STACK_ORDER)[number]) - STACK_ORDER.indexOf(D[b * SIGN_REC + 5] as (typeof STACK_ORDER)[number]));
+    // 一番上の板はふだんの高さ。下の板は 5cm あけて下へ並べる
+    let y = PLATE_Y[D[group[0] * SIGN_REC + 5]] ?? 2.3;
+    let prevH = PLATE_H[D[group[0] * SIGN_REC + 5]] ?? 0.6;
+    group.forEach((g, i) => {
+      const h = PLATE_H[D[g * SIGN_REC + 5]] ?? 0.6;
+      if (i > 0) y -= prevH / 2 + 0.05 + h / 2;
+      prevH = h;
+      out.set(g, { at: group[0], post: i === 0, y });
+    });
+  }
+  return out;
+}
+
 function drawRegulation(): HTMLCanvasElement {
   const cv = document.createElement("canvas");
   cv.width = CELL * COLS;
@@ -524,6 +567,7 @@ export class RealSigns {
     const b = new Buf();
     const fb = new Buf();
     let count = 0;
+    const stack = stackRegulation(D, this.data.index.signs[k]);
     for (const t of this.data.index.signs[k]) {
       const o = t * SIGN_REC;
       const wx = D[o], wz = D[o + 2];
@@ -602,27 +646,31 @@ export class RealSigns {
         b.plate(gx - fx * 0.03, y + 6.05, gz - fz * 0.03, -fx, -fz, 3.6, 1.8, WHITE_UV, GUIDE_BACK);
         continue;
       }
-      // 柱
-      b.prism(x, y - 0.3, z, fx, fz, 0.06, 0.06, 2.95, POST, WHITE_UV);
-      const px = x + fx * 0.05, pz = z + fz * 0.05;
+      // 柱（同じ所に立つ標識は 1 本の柱にまとめ、板を上下に並べる。stackRegulation）
+      const st = stack.get(t);
+      const sx = st ? D[st.at * SIGN_REC] - bx : x;
+      const sz = st ? D[st.at * SIGN_REC + 2] - bz : z;
+      if (!st || st.post) b.prism(sx, y - 0.3, sz, fx, fz, 0.06, 0.06, 2.95, POST, WHITE_UV);
+      const px = sx + fx * 0.05, pz = sz + fz * 0.05;
+      const yc = y + (st ? st.y : PLATE_Y[type] ?? 2.3);
       if (type === SIGN_TYPES.stop) {
-        b.plate(px, y + 2.25, pz, fx, fz, 0.8, 0.8, cellUv(CELLS.stop));
-        b.plate(px - fx * 0.01, y + 2.25, pz - fz * 0.01, -fx, -fz, 0.8, 0.8, mirror(cellUv(CELLS.backTriangle)));
+        b.plate(px, yc, pz, fx, fz, 0.8, 0.8, cellUv(CELLS.stop));
+        b.plate(px - fx * 0.01, yc, pz - fz * 0.01, -fx, -fz, 0.8, 0.8, mirror(cellUv(CELLS.backTriangle)));
       } else if (type === SIGN_TYPES.crosswalk) {
         // 両面
-        b.plate(px, y + 2.35, pz, fx, fz, 0.6, 0.6, cellUv(CELLS.crosswalk));
-        b.plate(x - fx * 0.05, y + 2.35, z - fz * 0.05, -fx, -fz, 0.6, 0.6, cellUv(CELLS.crosswalk));
+        b.plate(px, yc, pz, fx, fz, 0.6, 0.6, cellUv(CELLS.crosswalk));
+        b.plate(sx - fx * 0.05, yc, sz - fz * 0.05, -fx, -fz, 0.6, 0.6, cellUv(CELLS.crosswalk));
       } else if (type === SIGN_TYPES.noEntry) {
-        b.plate(px, y + 2.3, pz, fx, fz, 0.6, 0.6, cellUv(CELLS.noEntry));
-        b.plate(px - fx * 0.01, y + 2.3, pz - fz * 0.01, -fx, -fz, 0.6, 0.6, cellUv(CELLS.backCircle));
+        b.plate(px, yc, pz, fx, fz, 0.6, 0.6, cellUv(CELLS.noEntry));
+        b.plate(px - fx * 0.01, yc, pz - fz * 0.01, -fx, -fz, 0.6, 0.6, cellUv(CELLS.backCircle));
       } else if (type === SIGN_TYPES.speed) {
-        b.plate(px, y + 2.3, pz, fx, fz, 0.6, 0.6, cellUv(speedCell(D[o + 6])));
-        b.plate(px - fx * 0.01, y + 2.3, pz - fz * 0.01, -fx, -fz, 0.6, 0.6, cellUv(CELLS.backCircle));
+        b.plate(px, yc, pz, fx, fz, 0.6, 0.6, cellUv(speedCell(D[o + 6])));
+        b.plate(px - fx * 0.01, yc, pz - fz * 0.01, -fx, -fz, 0.6, 0.6, cellUv(CELLS.backCircle));
       } else if (type === SIGN_TYPES.oneway) {
         // 板は道に沿う。表 (−fz, fx) から見ると右が矢印の向き、裏から見ると左
         const nx = -fz, nz = fx;
-        b.plate(x + nx * 0.05, y + 2.0, z + nz * 0.05, nx, nz, 0.9, 0.9, cellUv(CELLS.onewayRight));
-        b.plate(x - nx * 0.05, y + 2.0, z - nz * 0.05, -nx, -nz, 0.9, 0.9, cellUv(CELLS.onewayLeft));
+        b.plate(sx + nx * 0.05, yc, sz + nz * 0.05, nx, nz, 0.9, 0.9, cellUv(CELLS.onewayRight));
+        b.plate(sx - nx * 0.05, yc, sz - nz * 0.05, -nx, -nz, 0.9, 0.9, cellUv(CELLS.onewayLeft));
       }
     }
     const bake: CellBake = { bx, bz, ...arraysOf(b), far: arraysOf(fb), count, provisional };
